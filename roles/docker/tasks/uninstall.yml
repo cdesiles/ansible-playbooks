@@ -1,0 +1,19 @@
+---
+- name: uninstall docker
+  package:
+    name: docker
+    state: absent
+
+- name: prompt the user for confirmation
+  ansible.builtin.pause:
+    prompt: "[IRREVERSIBLE] Are you sure you want to delete {{ docker_projects_dir }}?"
+    echo: yes
+  register: confirmation
+
+- name: remote projects directory
+  file:
+    path: "{{ docker_projects_dir }}"
+    state: absent
+    owner: "{{ main_user }}"
+    group: "{{ main_user }}"
+  when: confirmation.user_input | lower in ['yes', 'y']

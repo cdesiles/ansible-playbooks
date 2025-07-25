@@ -1,0 +1,91 @@
+---
+- name: Check if zfs-linux-lts is installed
+  command: pacman -Qi zfs-dkms
+  register: zfs_dkms_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install zfs
+  when: zfs_dkms_installed.stderr
+  block:
+    - name: disable SUDOERS password prompt for makepkg
+      no_log: true
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: "^#?%wheel"
+        line: "%wheel ALL=(ALL) NOPASSWD: ALL"
+        validate: /usr/sbin/visudo -cf %s
+
+    # Note: I successfully tried zfs-linux-lts and zfs-linux-lts-headers, but
+    # the next kernel upgrade failed: cyclic dependency.
+    # Using dkms with the lts linux kernel is a better approach IMO.
+    - name: Install zfs
+      become: false
+      command:
+        cmd: "paru -S --noconfirm zfs-dkms zfs-utils"
+
+    - name: Restore SUDOERS password prompt after yay
+      no_log: true
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: "^#?%wheel"
+        line: "%wheel ALL=(ALL:ALL) ALL"
+        validate: /usr/sbin/visudo -cf %s
+
+- name: check if /etc/hostid is present
+  stat:
+    path: /etc/hostid
+  register: hostid
+  changed_when: false
+
+- name: generate /etc/hostid if not present
+  when: not hostid.stat.exists
+  command: zgenhostid $(hostid)
+
+- name: Check if zrepl is installed
+  command: pacman -Qi zrepl
+  register: zrepl_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install zrepl
+  when: zrepl_installed.stderr
+  block:
+    - name: disable SUDOERS password prompt for makepkg
+      no_log: true
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: "^#?%wheel"
+        line: "%wheel ALL=(ALL) NOPASSWD: ALL"
+        validate: /usr/sbin/visudo -cf %s
+
+    - name: Install zrepl
+      become: false
+      command:
+        cmd: "paru -S --noconfirm zrepl"
+
+    - name: Restore SUDOERS password prompt after paru
+      no_log: true
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: "^#?%wheel"
+        line: "%wheel ALL=(ALL:ALL) ALL"
+        validate: /usr/sbin/visudo -cf %s
+
+- name: Enable zfs services
+  service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - zfs.target
+    - zfs-import.target
+    - zfs-volumes.target
+    - zfs-import-scan.service
+    - zfs-volume-wait.service
+# Please note /etc/zfs/zpool.cache should not be present, as it is deprecated
+# and we are using zfs-import-scan.service, which rely on blkid.

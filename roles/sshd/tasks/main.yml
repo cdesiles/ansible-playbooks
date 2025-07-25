@@ -1,0 +1,78 @@
+---
+- include_vars: "{{ item }}"
+  with_first_found:
+    - "vars/{{ ansible_facts['os_family'] }}.yml"
+    - "vars/debian.yml"
+
+- name: Install OpenSSH
+  package:
+    name: "{{ ssh_package_name }}"
+    state: present
+
+- name: Install UFW
+  package:
+    name: ufw
+    state: present
+
+- name: Enable SSH
+  service:
+    name: "{{ ssh_service_name }}"
+    enabled: yes
+
+- name: Allow SSH incoming connection on local network
+  ufw:
+    rule: allow
+    port: "{{ ssh_port }}"
+    proto: tcp
+    from: "{{ ssh_allowed_network }}"
+    direction: in
+
+- name: Allow SSH incoming connection on vpn network
+  ufw:
+    rule: allow
+    port: "{{ ssh_port }}"
+    proto: tcp
+    from: "{{ ssh_allowed_vpn_network }}"
+    direction: in
+
+- name: Add SSH public key to authorized_keys
+  authorized_key:
+    user: "{{ item }}"
+    state: present
+    key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+    comment: "{{ lookup('env', 'USER') | default('ansible') }}@{{ lookup('pipe', 'hostname -s') }}"
+  loop: "{{ ssh_users.split() }}"
+
+- name: Create an SSH banner
+  template:
+    src: templates/sshd_banner.j2
+    dest: "{{ sshd_banner }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Remove motd on Debian
+  file:
+    path: /etc/motd
+    state: absent
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Hardening sshd_config
+  template:
+    src: templates/sshd_config.j2
+    dest: "{{ sshd_config }}"
+    owner: root
+    group: root
+    mode: "0600"
+    validate: "{{ sshd_binary }} -t -f %s"
+  register: ssh_hardening_task
+
+- name: Restart SSH service
+  service:
+    name: "{{ ssh_service_name }}"
+    state: restarted
+  when: ssh_hardening_task.changed
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled

@@ -1,0 +1,3 @@
+- name: install oryx
+  cmd: paru -S oryx
+  when: ansible_facts['os_family'] == 'Archlinux'

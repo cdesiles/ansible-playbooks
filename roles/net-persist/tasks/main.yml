@@ -1,0 +1,34 @@
+---
+- name: Check if the interface is already named as expected
+  set_fact:
+    interface_original_name: "{{ ansible_facts.interfaces
+      | select('in', ansible_facts)
+      | map('extract', ansible_facts)
+      | selectattr('pciid', 'defined')
+      | selectattr('macaddress', 'equalto', interface.mac_address)
+      | map(attribute='device')
+      | first
+      }}"
+
+- name: What patch is needed
+  debug:
+    msg: >-
+      {%- if interface_original_name != interface.name -%}
+        iface {{ interface_original_name }} ({{ interface.mac_address }}) will be patched to {{ interface.name }}.
+      {%- else -%}
+        iface {{ interface.name }} is already set, no action needed.
+      {%- endif -%}
+
+- name: Create persistent-net link file
+  when: interface_original_name != interface.name
+  template:
+    src: persistent-net.link.j2
+    dest: /etc/systemd/network/10-persistent-net-{{ interface.name }}.link
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Notify a reboot is required
+  set_fact:
+    reboot_required: true
+  when: interface_original_name != interface.name

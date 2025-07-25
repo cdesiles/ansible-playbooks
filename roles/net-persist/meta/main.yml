@@ -1,0 +1,19 @@
+---
+galaxy_info:
+  author: Jokester <main@jokester.fr>
+  description: Force the primary network interface to be 'lan0'
+  license: MIT
+  min_ansible_version: "2.10"
+  galaxy_tags:
+    - network
+    - persistent
+    - debian
+    - archlinux
+    - lan0
+  platforms:
+    - name: Debian
+      versions:
+        - all
+    - name: ArchLinux
+      versions:
+        - all

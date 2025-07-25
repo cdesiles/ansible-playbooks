@@ -1,0 +1,19 @@
+---
+galaxy_info:
+  author: Jokester <main@jokester.fr>
+  description: Configure the network as set in the inventory
+  license: MIT
+  min_ansible_version: "2.10"
+  galaxy_tags:
+    - network
+    - configuration
+    - linux
+    - debian
+    - archlinux
+  platforms:
+    - name: Debian
+      versions:
+        - all
+    - name: ArchLinux
+      versions:
+        - all

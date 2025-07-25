@@ -1,0 +1,8 @@
+wireguard_primary_interface: "{{ network_interfaces.0.name }}"
+wireguard_port: 51820 # static port to receive input connections
+wireguard_server_mode: true # enables NAT and open port
+wireguard_interface: wg0
+wireguard_config_base_path: /etc/wireguard
+wireguard_address: 192.168.27.1/27
+wireguard_dns: 192.168.27.1
+wireguard_peers: []

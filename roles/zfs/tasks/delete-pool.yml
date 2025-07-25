@@ -1,0 +1,12 @@
+---
+# due to Ansible limitations, we cannot loop over a block, so we loop over a distinct tasks file...
+# @see https://stackoverflow.com/a/58911694
+- name: prompt the user for confirmation
+  ansible.builtin.pause:
+    prompt: "[IRREVERSIBLE] Are you sure you want to delete zpool {{ zpool.name }}?"
+    echo: yes
+  register: confirmation
+
+- name: deleting zpool
+  ansible.builtin.command: "zpool destroy {{ zpool.name }}"
+  when: confirmation.user_input | lower in ['yes', 'y']

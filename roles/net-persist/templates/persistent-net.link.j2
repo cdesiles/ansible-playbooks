@@ -1,0 +1,10 @@
+# -----------------------------------------------------------------------------------
+# Forcing {{ interface.name }} to be predictable
+# see https://wiki.debian.org/NetworkInterfaceNames#CUSTOM_SCHEMES_USING_.LINK_FILES
+# see https://wiki.archlinux.org/title/Network_configuration#Change_interface_name
+# -----------------------------------------------------------------------------------
+[Match]
+MACAddress={{ interface.mac_address }}
+
+[Link]
+Name={{ interface.name }}

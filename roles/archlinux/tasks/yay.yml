@@ -1,0 +1,60 @@
+---
+- name: Check if yay is already installed
+  stat:
+    path: /usr/bin/yay
+  register: yay
+
+- name: Install yay
+  block:
+    - name: Install build dependencies
+      package:
+        name:
+          - base-devel
+          - git
+        state: present
+
+    - name: Disable sudo password prompt (makepkg sudoers hack)
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: "^#?%wheel"
+        line: "%wheel ALL=(ALL) NOPASSWD: ALL"
+        validate: /usr/sbin/visudo -cf %s
+
+    - command:
+        cmd: whoami
+      no_log: true
+      become: false
+      register: main_user
+
+    - set_fact:
+        main_user: "{{ main_user.stdout }}"
+      no_log: true
+
+    - name: Create yay sources dir
+      file:
+        path: "{{ yay_src_path }}"
+        state: directory
+        owner: "{{ main_user }}"
+
+    - name: Clone git sources
+      become: false
+      git:
+        repo: "{{ yay_git_repo }}"
+        dest: "{{ yay_src_path }}"
+
+    # note: this only works because SUDOERS password prompt is disabled
+    - name: Build and install
+      become: false
+      command:
+        chdir: "{{ yay_src_path }}"
+        cmd: "makepkg -si -f --noconfirm"
+
+    - name: Restore sudo with password prompt
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: "^#?%wheel"
+        line: "%wheel ALL=(ALL:ALL) ALL"
+        validate: /usr/sbin/visudo -cf %s
+  when: not yay.stat.exists

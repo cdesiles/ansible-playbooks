@@ -1,0 +1,47 @@
+*******************************************
+     GALACTIC EMPIRE SECURE TERMINAL
+*******************************************
+{% if ansible_host == 'andromeda' %}
+        ⣠⣴⣾⣿⣿⣿⣿⣷⣦⣄
+      ⢠⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⡄
+     ⢀⣿⣿⣿⣿⡿⠛⢿⡿⠛⢻⣿⣿⣿⣿⡀  <IMPERIAL SECURITY
+     ⢸⣿⣿⣿⣿⡇ ⢸⣷⣶⣾⣿⣿⣿⣿⡇   IDENTIFICATION DROID
+     ⠈⠉⠉⠉⠉⠁ ⠈⠉⠉⠉⠉⠉⠉⠉⠁
+   ⢀⣤⣀⣾⣿⣿⣿⠟⠛⠛⠛⠛⠻⣿⣿⣿⣷⣀⣤⡀
+   ⢸⣿⣿⣿⣿⣿⣿⣤⣤⣤⣤⣤⣤⣿⣿⣿⣿⣿⣿⡇
+   ⢸⣿⣿⣿⣿⣿⣿⣿⣿⡿⢿⣿⣿⣿⣿⣿⣿⣿⣿⡇
+   ⢸⣿⣿⣿⣿⣿⣿⣿⣿  ⣿⣿⣿⣿⣿⣿⣿⣿⡇
+   ⢸⣿⡟⢿⣿⣿⣿⣿⣿  ⣿⣿⣿⣿⣿⡿⢻⣿⡇
+   ⢸⣿⡇⠈⠙⠛⢛⣿⣿⣤⣤⣿⣿⡛⠛⠋⠁⢸⣿⡇
+  ⣤⣼⣿⣧⣤⡀ ⠙⠛⠛⠛⠛⠛⠛⠋ ⢀⣤⣼⣿⣧⣤
+  ⠛⠛⠛⠛⠛⠁          ⠈⠛⠛⠛⠛⠛
+{% elif ansible_host == 'omega' %}
+         ⣀⣤⣴⣶⣾⣿⣿⣿⣿⣷⡶⠦
+      ⢀⣴⣾⣿⣿⠿⠿⢿⣿⣿⣿⣿⣿⣿⣿⣿⣧⣤⡄
+     ⣰⣿⣿⣿⠋    ⠈⢻⣿⣿⣿⣿⣿⣿⡟⠛⠛⠃
+    ⣼⣿⣿⣿⡇       ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣧
+   ⢰⣿⣿⣿⣿⣧⡀     ⣠⣿⣿⣿⣿⣿⣿⠿⠟⠛⠁
+   ⣾⣿⣿⣿⣿⣿⣿⣶⣤⣤⣴⣾⣿⣿⣿⣿⣿⣿⣷⣶⣶⣶⣶⣶⣶⣶
+   ⣉⠉⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠉⣉
+   ⢿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣶⣶⣶⣶⣶⣶⣾⣿⣿⣿⣿⣿⣿⣿⠿⠿
+   ⠸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⠛⠛⠋⠉
+    ⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣧⣤⣤⣤⣤⡄
+     ⠹⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠏
+      ⠈⠻⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣤⡄
+         ⠉⠛⠻⠿⢿⣿⣿⣿⣿⠟⠉⠉⠉⠉
+{% else %}
+ACCESS DENIED - UNKNOWN STAR SYSTEM
+{% endif %}
+
+You have reached a terminal of the Galactic
+Empire's secure network. Unauthorized access
+will result in tracking and possible Force
+action.
+
+{% if ansible_hostname is defined %}
+Server: {{ ansible_hostname }}
+{% endif %}
+
+*******************************************
+ Beep beep-wooOOoo! Brrrp! Zzt zzt-whirl!
+*******************************************

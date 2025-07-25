@@ -1,0 +1,60 @@
+- name: install wireguard
+  package:
+    name: "{{ (ansible_facts['os_family'] == 'Archlinux') | ternary('wireguard-tools', 'wireguard') }}"
+    state: present
+
+# to support "DNS=" if used in a "client way"
+- name: install openresolv/resolveconf
+  package:
+    name: "{{ (ansible_facts['os_family'] == 'Archlinux') | ternary('openresolv', 'resolvconf') }}"
+    state: present
+
+- name: ensure wireguard configuration is only owned by root
+  file:
+    path: "{{ wireguard_config_base_path }}"
+    owner: root
+    group: root
+    mode: 0700
+    recurse: yes
+
+- name: check if private key exists
+  stat:
+    path: "{{ wireguard_config_base_path }}/privatekey"
+  register: pkey_file
+
+- name: generate wireguard keys if not present
+  shell: wg genkey | tee {{ wireguard_config_base_path }}/privatekey | wg pubkey > {{ wireguard_config_base_path }}/publickey
+  when: not pkey_file.stat.exists
+
+- name: retrieve wireguard private key from file
+  slurp:
+    src: "{{ wireguard_config_base_path }}/privatekey"
+  register: private_key
+
+- name: set wireguard private key
+  set_fact:
+    wireguard_private_key: "{{ private_key['content'] | b64decode }}"
+
+- name: disable "dns=" instruction if unbound is used to avoid race conditions at startup
+  set_fact:
+    wireguard_dns:
+  when: unbound_custom_lan_records is defined
+
+- name: install wireguard config
+  template:
+    src: wireguard.conf.j2
+    dest: /etc/wireguard/{{ wireguard_interface }}.conf
+
+- name: start and enable service
+  service:
+    name: wg-quick@{{ wireguard_interface }}
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: configure the firewall for wireguard
+  community.general.ufw:
+    rule: allow
+    port: "{{ wireguard_port }}"
+    proto: udp
+    direction: in

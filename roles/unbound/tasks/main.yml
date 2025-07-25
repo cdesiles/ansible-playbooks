@@ -1,0 +1,131 @@
+---
+# see: https://calomel.org/unbound_dns.html
+# see: https://wiki.archlinux.org/title/Unbound
+- name: install unbound
+  package:
+    name: unbound
+    state: present
+
+# Note: on archlinux this is already shipped within unbound
+- name: install unbound-anchor on debian/ubuntu
+  package:
+    name: unbound-anchor
+    state: present
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: ensure unbound configuration is owned by unbound
+  ansible.builtin.shell: |
+    find "{{ unbound_config_base_path }}" -type d -exec chmod 755 {} \;
+    find "{{ unbound_config_base_path }}" -type f -exec chmod 644 {} \;
+    chown -R unbound:unbound "{{ unbound_config_base_path }}"
+  args:
+    executable: /bin/bash
+
+- name: ensure apparmor profile for unbound exists
+  ansible.builtin.copy:
+    dest: /etc/apparmor.d/usr.sbin.unbound
+    content: |
+      /etc/unbound/** r,
+      /var/lib/unbound/** rwk,
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts.apparmor.status == "enabled"
+  notify:
+    - Reload AppArmor profile
+
+- name: check if root.hints exists
+  stat:
+    path: "{{ unbound_root_hints_path }}"
+  register: root_hints
+
+- name: update root.hints (if older than 6 months or missing)
+  block:
+    - name: download latest root hints from internic
+      ansible.builtin.get_url:
+        url: https://www.internic.net/domain/named.root
+        dest: "{{ unbound_root_hints_path }}"
+        owner: unbound
+        group: unbound
+        mode: "0644"
+  when: >
+    (not root_hints.stat.exists) or
+    (ansible_date_time.epoch | int - root_hints.stat.mtime > 15552000)
+
+- name: check if unbound ad_servers configuration exists
+  stat:
+    path: "{{ unbound_ad_servers_config_path }}"
+  register: ad_servers
+
+- name: update the ad_servers list if older than 2 weeks or missing
+  block:
+    - name: download stevenblack's hosts file
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+        dest: /tmp/hosts.txt
+        mode: "0644"
+
+    - name: convert hosts file to unbound format
+      ansible.builtin.shell: |
+        grep '^0\.0\.0\.0' /tmp/hosts.txt | awk '{print "local-zone: \""$2"\" always_nxdomain"}' > "{{ unbound_ad_servers_config_path }}" &&
+        chown unbound:unbound "{{ unbound_ad_servers_config_path }}"
+      args:
+        executable: /bin/bash
+
+    - name: clean up temporary file
+      ansible.builtin.file:
+        path: /tmp/hosts.txt
+        state: absent
+  when: >
+    (not ad_servers.stat.exists) or
+    (ansible_date_time.epoch | int - ad_servers.stat.mtime > 1209600)
+
+- name: initialize dnssec trust anchor if missing
+  ansible.builtin.command: unbound-anchor -a {{ unbound_anchor_root_key }}
+  args:
+    creates: "{{ unbound_anchor_root_key }}"
+
+- name: install unbound config
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: unbound
+    group: unbound
+  loop:
+    - { src: unbound.conf.j2, dest: "{{ unbound_config_path }}" }
+    - { src: custom-lan.conf.j2, dest: "{{ unbound_custom_lan_config_path }}" }
+    - { src: custom-vpn.conf.j2, dest: "{{ unbound_custom_vpn_config_path }}" }
+  notify:
+    - Check Unbound config syntax
+    - Reload systemd and restart unbound
+
+- name: make sure unbound starts after wg-quick@wg0
+  block:
+    - name: ensure unbound.service.d directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/unbound.service.d
+        state: directory
+        mode: "0755"
+    - name: configure unbound systemd service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/unbound.service.d/override.conf
+        content: |
+          [Unit]
+          After=wg-quick@wg0.service
+          Requires=wg-quick@wg0.service
+      notify: Reload systemd and restart unbound
+
+- name: enables unbound service
+  ansible.builtin.service:
+    name: unbound
+    enabled: yes
+    state: started
+
+- name: firewall ufw rules for unbound
+  community.general.ufw:
+    rule: allow
+    port: "{{ unbound_port }}"
+    proto: any
+    src: "{{ item }}"
+    direction: in
+  loop: "{{ unbound_firewall_allowed_sources | default([]) }}"

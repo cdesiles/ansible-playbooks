@@ -1,0 +1,16 @@
+---
+- name: Check Unbound config syntax
+  ansible.builtin.command: unbound-checkconf "{{ unbound_config_path }}"
+  register: unbound_validation
+  changed_when: false
+  failed_when: unbound_validation.rc != 0
+
+- name: Reload systemd and restart unbound
+  ansible.builtin.systemd:
+    name: unbound
+    state: restarted
+    daemon_reload: yes
+
+- name: Reload AppArmor profile
+  ansible.builtin.command: apparmor_parser -r {{ unbound_apparmor_profile_path }}
+  when: ansible_facts.apparmor.status == "enabled"

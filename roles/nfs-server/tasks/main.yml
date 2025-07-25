@@ -1,0 +1,38 @@
+---
+- name: install nfs-server
+  package:
+    name: "{{ (ansible_facts['os_family'] == 'Archlinux') | ternary('nfs-utils', 'nfs-kernel-server') }}"
+    state: present
+
+- name: configure nfs configuration
+  ansible.builtin.template:
+    src: templates/nfs.conf.j2
+    dest: "{{ nfs_configuration_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd and restart nfs-server
+
+- name: configure nfs-server exports
+  ansible.builtin.template:
+    src: templates/exports.j2
+    dest: "{{ nfs_exports_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Update exportfs
+
+- name: systemd service for nfs-server is started and enabled
+  ansible.builtin.systemd:
+    name: nfsv4-server
+    state: started
+    enabled: true
+
+- name: setup firewall rules for nfs on port
+  community.general.ufw:
+    rule: allow
+    src: "{{ item }}"
+    port: "{{ nfs_port }}"
+    proto: any
+    direction: in
+  with_items: "{{ nfs_server_firewall_allowed_sources | default([]) }}"

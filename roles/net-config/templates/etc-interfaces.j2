@@ -1,0 +1,9 @@
+# This file describes the network interfaces available on your system
+# and how to activate them. For more information, see interfaces(5).
+
+# The primary network interface
+allow-hotplug {{ interface.name }}
+iface {{ interface.name }} inet dhcp
+
+# This is an autoconfigured IPv6 interface
+iface {{ interface.name }} inet6 auto

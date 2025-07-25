@@ -1,0 +1,4 @@
+[nfsd]
+{% for ip in nfs_bind_addresses %}
+host={{ ip }}
+{% endfor %}

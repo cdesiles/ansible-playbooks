@@ -1,0 +1,16 @@
+[Interface]
+Address = {{ wireguard_address }}
+{% if wireguard_dns %}DNS = {{ wireguard_dns }}
+{% endif %}
+PrivateKey = {{ wireguard_private_key }}
+{% if wireguard_server_mode %}PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o {{ wireguard_primary_interface }} -j MASQUERADE
+PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o {{ wireguard_primary_interface }} -j MASQUERADE
+ListenPort = {{ wireguard_port }}
+{% endif %}
+
+{% for peer in wireguard_peers %}# {{ peer.name }}
+[Peer]
+PublicKey = {{ peer.public_key }}
+AllowedIPs = {{ peer.allowed_ips | join(',') }}
+{% if peer.endpoint is defined %}Endpoint = {{ peer.endpoint }}{% endif %}
+{% endfor %}

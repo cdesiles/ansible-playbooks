@@ -1,0 +1,53 @@
+---
+# see: https://docs.docker.com/engine/storage/drivers/zfs-driver/
+# see: https://github.com/portainer/portainer
+#
+# Archlinux: only if your target is meant to frequently build docker images
+# see: https://stackoverflow.com/a/78352698
+
+- name: uninstall docker
+  block:
+    - name: Include uninstall tasks
+      include_tasks: uninstall.yml
+    - name: Skip docker installation
+      meta: end_play
+  when: uninstall_docker | lower in ['yes', 'y']
+
+- name: install docker
+  package:
+    name: docker
+
+- name: enable the service
+  service:
+    name: "docker"
+    enabled: true
+    state: started
+
+- command:
+    cmd: whoami
+  no_log: true
+  become: false
+  register: main_user
+
+- set_fact:
+    main_user: "{{ main_user.stdout }}"
+  no_log: true
+
+- name: create projects directory
+  file:
+    path: "{{ docker_projects_dir }}"
+    state: directory
+    owner: "{{ main_user }}"
+    group: "{{ main_user }}"
+
+- name: allow user to use docker
+  user:
+    name: "{{ main_user }}"
+    groups: docker
+    append: yes
+  register: docker_group
+
+- name: inform the user that user needs to logout and login again
+  debug:
+    msg: "Please logout and login again to make sure the user is added to the docker group"
+  when: docker_group.changed

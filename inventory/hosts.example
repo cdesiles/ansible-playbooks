@@ -1,0 +1,10 @@
+# hosts.yml
+all:
+  children:
+    servers:
+      hosts:
+        lisa:
+        bart:
+        marge:
+        homer:
+        maggie:

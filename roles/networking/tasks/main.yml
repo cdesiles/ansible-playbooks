@@ -1,0 +1,31 @@
+---
+- name: "Setup persistent network interface(s)"
+  include_role:
+    name: net-persist
+    public: yes
+  vars:
+    interface: "{{ item }}"
+  loop: "{{ hostvars[inventory_hostname].network_interfaces | default([]) }}"
+
+- name: "Configure network interface(s)"
+  include_role:
+    name: net-config
+    public: yes
+  vars:
+    interface: "{{ item }}"
+  loop: "{{ hostvars[inventory_hostname].network_interfaces | default([]) }}"
+
+- name: Reload networkd and resolved
+  systemd:
+    name: "{{ item }}"
+    state: reloaded
+    daemon_reload: yes
+  loop:
+    - systemd-networkd
+    - systemd-resolved
+  when: reboot_required is false and network_reload_required is true
+
+- name: Reboot the machine
+  when: reboot_required is true
+  ansible.builtin.reboot:
+    reboot_timeout: 60

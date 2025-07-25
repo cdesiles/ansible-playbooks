@@ -1,0 +1,47 @@
+---
+# tasks file for zfs management
+# Based on: https://github.com/mrlesmithjr/ansible-zfs/blob/master/tasks/manage_zfs.yml
+# Expected variables in your inventory: zfs_pools.
+
+- name: checking existing zpool(s)
+  ansible.builtin.shell: "zpool list -H -o name"
+  changed_when: false
+  register: current_zp_state
+  check_mode: no
+  when: zfs_pools is defined
+
+- name: gather zpool status
+  ansible.builtin.shell: zpool status
+  changed_when: false
+  register: zpool_devices
+  when: zfs_pools is defined
+
+- name: creating basic zpool(s)
+  ansible.builtin.command: "zpool create {{ '-o '+ item.options.items() |map('join', '=') | join (' -o ') if item.options is defined else '' }} {{ item.name }} {{ item.devices|join (' ') }}"
+  with_items: "{{ zfs_pools }}"
+  when:
+    - zfs_pools is defined
+    - item.type == "basic"
+    - item.name not in current_zp_state.stdout
+    - item.state == "present"
+    - item.devices[0] not in zpool_devices.stdout
+
+- name: creating mirror/zraid zpool(s)
+  ansible.builtin.command: "zpool create {{ '-o '+ item.options.items() |map('join', '=') | join (' -o ') if item.options is defined else '' }} {{ item.name }} {{ item.type }} {{ item.devices|join (' ') }}"
+  with_items: "{{ zfs_pools }}"
+  when:
+    - zfs_pools is defined
+    - item.type != "basic"
+    - item.name not in current_zp_state.stdout
+    - item.state == "present"
+    - item.devices[0] not in zpool_devices.stdout
+
+- name: deleting zpool(s) with care
+  include_tasks: "./delete-pool.yml"
+  when:
+    - zfs_pools is defined
+    - zpool.name in current_zp_state.stdout_lines
+    - zpool.state == "absent"
+  loop: "{{ zfs_pools }}"
+  loop_control:
+    loop_var: zpool

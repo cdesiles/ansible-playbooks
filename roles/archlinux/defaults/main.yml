@@ -1,0 +1,5 @@
+arch_locale: en_US.UTF-8
+yay_src_path: /opt/yay
+yay_git_repo: https://aur.archlinux.org/yay.git
+paru_src_path: /opt/paru
+paru_git_repo: https://aur.archlinux.org/paru.git

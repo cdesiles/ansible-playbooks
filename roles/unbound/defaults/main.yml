@@ -1,0 +1,16 @@
+unbound_config_base_path: /etc/unbound
+unbound_config_path: "{{ unbound_config_base_path }}/unbound.conf"
+unbound_root_hints_path: "{{ unbound_config_base_path }}/root.hints"
+unbound_anchor_root_key: "{{ unbound_config_base_path }}/root.key"
+unbound_ad_servers_config_path: "{{ unbound_config_base_path }}/ad_servers.conf"
+unbound_custom_lan_config_path: "{{ unbound_config_base_path }}/lan.conf"
+unbound_custom_vpn_config_path: "{{ unbound_config_base_path }}/vpn.conf"
+unbound_custom_lan_domain: "example.lan"
+unbound_port: 53
+unbound_apparmor_profile_path: /etc/apparmor.d/usr.sbin.unbound
+unbound_firewall_allowed_sources:
+  - 192.168.1.0/24 # lan0
+  - 192.168.27.0/27 # wg0
+unbound_custom_lan_records:
+  "example.lan":
+    v4: 192.168.1.2

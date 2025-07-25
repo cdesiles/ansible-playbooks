@@ -1,0 +1,12 @@
+---
+- name: Skip Archlinux installation
+  meta: end_play
+  when: ansible_facts['os_family'] != 'Archlinux'
+
+- name: Archlinux base setup
+  include_tasks: "{{ item }}"
+  loop:
+    - pacman.yml
+    - locales.yml
+    - yay.yml
+    - paru.yml

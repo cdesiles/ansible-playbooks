@@ -1,0 +1,113 @@
+# Network configuration
+# ---------------------
+network_interfaces:
+  - name: lan0
+    type: ethernet
+    mac_address: 02:a0:c9:8d:7e:b6
+    ipv4:
+      address: 192.168.1.2/24
+      gateway: 192.168.1.254
+      nameservers:
+        - 1.1.1.1
+        - 8.8.8.8
+  - name: lan1
+    type: ethernet
+    mac_address: 0a:3f:5b:1c:d2:e4
+
+# NTP servers configuration
+# -------------------------
+ntp_pools:
+  - "0.uk.pool.ntp.org"
+  - "1.uk.pool.ntp.org"
+  - "2.uk.pool.ntp.org"
+  - "3.uk.pool.ntp.org"
+ntp_timezone: "Europe/London"
+ntp_allowed_networks:
+  - "127.0.0.1"
+  - "::1"
+  - "192.168.1.0 mask 255.255.255.0"
+  - "192.168.20.0 mask 255.255.255.224"
+ntp_firewall_allowed_sources:
+  - 192.168.1.0/24 # lan0
+  - 192.168.20.0/27 # wg0
+
+disk_partitioning:
+  - device: /dev/nvme0n1
+    layout_file: inventory_data/partition_layouts/omer.nvme0n1.sfdisk
+    partitions:
+      - name: EFI
+        device: /dev/nvme0n1p1
+        size: 512M
+        type: EFI
+      - name: SWAP
+        device: /dev/nvme0n1p2
+        size: 1G
+        type: swap
+      - name: ROOT
+        device: /dev/nvme0n1p3
+        size: 500G
+        type: ext4
+      - name: SLOG
+        device: /dev/nvme0n1p4
+        size: 400G
+        type: zfs
+      - name: CLUB
+        device: /dev/nvme0n1p5
+        size: 2.7TiB
+        type: zfs
+
+# ZFS pool configuration
+# ----------------------
+zfs_pools:
+  - name: omer
+    type: raidz1
+    devices:
+      - ata-SAMSUNG_MZ7LN512HMJP-00000_S1G2NSAF934567
+      - ata-SAMSUNG_MZ7LN512HMJP-00000_S1G3NSAF934568
+    options:
+      ashift: 12
+    root: /mnt/omer
+    state: present
+
+zfs_datasets:
+  - name: omer/photos
+    extra_zfs_properties:
+      mountpoint: /mnt/omer/photos
+    state: present
+  - name: omer/movies
+    extra_zfs_properties:
+      mountpoint: /mnt/omer/movies
+    state: present
+
+# Wireguard "client" VPN configuration
+# ------------------------------------
+wireguard_address: 192.168.20.4/27
+wireguard_peers:
+  - name: "Marge server"
+    public_key: fB6zC8oWpQxN4yR2sT1uA7vJ9kH3mG5eD0cLlI8bV6aF2dP3eXwZ1qY4rU7tO9
+    allowed_ips:
+      - 192.168.20.1/32
+    endpoint: 192.168.1.56:51820
+wireguard_dns: 192.168.20.1
+wireguard_server_mode: false
+
+# NFS server configuration
+# ------------------------
+nfs_clients:
+  - name: all_wg0_rw_clients
+    host: "192.168.20.0/255.255.255.224"
+    options: "rw,sync,no_subtree_check,all_squash,anonuid=1000,anongid=1000,insecure"
+  - name: laptop_lan0_rw_clients
+    host: "192.168.1.167"
+    options: "rw,sync,no_subtree_check,all_squash,anonuid=1000,anongid=1000,insecure"
+nfs_shares:
+  - dir: /mnt/omer/movies
+    clients: "{{ nfs_clients }}"
+  - dir: /mnt/omer/photos
+    clients: "{{ nfs_clients }}"
+nfs_server_firewall_allowed_sources:
+  - 192.168.1.0/24 # lan0
+  - 192.168.20.0/27 # wg0
+nfs_bind_addresses:
+  - 192.168.20.4
+  - 192.168.1.2

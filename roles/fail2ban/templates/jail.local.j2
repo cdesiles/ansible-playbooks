@@ -1,0 +1,7 @@
+[DEFAULT]
+bantime    = 1d
+banaction  = {{fail2ban_firewall}}
+allowipv6  = true
+ignoreip   = 127.0.0.1/8
+backend    = {{fail2ban_backend}}
+ignoreself = true

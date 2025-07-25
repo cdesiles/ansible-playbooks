@@ -1,0 +1,20 @@
+- name: install podman
+  package:
+    name: podman
+
+- command:
+    cmd: whoami
+  no_log: true
+  become: false
+  register: main_user
+
+- set_fact:
+    main_user: "{{ main_user.stdout }}"
+  no_log: true
+
+- name: create projects directory
+  file:
+    path: "{{ podman_projects_dir }}"
+    state: directory
+    owner: "{{ main_user }}"
+    group: "{{ main_user }}"

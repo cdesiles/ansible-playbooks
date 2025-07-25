@@ -1,0 +1,21 @@
+# {{ ansible_managed }}
+#
+# NTP configuration file for ntpd
+
+restrict default {{ ntp_restrict }}
+
+{% for network in ntp_allowed_networks %}
+restrict {{ network }}
+{% endfor %}
+
+# Use servers from the NTP Pool Project. 'iburst' speeds up initial synchronization.
+{% for pool_host in ntp_pools %}
+pool {{ pool_host }} iburst
+{% endfor %}
+
+# Frequency drift file
+driftfile {{ ntp_drift_file }}
+
+# Disable the monitoring facility (monlist) to prevent ntpq -c monlist DDOS attacks.
+# @see CVE-2013-5211
+disable monitor

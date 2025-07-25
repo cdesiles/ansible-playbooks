@@ -1,0 +1,64 @@
+# Hardened SSH Configuration
+# Protocol version
+Protocol 2
+
+# Address family
+AddressFamily inet
+
+# Supported authentication methods
+AuthenticationMethods publickey
+
+# Authentication
+PermitRootLogin no
+MaxAuthTries 3
+MaxSessions 2
+PubkeyAuthentication yes
+PasswordAuthentication no
+PermitEmptyPasswords no
+ChallengeResponseAuthentication no
+KerberosAuthentication no
+GSSAPIAuthentication no
+UsePAM yes
+
+# Login timeout and grace period
+LoginGraceTime 30s
+ClientAliveInterval 300
+ClientAliveCountMax 2
+MaxStartups 10:30:60
+
+# Forwarding
+AllowAgentForwarding no
+AllowTcpForwarding no
+X11Forwarding no
+PermitTTY yes
+
+# User environment
+PermitUserEnvironment no
+
+# Logging and auditing
+SyslogFacility AUTH
+LogLevel VERBOSE
+
+# Banner
+Banner /etc/ssh/banner
+
+# SFTP
+Subsystem sftp internal-sftp
+
+# Idle timeout (1 hour)
+ClientAliveInterval 300
+ClientAliveCountMax 12
+
+# Restrict access to specific users/groups (customize as needed)
+AllowUsers {{ ssh_users }}
+# AllowGroups sshusers wheel
+
+# Other security settings
+HostbasedAuthentication no
+IgnoreRhosts yes
+PermitUserRC no
+StrictModes yes
+Compression no
+{% if ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian' %}
+UsePrivilegeSeparation sandbox
+{% endif %}

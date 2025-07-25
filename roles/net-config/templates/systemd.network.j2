@@ -1,0 +1,9 @@
+[Match]
+Name={{ interface.name }}
+
+[Network]
+Address={{ interface.ipv4.address }}
+Gateway={{ interface.ipv4.gateway }}
+{% for dns in interface.ipv4.nameservers %}
+DNS={{ dns }}
+{% endfor %}

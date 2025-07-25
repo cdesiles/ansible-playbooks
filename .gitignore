@@ -1,0 +1,9 @@
+inventory/*
+!inventory/hosts.example
+!inventory/host_vars/
+inventory/host_vars/*
+!inventory/host_vars/example.yml
+inventory_data/
+playbooks/*
+!playbooks/example.yml
+TODO.md

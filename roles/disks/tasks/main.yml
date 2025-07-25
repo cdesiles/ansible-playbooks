@@ -1,0 +1,7 @@
+---
+- name: Ensure disks are formatted correctly
+  include_tasks: partitioning.yml
+  loop: "{{ disk_partitioning | default([]) }}"
+
+- name: Enable trim SSD if there is at least one
+  include_tasks: trim-ssd.yml

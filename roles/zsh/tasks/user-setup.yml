@@ -1,0 +1,44 @@
+- name: setup zsh base config
+  ansible.builtin.template:
+    src: main.zshrc.j2
+    dest: "{{ zsh_base_config }}"
+    owner: "{{ zsh_user }}"
+    group: "{{ zsh_user }}"
+    mode: "0600"
+
+- name: setup .config/zsh directory
+  ansible.builtin.file:
+    path: "{{ zsh_config_path }}"
+    state: directory
+    owner: "{{ zsh_user }}"
+    group: "{{ zsh_user }}"
+    mode: "0700"
+
+- name: configure zsh config
+  ansible.builtin.template:
+    src: zshrc.j2
+    dest: "{{ zsh_config_file }}"
+    owner: "{{ zsh_user }}"
+    group: "{{ zsh_user }}"
+    mode: "0600"
+
+- name: copy aliases
+  ansible.builtin.copy:
+    src: ./templates/aliases
+    dest: "{{ zsh_config_path }}/aliases"
+    owner: "{{ zsh_user }}"
+    group: "{{ zsh_user }}"
+    mode: "0600"
+
+- name: change default shell to zsh
+  user:
+    name: "{{ zsh_user }}"
+    shell: /bin/zsh
+
+- name: configure powerlevel10k theme
+  ansible.builtin.copy:
+    src: "./templates/{{ 'root.p10k.zsh' if zsh_user == 'root' else 'user.p10k.zsh' }}"
+    dest: "{{ zsh_p10k_theme_config }}"
+    owner: "{{ zsh_user }}"
+    group: "{{ zsh_user }}"
+    mode: "0600"

@@ -1,0 +1,14 @@
+---
+- name: install zsh
+  package:
+    name: zsh
+    state: present
+
+- name: install zsh plugins
+  include_tasks: plugins.yml
+
+- name: setup zsh for the user(s)
+  include_tasks: user-setup.yml
+  vars:
+    zsh_user: "{{ item }}"
+  loop: "{{ zsh_users | default([]) }}"

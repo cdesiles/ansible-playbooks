@@ -1,0 +1,15 @@
+---
+- name: Configure locales
+  block:
+    - name: activate locale
+      command:
+        cmd: localectl set-locale LANG={{ arch_locale }}
+    - name: edit /etc/locale.gen
+      lineinfile:
+        dest: /etc/locale.gen
+        state: present
+        regexp: "{{ arch_locale }}"
+        line: "{{ arch_locale }} UTF-8"
+    - name: regenerate locales
+      command:
+        cmd: locale-gen

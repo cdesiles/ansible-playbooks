@@ -1,0 +1,19 @@
+---
+# Example:
+# nfs_shares:
+#   - dir: "/srv/nfs/photos"
+#     clients:
+#       - host: "192.168.1.100" # privileged user with write a access
+#         options: "rw,sync,no_subtree_check,all_squash,anonuid=1000,anongid=1000,insecure"
+#       - host: "192.168.1.0/24" # readonly access for other lan clients
+#         options: "ro,sync,no_subtree_check"
+nfs_shares: []
+
+nfs_configuration_file: "/etc/nfs.conf"
+
+nfs_exports_file: "/etc/exports"
+
+nfs_port: 2049
+
+nfs_server_firewall_allowed_sources:
+  - 127.0.0.0/8

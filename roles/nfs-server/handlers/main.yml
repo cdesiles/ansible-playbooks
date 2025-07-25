@@ -1,0 +1,9 @@
+---
+- name: "Reload systemd and restart nfs-server"
+  ansible.builtin.systemd:
+    name: "nfsv4-server"
+    state: restarted
+    daemon_reload: yes
+
+- name: "Update exportfs"
+  ansible.builtin.command: exportfs -ra

@@ -1,0 +1,9 @@
+---
+- name: Install ZFS
+  include_tasks: install.yml
+
+- name: Configure Zpools
+  include_tasks: pools.yml
+
+- name: "Setup ZFS datasets: filesystems, snapshots, volumes"
+  include_tasks: datasets.yml

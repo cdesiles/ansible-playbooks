@@ -1,0 +1,9 @@
+zsh_home: "{{ '/root' if zsh_user == 'root' else '/home/' + zsh_user }}"
+zsh_base_config: "{{ zsh_home }}/.zshrc"
+zsh_config_path: "{{ zsh_home }}/.config/zsh"
+zsh_config_file: "{{ zsh_config_path }}/.zshrc"
+zsh_p10k_theme_config: "{{ zsh_config_path }}/p10k.zsh"
+zsh_users:
+  - jokester
+  - root
+zsh_plugins_path: "/opt/zsh/plugins"

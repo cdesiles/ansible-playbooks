@@ -1,0 +1,59 @@
+---
+# see: https://wiki.archlinux.org/title/Fail2ban
+- name: Install fail2ban
+  package:
+    name: fail2ban
+    state: present
+
+- name: Ensure fail2ban configuration is only owned by root
+  file:
+    path: /etc/fail2ban
+    owner: root
+    group: root
+    mode: 0700
+    recurse: yes
+
+- name: Install Fail2ban Config
+  block:
+    - name: General configuration
+      template:
+        src: jail.local.j2
+        dest: /etc/fail2ban/jail.local
+        mode: "0600"
+    - name: Service custom jail
+      template:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "0600"
+      loop:
+        - { src: sshd-jail.local.j2, dest: /etc/fail2ban/jail.d/sshd.local }
+        - { src: nginx-jail.local.j2, dest: /etc/fail2ban/jail.d/nginx.local }
+
+- name: Service hardening (read-only root rights)
+  block:
+    - name: Check if hardening configuration is already applied
+      stat:
+        path: /etc/systemd/system/fail2ban.service.d/override.conf
+      register: override_conf
+    - name: Create configuration directory
+      file:
+        path: /etc/systemd/system/fail2ban.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: 0700
+    - name: Apply hardening configuration
+      template:
+        src: hardened.fail2ban.conf.j2
+        dest: /etc/systemd/system/fail2ban.service.d/override.conf
+      when: not override_conf.stat.exists
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+      when: not override_conf.stat.exists
+
+- name: Start and enable fail2ban
+  service:
+    name: fail2ban
+    state: started
+    enabled: yes

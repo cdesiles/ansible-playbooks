@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  author: Jokester <main@jokester.fr>
+  description: Meta role to configure the network
+  license: MIT
+  min_ansible_version: "2.10"
+  galaxy_tags:
+    - network
+    - linux
+    - debian
+    - archlinux
+  platforms:
+    - name: Debian
+      versions:
+        - all
+    - name: ArchLinux
+      versions:
+        - all
