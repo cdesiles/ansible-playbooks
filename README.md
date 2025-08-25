@@ -15,7 +15,7 @@ ansible-galaxy collection install -r requirements.yml
 ## Usage
 
 ```sh
-ansible-playbook -i inventory.yml playbook.yml
+ansible-playbook -i inventory.yml playbook.yml --ask-become-pass
 ```
 
 ## Target devices configuration
