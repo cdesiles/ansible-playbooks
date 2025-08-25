@@ -19,6 +19,11 @@ ChallengeResponseAuthentication no
 KerberosAuthentication no
 GSSAPIAuthentication no
 UsePAM yes
+{% if ssh_authorized_keys_fallback_enabled %}
+AuthorizedKeysFile .ssh/authorized_keys /etc/ssh/authorized_keys/%u
+{% else %}
+AuthorizedKeysFile .ssh/authorized_keys
+{% endif %}
 
 # Login timeout and grace period
 LoginGraceTime 30s
@@ -61,10 +66,4 @@ StrictModes yes
 Compression no
 {% if ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian' %}
 UsePrivilegeSeparation sandbox
-{% endif %}
-
-{% if ssh_authorized_keys_fallback_enabled %}
-AuthorizedKeysFile .ssh/authorized_keys /etc/ssh/authorized_keys/%u
-{% else %}
-AuthorizedKeysFile .ssh/authorized_keys
 {% endif %}
