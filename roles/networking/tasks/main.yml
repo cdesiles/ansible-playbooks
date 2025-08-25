@@ -1,5 +1,5 @@
 ---
-- name: "Setup persistent network interface(s)"
+- name: Setup persistent network interface(s)
   include_role:
     name: net-persist
     public: yes
@@ -7,7 +7,7 @@
     interface: "{{ item }}"
   loop: "{{ hostvars[inventory_hostname].network_interfaces | default([]) }}"
 
-- name: "Configure network interface(s)"
+- name: Configure network interface(s)
   include_role:
     name: net-config
     public: yes

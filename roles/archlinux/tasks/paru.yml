@@ -6,55 +6,100 @@
 
 - name: Install paru
   block:
-    - name: Install build dependencies
-      package:
-        name:
-          - base-devel
-          - git
-        state: present
+    - name: Get the last github release
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ paru_git_repo }}/releases/latest"
+        return_content: true
+      register: paru_release
 
-    - name: Disable sudo password prompt (makepkg sudoers hack)
-      lineinfile:
-        dest: /etc/sudoers
-        state: present
-        regexp: "^#?%wheel"
-        line: "%wheel ALL=(ALL) NOPASSWD: ALL"
-        validate: /usr/sbin/visudo -cf %s
+    - name: Extract tag_name
+      set_fact:
+        paru_version: "{{ (paru_release.json.tag_name | regex_replace('^v', '')) }}"
 
-    - command:
-        cmd: whoami
-      no_log: true
-      become: false
-      register: main_user
+    - name: Get the binary URL ({{ os_arch }})
+      set_fact:
+        paru_url: "{{ item.browser_download_url }}"
+      loop: "{{ paru_release.json.assets }}"
+      when: "'{{ os_arch }}.tar.zst' in item.name"
 
-    - set_fact:
-        main_user: "{{ main_user.stdout }}"
-      no_log: true
+    - name: Download
+      ansible.builtin.get_url:
+        url: "{{ paru_url }}"
+        dest: "/tmp/paru-{{ os_arch }}.tar.zst"
+        mode: "0644"
 
-    - name: Create paru sources dir
-      file:
-        path: "{{ paru_src_path }}"
-        state: directory
-        owner: "{{ main_user }}"
+    - name: Extract paru
+      ansible.builtin.command:
+        cmd: "tar -xf /tmp/paru-{{ os_arch }}.tar.zst paru -C /tmp"
 
-    - name: Clone git sources
-      become: false
-      git:
-        repo: "{{ paru_git_repo }}"
-        dest: "{{ paru_src_path }}"
+    - name: Install paru binary
+      ansible.builtin.command:
+        cmd: "mv /tmp/paru /usr/bin/paru"
 
-    # note: this only works because SUDOERS password prompt is disabled
-    - name: Build and install
-      become: false
-      command:
-        chdir: "{{ paru_src_path }}"
-        cmd: "makepkg -si -f --noconfirm"
+    - name: Ensure permissions
+      ansible.builtin.file:
+        path: /usr/bin/paru
+        mode: "0755"
 
-    - name: Restore sudo with password prompt
-      lineinfile:
-        dest: /etc/sudoers
-        state: present
-        regexp: "^#?%wheel"
-        line: "%wheel ALL=(ALL:ALL) ALL"
-        validate: /usr/sbin/visudo -cf %s
+    - name: Cleanup
+      ansible.builtin.file:
+        path: "/tmp/paru-{{ os_arch }}.tar.zst"
+        state: absent
   when: not paru.stat.exists
+##
+## Deprecated version with compilation
+##
+# - name: Install paru
+#   block:
+#     - name: Install build dependencies
+#       package:
+#         name:
+#           - base-devel
+#           - git
+#         state: present
+
+#     - name: Disable sudo password prompt (makepkg sudoers hack)
+#       lineinfile:
+#         dest: /etc/sudoers
+#         state: present
+#         regexp: "^#?%wheel"
+#         line: "%wheel ALL=(ALL) NOPASSWD: ALL"
+#         validate: /usr/sbin/visudo -cf %s
+
+#     - command:
+#         cmd: whoami
+#       no_log: true
+#       become: false
+#       register: main_user
+
+#     - set_fact:
+#         main_user: "{{ main_user.stdout }}"
+#       no_log: true
+
+#     - name: Create paru sources dir
+#       file:
+#         path: "{{ paru_src_path }}"
+#         state: directory
+#         owner: "{{ main_user }}"
+
+#     - name: Clone git sources
+#       become: false
+#       git:
+#         repo: "{{ paru_git_repo }}"
+#         dest: "{{ paru_src_path }}"
+
+#     # note: this only works because SUDOERS password prompt is disabled
+#     - name: Build and install
+#       become: false
+#       command:
+#         chdir: "{{ paru_src_path }}"
+#         cmd: "makepkg -si -f --noconfirm"
+
+#     - name: Restore sudo with password prompt
+#       lineinfile:
+#         dest: /etc/sudoers
+#         state: present
+#         regexp: "^#?%wheel"
+#         line: "%wheel ALL=(ALL:ALL) ALL"
+#         validate: /usr/sbin/visudo -cf %s
+#   when: not paru.stat.exists

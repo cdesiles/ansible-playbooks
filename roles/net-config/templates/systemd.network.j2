@@ -1,9 +1,24 @@
+# {{ ansible_managed }}
+# systemd.network(5)
+
 [Match]
 Name={{ interface.name }}
 
-[Network]
+[Address]
 Address={{ interface.ipv4.address }}
-Gateway={{ interface.ipv4.gateway }}
+{% if interface.ipv4.metric is defined %}
+RouteMetric={{ interface.ipv4.metric }}
+{% endif %}
+
+[Network]
 {% for dns in interface.ipv4.nameservers %}
 DNS={{ dns }}
 {% endfor %}
+
+{% if interface.ipv4.gateway is defined %}
+[Route]
+Gateway={{ interface.ipv4.gateway }}
+{% if interface.ipv4.metric is defined %}
+Metric={{ interface.ipv4.metric }}
+{% endif %}
+{% endif %}

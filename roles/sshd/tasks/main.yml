@@ -19,7 +19,7 @@
     name: "{{ ssh_service_name }}"
     enabled: yes
 
-- name: Allow SSH incoming connection on local network
+- name: Allow local network incoming connection
   ufw:
     rule: allow
     port: "{{ ssh_port }}"
@@ -27,7 +27,7 @@
     from: "{{ ssh_allowed_network }}"
     direction: in
 
-- name: Allow SSH incoming connection on vpn network
+- name: Allow SSH VPN incoming connection
   ufw:
     rule: allow
     port: "{{ ssh_port }}"

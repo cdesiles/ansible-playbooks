@@ -1,5 +1,5 @@
 ---
-- name: Check if the interface is already named as expected
+- name: "Check {{ interface.name }} ({{ interface.mac_address }}) rule"
   set_fact:
     interface_original_name: "{{ ansible_facts.interfaces
       | select('in', ansible_facts)
