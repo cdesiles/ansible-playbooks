@@ -6,3 +6,5 @@ ssh_config_dir: "/etc/ssh"
 sshd_config: "{{ ssh_config_dir}}/sshd_config"
 sshd_banner: "{{ ssh_config_dir}}/banner"
 sshd_binary: "/usr/sbin/sshd"
+ssh_authorized_keys_fallback_enabled: false
+ssh_authorized_keys_fallback_dir: "/etc/ssh/authorized_keys"

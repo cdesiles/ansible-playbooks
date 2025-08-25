@@ -62,3 +62,9 @@ Compression no
 {% if ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian' %}
 UsePrivilegeSeparation sandbox
 {% endif %}
+
+{% if ssh_authorized_keys_fallback_enabled %}
+AuthorizedKeysFile .ssh/authorized_keys /etc/ssh/authorized_keys/%u
+{% else %}
+AuthorizedKeysFile .ssh/authorized_keys
+{% endif %}

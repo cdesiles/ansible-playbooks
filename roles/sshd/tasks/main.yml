@@ -43,6 +43,18 @@
     comment: "{{ lookup('env', 'USER') | default('ansible') }}@{{ lookup('pipe', 'hostname -s') }}"
   loop: "{{ ssh_users.split() }}"
 
+- name: Authorized keys fallback
+  block:
+    - name: Create the directory
+      file:
+        path: "{{ssh_authorized_keys_fallback_dir}}"
+        state: directory
+
+    - name: Backup authorized_keys out of HOME dir (if unavailable at startup)
+      command: "cp /home/{{ item }}/.ssh/authorized_keys {{ssh_authorized_keys_fallback_dir}}/{{ item }}"
+      loop: "{{ ssh_users.split() }}"
+  when: ssh_authorized_keys_fallback_enabled
+
 - name: Create an SSH banner
   template:
     src: templates/sshd_banner.j2

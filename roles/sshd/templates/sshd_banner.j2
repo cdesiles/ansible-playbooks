@@ -1,7 +1,7 @@
-*******************************************
-     GALACTIC EMPIRE SECURE TERMINAL
-*******************************************
 {% if ansible_host == 'andromeda' %}
+*******************************************
+ Beep beep-wooOOoo! Brrrp! Zzt zzt-whirl!
+*******************************************
         ⣠⣴⣾⣿⣿⣿⣿⣷⣦⣄
       ⢠⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⡄
      ⢀⣿⣿⣿⣿⡿⠛⢿⡿⠛⢻⣿⣿⣿⣿⡀  <IMPERIAL SECURITY
@@ -15,10 +15,10 @@
    ⢸⣿⡇⠈⠙⠛⢛⣿⣿⣤⣤⣿⣿⡛⠛⠋⠁⢸⣿⡇
   ⣤⣼⣿⣧⣤⡀ ⠙⠛⠛⠛⠛⠛⠛⠋ ⢀⣤⣼⣿⣧⣤
   ⠛⠛⠛⠛⠛⠁          ⠈⠛⠛⠛⠛⠛
-*******************************************
- Beep beep-wooOOoo! Brrrp! Zzt zzt-whirl!
-*******************************************
 {% elif ansible_host == 'omega' %}
+*******************************************
+     GALACTIC EMPIRE SECURE TERMINAL
+*******************************************
          ⣀⣤⣴⣶⣾⣿⣿⣿⣿⣷⡶⠦
       ⢀⣴⣾⣿⣿⠿⠿⢿⣿⣿⣿⣿⣿⣿⣿⣿⣧⣤⡄
      ⣰⣿⣿⣿⠋    ⠈⢻⣿⣿⣿⣿⣿⣿⡟⠛⠛⠃
@@ -32,7 +32,15 @@
      ⠹⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠏
       ⠈⠻⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣤⡄
          ⠉⠛⠻⠿⢿⣿⣿⣿⣿⠟⠉⠉⠉⠉
+
+You have reached a terminal of the Galactic
+Empire's secure network. Unauthorized access
+will result in tracking and possible Force
+action.
 {% elif ansible_host == 'pinwheel' %}
+*******************************************
+       May the shell be with you
+*******************************************
  ⢀⣠⣄⣀⣀⣀               ⣀⣤⣴⣶⡾⠿⠿⠿⠿⢷⣶⣦⣤⣀⡀
 ⢰⣿⡟⠛⠛⠛⠻⠿⠿⢿⣶⣶⣦⣤⣤⣀⣀⡀⣀⣴⣾⡿⠟⠋⠉        ⠉⠙⠻⢿⣷⣦⣀         ⢀⣀⣀⣀⣀⣀⣀⣀⡀
  ⠻⣿⣦⡀ ⠉⠓⠶⢦⣄⣀⠉⠉⠛⠛⠻⠿⠟⠋⠁   ⣤⡀  ⢠   ⣠    ⠈⠙⠻⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠟⠛⠛⢻⣿
@@ -52,17 +60,9 @@
                  ⢀⣿⡿⠟⠋   ⣿  ⣸       ⢸⣿⣿
                  ⢸⣿⣁⣀    ⣿⡀ ⣿      ⢀⣈⣿⣿
                  ⠘⠛⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠟⠛⠋
-******************************************************************
-                 May the shell be with you
-******************************************************************
 {% else %}
-ACCESS DENIED - UNKNOWN STAR SYSTEM
+JEDI LOST - UNKNOWN STAR SYSTEM
 {% endif %}
-
-You have reached a terminal of the Galactic
-Empire's secure network. Unauthorized access
-will result in tracking and possible Force
-action.
 
 {% if ansible_hostname is defined %}
 {{ group_names | first }}: {{ ansible_hostname }}
