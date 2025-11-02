@@ -1,17 +1,17 @@
 ---
-- name: uninstall docker
-  package:
+- name: Uninstall docker
+  ansible.builtin.package:
     name: docker
     state: absent
 
-- name: prompt the user for confirmation
+- name: Prompt the user for confirmation
   ansible.builtin.pause:
     prompt: "[IRREVERSIBLE] Are you sure you want to delete {{ docker_projects_dir }}?"
-    echo: yes
+    echo: true
   register: confirmation
 
-- name: remote projects directory
-  file:
+- name: Remote projects directory
+  ansible.builtin.file:
     path: "{{ docker_projects_dir }}"
     state: absent
     owner: "{{ main_user }}"

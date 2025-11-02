@@ -1,6 +1,6 @@
 ---
 - name: Check if pacman is not locked
-  stat:
+  ansible.builtin.stat:
     path: /var/lib/pacman/db.lck
   register: pacman_lock
   failed_when: pacman_lock.stat.exists
@@ -13,32 +13,30 @@
 #     state: absent
 
 - name: Install reflector (looking for fastest mirror)
-  pacman:
+  community.general.pacman:
     name: reflector
     state: present
 
 - name: Stat pacman mirrorlist
-  stat:
+  ansible.builtin.stat:
     path: /etc/pacman.d/mirrorlist
   register: mirrorlist
 
 # Probably not here if it's a fresh install
 - name: Stat pacman mirrorlist.bak
-  stat:
+  ansible.builtin.stat:
     path: /etc/pacman.d/mirrorlist.bak
   register: mirrorlist_bak
 
 - name: Backup and update pacman mirrorlist if older than 7 days
-  shell: >
+  ansible.builtin.shell: >
     cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak &&
     reflector --latest 20 --protocol https --sort rate
     --save /etc/pacman.d/mirrorlist
-  when: mirrorlist_bak.stat.exists is false or
-    (mirrorlist.stat.exists and
-    (ansible_date_time.epoch | int - mirrorlist.stat.mtime) > 604800)
+  when: mirrorlist_bak.stat.exists is false or (mirrorlist.stat.exists and (ansible_date_time.epoch | int - mirrorlist.stat.mtime) > 604800)
 
 - name: Configure pacman to output colors
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/pacman.conf
     state: present
     regexp: "^(.*)Color"

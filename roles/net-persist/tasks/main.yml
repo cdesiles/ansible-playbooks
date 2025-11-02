@@ -1,17 +1,11 @@
 ---
 - name: "Check {{ interface.name }} ({{ interface.mac_address }}) rule"
-  set_fact:
-    interface_original_name: "{{ ansible_facts.interfaces
-      | select('in', ansible_facts)
-      | map('extract', ansible_facts)
-      | selectattr('pciid', 'defined')
-      | selectattr('macaddress', 'equalto', interface.mac_address)
-      | map(attribute='device')
-      | first
-      }}"
+  ansible.builtin.set_fact:
+    interface_original_name: "{{ ansible_facts.interfaces | select('in', ansible_facts) | map('extract', ansible_facts) | selectattr('pciid', 'defined') | selectattr('macaddress',
+      'equalto', interface.mac_address) | map(attribute='device') | first }}"
 
 - name: What patch is needed
-  debug:
+  ansible.builtin.debug:
     msg: >-
       {%- if interface_original_name != interface.name -%}
         iface {{ interface_original_name }} ({{ interface.mac_address }}) will be patched to {{ interface.name }}.
@@ -21,7 +15,7 @@
 
 - name: Create persistent-net link file
   when: interface_original_name != interface.name
-  template:
+  ansible.builtin.template:
     src: persistent-net.link.j2
     dest: /etc/systemd/network/10-persistent-net-{{ interface.name }}.link
     owner: root
@@ -29,6 +23,6 @@
     mode: "0644"
 
 - name: Notify a reboot is required
-  set_fact:
+  ansible.builtin.set_fact:
     reboot_required: true
   when: interface_original_name != interface.name

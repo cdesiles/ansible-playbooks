@@ -1,25 +1,25 @@
 ---
 # see: https://docs.ansible.com/ansible/latest/collections/community/general/zfs_module.html
-- name: managing filesystems, volumes, snapshots
-  zfs:
+- name: Managing filesystems, volumes, snapshots
+  community.general.zfs:
     name: "{{ item.name }}"
     state: "{{  item.state }}"
-    extra_zfs_properties: "{{ item.extra_zfs_properties|default(omit) }}"
-    origin: "{{ item.origin|default(omit) }}"
+    extra_zfs_properties: "{{ item.extra_zfs_properties | default(omit) }}"
+    origin: "{{ item.origin | default(omit) }}"
   with_items: "{{ zfs_datasets }}"
 
-- command:
+- ansible.builtin.command:
     cmd: whoami
   no_log: true
   become: false
   register: main_user
 
-- set_fact:
+- ansible.builtin.set_fact:
     main_user: "{{ main_user.stdout }}"
   no_log: true
 
-- name: set dataset ownership
-  include_tasks: "./dataset-ownership.yml"
+- name: Set dataset ownership
+  ansible.builtin.include_tasks: "./dataset-ownership.yml"
   loop: "{{ zfs_datasets }}"
   loop_control:
     loop_var: dataset

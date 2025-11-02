@@ -1,27 +1,27 @@
 ---
 # see: https://wiki.archlinux.org/title/Fail2ban
 - name: Install fail2ban
-  package:
+  ansible.builtin.package:
     name: fail2ban
     state: present
 
 - name: Ensure fail2ban configuration is only owned by root
-  file:
+  ansible.builtin.file:
     path: /etc/fail2ban
     owner: root
     group: root
-    mode: 0700
-    recurse: yes
+    mode: "0700"
+    recurse: true
 
 - name: Install Fail2ban Config
   block:
     - name: General configuration
-      template:
+      ansible.builtin.template:
         src: jail.local.j2
         dest: /etc/fail2ban/jail.local
         mode: "0600"
     - name: Service custom jail
-      template:
+      ansible.builtin.template:
         src: "{{ item.src }}"
         dest: "{{ item.dest }}"
         mode: "0600"
@@ -32,28 +32,28 @@
 - name: Service hardening (read-only root rights)
   block:
     - name: Check if hardening configuration is already applied
-      stat:
+      ansible.builtin.stat:
         path: /etc/systemd/system/fail2ban.service.d/override.conf
       register: override_conf
     - name: Create configuration directory
-      file:
+      ansible.builtin.file:
         path: /etc/systemd/system/fail2ban.service.d
         state: directory
         owner: root
         group: root
-        mode: 0700
+        mode: "0700"
     - name: Apply hardening configuration
-      template:
+      ansible.builtin.template:
         src: hardened.fail2ban.conf.j2
         dest: /etc/systemd/system/fail2ban.service.d/override.conf
       when: not override_conf.stat.exists
     - name: Reload systemd
-      systemd:
-        daemon_reload: yes
+      ansible.builtin.systemd:
+        daemon_reload: true
       when: not override_conf.stat.exists
 
 - name: Start and enable fail2ban
-  service:
+  ansible.builtin.service:
     name: fail2ban
     state: started
-    enabled: yes
+    enabled: true

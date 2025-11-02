@@ -1,11 +1,9 @@
+---
 # NTP configuration file
 ntp_config_file: "/etc/ntp.conf"
 
 # NTP servers to use.
-ntp_pools: -" 0.uk.pool.ntp.org"
-  -" 1.uk.pool.ntp.org"
-  -" 2.uk.pool.ntp.org"
-  -" 3.uk.pool.ntp.org"
+ntp_pools: -" 0.uk.pool.ntp.org" -" 1.uk.pool.ntp.org" -" 2.uk.pool.ntp.org" -" 3.uk.pool.ntp.org"
 
 # System timezone
 ntp_timezone: "Europe/London"

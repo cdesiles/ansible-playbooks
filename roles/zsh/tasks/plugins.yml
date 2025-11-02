@@ -1,5 +1,5 @@
 ---
-- name: ensure plugins directory exists
+- name: Ensure plugins directory exists
   ansible.builtin.file:
     path: "{{ zsh_plugins_path }}"
     state: directory
@@ -7,7 +7,7 @@
     group: users
     mode: "0755"
 
-- name: add a readme file to advice from where this comes
+- name: Add a readme file to advice from where this comes
   ansible.builtin.copy:
     dest: "{{ zsh_plugins_path }}/README.md"
     content: |
@@ -17,27 +17,18 @@
     group: users
     owner: root
 
-- name: "git clone plugins"
-  git:
+- name: "Git clone plugins"
+  ansible.builtin.git:
     repo: "{{ item.repo }}"
     dest: "{{ item.dest }}"
-    update: yes
+    update: true
     version: master
   loop:
-    - {
-        repo: https://github.com/zsh-users/zsh-syntax-highlighting.git,
-        dest: "{{ zsh_plugins_path }}/zsh-syntax-highlighting",
-      }
-    - {
-        repo: https://github.com/zsh-users/zsh-autosuggestions.git,
-        dest: "{{ zsh_plugins_path }}/zsh-autosuggestions",
-      }
-    - {
-        repo: https://github.com/romkatv/powerlevel10k.git,
-        dest: "{{ zsh_plugins_path }}/powerlevel10k",
-      }
+    - { repo: https://github.com/zsh-users/zsh-syntax-highlighting.git, dest: "{{ zsh_plugins_path }}/zsh-syntax-highlighting" }
+    - { repo: https://github.com/zsh-users/zsh-autosuggestions.git, dest: "{{ zsh_plugins_path }}/zsh-autosuggestions" }
+    - { repo: https://github.com/romkatv/powerlevel10k.git, dest: "{{ zsh_plugins_path }}/powerlevel10k" }
 
-- name: assert plugins are available for any user
+- name: Assert plugins are available for any user
   ansible.builtin.file:
     path: "{{ item }}"
     owner: root

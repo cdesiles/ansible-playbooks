@@ -1,22 +1,22 @@
 ---
 # see: https://wiki.archlinux.org/title/Solid_state_drive#Periodic_TRIM
 - name: Check if there is at least one SSD
-  set_fact:
-    has_at_least_one_ssd: "{{ ansible_facts.devices | dict2items | selectattr('value.rotational', 'equalto', '0') | list | length > 0}}"
+  ansible.builtin.set_fact:
+    has_at_least_one_ssd: "{{ ansible_facts.devices | dict2items | selectattr('value.rotational', 'equalto', '0') | list | length > 0 }}"
   changed_when: false
 
 - name: Skip trim role
-  meta: end_play
+  ansible.builtin.meta: end_play
   when: not has_at_least_one_ssd
 
-- name: install trim tools
-  package:
+- name: Install trim tools
+  ansible.builtin.package:
     name: util-linux
     state: present
   changed_when: false
 
-- name: edit trim periodicity if needed
-  template:
+- name: Edit trim periodicity if needed
+  ansible.builtin.template:
     src: templates/fstrim.timer.j2
     dest: "/etc/systemd/system/fstrim.timer.d/override.conf"
     owner: root
@@ -24,20 +24,20 @@
     mode: "0644"
   register: timer_config
 
-- name: systemd daemon reload
-  systemd:
-    daemon_reload: yes
+- name: Systemd daemon reload
+  ansible.builtin.systemd:
+    daemon_reload: true
   when: timer_config.changed
 
-- name: enable periodic trim
-  systemd:
+- name: Enable periodic trim
+  ansible.builtin.systemd:
     name: fstrim.timer
-    enabled: yes
+    enabled: true
     state: started
   changed_when: false
 
-- name: install nvme-cli
-  package:
+- name: Install nvme-cli
+  ansible.builtin.package:
     name: nvme-cli
     state: present
   changed_when: false

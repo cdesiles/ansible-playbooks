@@ -3,21 +3,22 @@
 # Based on: https://github.com/mrlesmithjr/ansible-zfs/blob/master/tasks/manage_zfs.yml
 # Expected variables in your inventory: zfs_pools.
 
-- name: checking existing zpool(s)
-  ansible.builtin.shell: "zpool list -H -o name"
+- name: Checking existing zpool(s)
+  ansible.builtin.command: "zpool list -H -o name"
   changed_when: false
   register: current_zp_state
-  check_mode: no
+  check_mode: false
   when: zfs_pools is defined
 
-- name: gather zpool status
-  ansible.builtin.shell: zpool status
+- name: Gather zpool status
+  ansible.builtin.command: zpool status
   changed_when: false
   register: zpool_devices
   when: zfs_pools is defined
 
-- name: creating basic zpool(s)
-  ansible.builtin.command: "zpool create {{ '-o '+ item.options.items() |map('join', '=') | join (' -o ') if item.options is defined else '' }} {{ item.name }} {{ item.devices|join (' ') }}"
+- name: Creating basic zpool(s)
+  ansible.builtin.command: "zpool create {{ '-o '+ item.options.items() |map('join', '=') | join (' -o ') if item.options is defined else '' }} {{ item.name }} {{
+    item.devices|join (' ') }}"
   with_items: "{{ zfs_pools }}"
   when:
     - zfs_pools is defined
@@ -26,8 +27,9 @@
     - item.state == "present"
     - item.devices[0] not in zpool_devices.stdout
 
-- name: creating mirror/zraid zpool(s)
-  ansible.builtin.command: "zpool create {{ '-o '+ item.options.items() |map('join', '=') | join (' -o ') if item.options is defined else '' }} {{ item.name }} {{ item.type }} {{ item.devices|join (' ') }}"
+- name: Creating mirror/zraid zpool(s)
+  ansible.builtin.command: "zpool create {{ '-o '+ item.options.items() |map('join', '=') | join (' -o ') if item.options is defined else '' }} {{ item.name }} {{
+    item.type }} {{ item.devices|join (' ') }}"
   with_items: "{{ zfs_pools }}"
   when:
     - zfs_pools is defined
@@ -36,8 +38,8 @@
     - item.state == "present"
     - item.devices[0] not in zpool_devices.stdout
 
-- name: deleting zpool(s) with care
-  include_tasks: "./delete-pool.yml"
+- name: Deleting zpool(s) with care
+  ansible.builtin.include_tasks: "./delete-pool.yml"
   when:
     - zfs_pools is defined
     - zpool.name in current_zp_state.stdout_lines

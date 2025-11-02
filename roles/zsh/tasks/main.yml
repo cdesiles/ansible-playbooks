@@ -1,14 +1,13 @@
 ---
-- name: install zsh
-  package:
+- name: Install zsh
+  ansible.builtin.package:
     name: zsh
     state: present
 
-- name: install zsh plugins
-  include_tasks: plugins.yml
-
-- name: setup zsh for the user(s)
-  include_tasks: user-setup.yml
+- name: Install zsh plugins
+  ansible.builtin.include_tasks: plugins.yml
+- name: Setup zsh for the user(s)
+  ansible.builtin.include_tasks: user-setup.yml
   vars:
     zsh_user: "{{ item }}"
   loop: "{{ zsh_users | default([]) }}"

@@ -1,23 +1,23 @@
 ---
 - name: Install sfdisk
-  package:
+  ansible.builtin.package:
     name: util-linux
     state: present
   changed_when: false
 
 - name: Install hdparm
-  package:
+  ansible.builtin.package:
     name: hdparm
     state: present
   changed_when: false
 
 - name: Load expected layout from file (controller side)
-  set_fact:
+  ansible.builtin.set_fact:
     expected_layout: "{{ lookup('file', item.layout_file) }}"
   changed_when: false
 
 - name: Get current layout from remote
-  command: "sfdisk --dump {{ item.device }}"
+  ansible.builtin.command: "sfdisk --dump {{ item.device }}"
   register: current_layout
   changed_when: false
 
@@ -25,18 +25,18 @@
   vars:
     current_clean: "{{ current_layout.stdout | trim | regex_replace('\\s+', ' ') }}"
     expected_clean: "{{ expected_layout | trim | regex_replace('\\s+', ' ') }}"
-  set_fact:
+  ansible.builtin.set_fact:
     layout_differs: "{{ current_clean != expected_clean }}"
   changed_when: false
 
 - name: Copy layout file to remote (only if different)
-  copy:
+  ansible.builtin.copy:
     content: "{{ expected_layout }}"
     dest: "/tmp/expected-{{ item.device | basename }}.sfdisk"
     mode: "0644"
   when: layout_differs
 
 - name: Apply partition table using sfdisk
-  command: >
+  ansible.builtin.command: >
     sfdisk {{ item.device }} < {{ item.layout_file }}
   when: layout_differs

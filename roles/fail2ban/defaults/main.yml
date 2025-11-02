@@ -1,2 +1,3 @@
+---
 fail2ban_firewall: ufw
 fail2ban_backend: systemd

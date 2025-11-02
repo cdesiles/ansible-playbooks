@@ -1,10 +1,16 @@
-- hosts: all
+---
+# - hosts: all
+#   become: true
+#   roles:
+#     - role: networking
+#     - role: sshd
+#     - role: disks
+#     - role: wireguard
+#     - role: zsh
+#     - role: archlinux
+#     - role: podman
+
+- hosts: pinwheel
   become: true
   roles:
-    - role: networking
     - role: sshd
-    - role: disks
-    - role: wireguard
-    - role: zsh
-    - role: archlinux
-    - role: podman

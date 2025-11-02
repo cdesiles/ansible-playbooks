@@ -8,7 +8,6 @@
 #       - host: "192.168.1.0/24" # readonly access for other lan clients
 #         options: "ro,sync,no_subtree_check"
 nfs_shares: []
-
 nfs_configuration_file: "/etc/nfs.conf"
 
 nfs_exports_file: "/etc/exports"

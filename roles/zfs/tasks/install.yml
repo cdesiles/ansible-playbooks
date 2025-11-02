@@ -1,6 +1,6 @@
 ---
 - name: Check if zfs-linux-lts is installed
-  command: pacman -Qi zfs-dkms
+  ansible.builtin.command: pacman -Qi zfs-dkms
   register: zfs_dkms_installed
   changed_when: false
   failed_when: false
@@ -8,9 +8,9 @@
 - name: Install zfs
   when: zfs_dkms_installed.stderr
   block:
-    - name: disable SUDOERS password prompt for makepkg
+    - name: Disable SUDOERS password prompt for makepkg
       no_log: true
-      lineinfile:
+      ansible.builtin.lineinfile:
         dest: /etc/sudoers
         state: present
         regexp: "^#?%wheel"
@@ -22,30 +22,29 @@
     # Using dkms with the lts linux kernel is a better approach IMO.
     - name: Install zfs
       become: false
-      command:
+      ansible.builtin.command:
         cmd: "paru -S --noconfirm zfs-dkms zfs-utils"
 
     - name: Restore SUDOERS password prompt after yay
       no_log: true
-      lineinfile:
+      ansible.builtin.lineinfile:
         dest: /etc/sudoers
         state: present
         regexp: "^#?%wheel"
         line: "%wheel ALL=(ALL:ALL) ALL"
         validate: /usr/sbin/visudo -cf %s
 
-- name: check if /etc/hostid is present
-  stat:
+- name: Check if /etc/hostid is present
+  ansible.builtin.stat:
     path: /etc/hostid
   register: hostid
   changed_when: false
 
-- name: generate /etc/hostid if not present
+- name: Generate /etc/hostid if not present
   when: not hostid.stat.exists
-  command: zgenhostid $(hostid)
-
+  ansible.builtin.command: zgenhostid $(hostid)
 - name: Check if zrepl is installed
-  command: pacman -Qi zrepl
+  ansible.builtin.command: pacman -Qi zrepl
   register: zrepl_installed
   changed_when: false
   failed_when: false
@@ -53,9 +52,9 @@
 - name: Install zrepl
   when: zrepl_installed.stderr
   block:
-    - name: disable SUDOERS password prompt for makepkg
+    - name: Disable SUDOERS password prompt for makepkg
       no_log: true
-      lineinfile:
+      ansible.builtin.lineinfile:
         dest: /etc/sudoers
         state: present
         regexp: "^#?%wheel"
@@ -64,12 +63,12 @@
 
     - name: Install zrepl
       become: false
-      command:
+      ansible.builtin.command:
         cmd: "paru -S --noconfirm zrepl"
 
     - name: Restore SUDOERS password prompt after paru
       no_log: true
-      lineinfile:
+      ansible.builtin.lineinfile:
         dest: /etc/sudoers
         state: present
         regexp: "^#?%wheel"
@@ -77,7 +76,7 @@
         validate: /usr/sbin/visudo -cf %s
 
 - name: Enable zfs services
-  service:
+  ansible.builtin.service:
     name: "{{ item }}"
     enabled: true
     state: started

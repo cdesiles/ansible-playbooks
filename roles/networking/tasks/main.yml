@@ -1,25 +1,25 @@
 ---
 - name: Setup persistent network interface(s)
-  include_role:
+  ansible.builtin.include_role:
     name: net-persist
-    public: yes
+    public: true
   vars:
     interface: "{{ item }}"
   loop: "{{ hostvars[inventory_hostname].network_interfaces | default([]) }}"
 
 - name: Configure network interface(s)
-  include_role:
+  ansible.builtin.include_role:
     name: net-config
-    public: yes
+    public: true
   vars:
     interface: "{{ item }}"
   loop: "{{ hostvars[inventory_hostname].network_interfaces | default([]) }}"
 
 - name: Reload networkd and resolved
-  systemd:
+  ansible.builtin.systemd:
     name: "{{ item }}"
     state: reloaded
-    daemon_reload: yes
+    daemon_reload: true
   loop:
     - systemd-networkd
     - systemd-resolved

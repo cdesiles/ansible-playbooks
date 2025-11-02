@@ -1,19 +1,19 @@
 ---
 - name: Check if the interface ipv4 address is defined
-  block:
-    - debug:
-        msg: "Warning: iface {{ interface.name }} has no defined ipv4 address, skipping configuration"
-    - name: Skip net-config role for {{ interface.name }}
-      meta: end_play
   when: interface.ipv4.address is not defined
 
+  block:
+    - ansible.builtin.debug:
+        msg: "Warning: iface {{ interface.name }} has no defined ipv4 address, skipping configuration"
+    - name: Skip net-config role for {{ interface.name }}
+      ansible.builtin.meta: end_play
 - name: Check if the interface is already configured
-  stat:
+  ansible.builtin.stat:
     path: /etc/systemd/network/20-{{ interface.name }}.network
   register: network_file
 
 - name: What patch is needed
-  debug:
+  ansible.builtin.debug:
     msg: >-
       {%- if network_file.stat.exists == true -%}
         iface {{ interface.name }} is already configured, no action needed.
@@ -23,7 +23,7 @@
 
 - name: Create systemd-network link file
   when: network_file.stat.exists != true
-  template:
+  ansible.builtin.template:
     src: systemd.network.j2
     dest: /etc/systemd/network/20-{{ interface.name }}.network
     owner: root
@@ -31,6 +31,6 @@
     mode: "0644"
 
 - name: Notify a reload is required
-  set_fact:
+  ansible.builtin.set_fact:
     network_reload_required: true
   when: network_file.stat.exists != true

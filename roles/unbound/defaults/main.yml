@@ -1,3 +1,4 @@
+---
 unbound_config_base_path: /etc/unbound
 unbound_config_path: "{{ unbound_config_base_path }}/unbound.conf"
 unbound_root_hints_path: "{{ unbound_config_base_path }}/root.hints"

@@ -1,2 +1,3 @@
+---
 ssh_package_name: "openssh"
 ssh_service_name: "sshd"
