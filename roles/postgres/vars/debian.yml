@@ -1,0 +1,10 @@
+---
+postgres_packages:
+  - postgresql
+  - postgresql-contrib
+  - python3-psycopg2
+
+postgres_service_name: postgresql
+postgres_config_path: /etc/postgresql/current/main/postgresql.conf
+postgres_config_dir: /etc/postgresql/current/main/conf.d
+postgres_hba_path: /etc/postgresql/current/main/pg_hba.conf

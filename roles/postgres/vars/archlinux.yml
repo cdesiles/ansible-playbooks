@@ -1,0 +1,9 @@
+---
+postgres_packages:
+  - postgresql
+  - python-psycopg2
+
+postgres_service_name: postgresql
+postgres_config_path: "{{ postgres_data_dir }}/postgresql.conf"
+postgres_config_dir: "{{ postgres_data_dir }}/conf.d"
+postgres_hba_path: "{{ postgres_data_dir }}/pg_hba.conf"

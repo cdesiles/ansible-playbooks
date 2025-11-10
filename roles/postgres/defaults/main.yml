@@ -1,0 +1,18 @@
+---
+# PostgreSQL admin user (used by service roles for database management)
+postgres_admin_user: postgres
+
+# PostgreSQL admin password (REQUIRED - must be set explicitly)
+# Set via inventory, host_vars, or ansible-vault
+# See this file's comments for setup instructions
+# postgres_admin_password: ""  # Intentionally undefined - role will fail if not set
+
+# PostgreSQL data directory
+postgres_data_dir: /var/lib/postgres/data
+
+# Performance tuning (adjust based on your hardware)
+postgres_shared_buffers: 256MB
+postgres_effective_cache_size: 1GB
+postgres_maintenance_work_mem: 64MB
+postgres_work_mem: 4MB
+postgres_max_connections: 100

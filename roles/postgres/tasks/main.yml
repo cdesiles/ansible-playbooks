@@ -1,0 +1,75 @@
+---
+- name: Validate required password is set
+  ansible.builtin.assert:
+    that:
+      - postgres_admin_password is defined
+      - postgres_admin_password | length >= 12
+    fail_msg: |
+      postgres_admin_password is required (min 12 chars).
+      See roles/postgres/defaults/main.yml for configuration instructions.
+    success_msg: "Password validation passed"
+
+- name: Load OS-specific variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - debian.yml
+
+- name: Install PostgreSQL packages
+  ansible.builtin.package:
+    name: "{{ postgres_packages }}"
+    state: present
+
+- name: Create current version symlink (Debian)
+  ansible.builtin.shell:
+    cmd: set -o pipefail && ln -sf $(ls -1 /etc/postgresql/ | grep -E '^[0-9]+$' | sort -V | tail -n1) /etc/postgresql/current
+    creates: /etc/postgresql/current
+    executable: /bin/bash
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Ensure PostgreSQL is initialized (Arch)
+  ansible.builtin.command:
+    cmd: initdb -D {{ postgres_data_dir }}
+    creates: "{{ postgres_data_dir }}/PG_VERSION"
+  become: true
+  become_user: "{{ postgres_admin_user }}"
+  when: ansible_facts['os_family'] == 'Archlinux'
+
+- name: Ensure PostgreSQL config directory exists
+  ansible.builtin.file:
+    path: "{{ postgres_config_dir }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0750"
+
+- name: Enable include_dir in main postgresql.conf
+  ansible.builtin.lineinfile:
+    path: "{{ postgres_config_path }}"
+    regexp: "^#?include_dir ="
+    line: "include_dir = 'conf.d'"
+    state: present
+  notify: Restart PostgreSQL
+
+- name: Deploy custom PostgreSQL configuration
+  ansible.builtin.template:
+    src: custom.conf.j2
+    dest: "{{ postgres_config_dir }}/custom.conf"
+    owner: postgres
+    group: postgres
+    mode: "0640"
+  notify: Restart PostgreSQL
+
+- name: Enable and start PostgreSQL service
+  ansible.builtin.systemd:
+    name: "{{ postgres_service_name }}"
+    enabled: true
+    state: started
+
+- name: Set PostgreSQL admin user password
+  community.postgresql.postgresql_user:
+    name: "{{ postgres_admin_user }}"
+    password: "{{ postgres_admin_password }}"
+    state: present
+  become: true
+  become_user: "{{ postgres_admin_user }}"
