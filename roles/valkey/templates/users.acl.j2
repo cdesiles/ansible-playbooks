@@ -1,0 +1,4 @@
+user default on >{{ valkey_admin_password }} ~* &* +@all
+{% for acl_user in valkey_acl_users %}
+user {{ acl_user.username }} on >{{ acl_user.password }} {% for pattern in acl_user.keypattern.split() %}~{{ pattern }} {% endfor %}{{ acl_user.commands | default('+@all -@dangerous') }}
+{% endfor %}

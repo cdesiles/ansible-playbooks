@@ -1,0 +1,33 @@
+# Valkey configuration managed by Ansible
+
+# Bind to localhost only (security)
+bind {{ valkey_bind }}
+
+# Port
+port {{ valkey_port }}
+
+# Data directory
+dir {{ valkey_dir }}
+
+# Log level
+loglevel {{ valkey_loglevel }}
+
+# Memory management
+maxmemory {{ valkey_maxmemory }}
+maxmemory-policy {{ valkey_maxmemory_policy }}
+
+# Persistence
+save 900 1
+save 300 10
+save 60 10000
+
+# Security
+protected-mode yes
+
+# ACL configuration
+# Use ACL file for user management (modern approach)
+aclfile {{ valkey_acl_file }}
+
+# Daemon mode
+daemonize no
+supervised systemd

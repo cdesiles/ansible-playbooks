@@ -1,0 +1,18 @@
+---
+- name: Restart Valkey
+  ansible.builtin.systemd:
+    name: "{{ valkey_service_name }}"
+    state: restarted
+
+- name: Reload Valkey
+  ansible.builtin.systemd:
+    name: "{{ valkey_service_name }}"
+    state: reloaded
+
+- name: Update GRUB
+  ansible.builtin.shell: |
+    if command -v update-grub &> /dev/null; then
+      update-grub
+    else
+      grub-mkconfig -o /boot/grub/grub.cfg
+    fi

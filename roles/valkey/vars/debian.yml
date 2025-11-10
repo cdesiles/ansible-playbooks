@@ -1,0 +1,8 @@
+---
+# Debian/Ubuntu uses Valkey from Universe repository
+valkey_package: valkey-server
+valkey_service_name: valkey-server
+valkey_config_file: /etc/valkey/valkey.conf
+valkey_user: valkey
+valkey_group: valkey
+valkey_dir: /var/lib/valkey

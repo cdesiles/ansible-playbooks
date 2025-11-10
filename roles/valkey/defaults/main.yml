@@ -1,0 +1,46 @@
+---
+# Valkey bind address
+# Default: localhost only
+# To allow container access, set to "127.0.0.1 {{ podman_subnet_gateway }}" in your inventory
+# Example: "127.0.0.1 10.89.0.1"
+valkey_bind: 127.0.0.1
+
+# Valkey port
+valkey_port: 6379
+
+# Valkey authentication (REQUIRED - must be set explicitly)
+# Set via inventory, host_vars, or ansible-vault
+# valkey_admin_password: ""  # Intentionally undefined - role will fail if not set
+
+# Valkey max memory (0 = unlimited)
+valkey_maxmemory: 256mb
+
+# Valkey max memory policy
+# noeviction: Return errors when memory limit is reached (recommended for job queues like BullMQ)
+# allkeys-lru: Evict least recently used keys (good for pure caching)
+valkey_maxmemory_policy: noeviction
+
+# Valkey data directory (overridden by OS-specific vars)
+valkey_dir: /var/lib/valkey
+
+# Valkey ACL file location
+valkey_acl_file: /etc/valkey/users.acl
+
+# Valkey ACL users
+# Services can register their users here
+# Each user should have: username, password, keypattern, commands
+valkey_acl_users: []
+# Example:
+# valkey_acl_users:
+#   - username: immich
+#     password: "secretpassword"
+#     keypattern: "*"      # Keys this user can access
+#     commands: "+@all -@dangerous"  # Allowed commands
+
+# Valkey log level (debug, verbose, notice, warning)
+valkey_loglevel: notice
+
+# Firewall configuration
+valkey_firewall_allowed_sources:
+  - 127.0.0.0/8 # Localhost
+  - "{{ podman_subnet | default('10.88.0.0/16') }}" # Podman bridge network

@@ -1,0 +1,8 @@
+---
+# Arch Linux uses Valkey (Redis fork) since 2024
+valkey_package: valkey
+valkey_service_name: valkey
+valkey_config_file: /etc/valkey/valkey.conf
+valkey_user: valkey
+valkey_group: valkey
+valkey_dir: /var/lib/valkey

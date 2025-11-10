@@ -1,0 +1,58 @@
+---
+- name: Validate required password is set
+  ansible.builtin.assert:
+    that:
+      - valkey_admin_password is defined
+      - valkey_admin_password | length >= 12
+    fail_msg: |
+      valkey_admin_password is required (min 12 chars).
+      See roles/valkey/defaults/main.yml for configuration instructions.
+    success_msg: "Password validation passed"
+
+- name: Configure kernel tuning for Valkey
+  ansible.builtin.import_tasks: kernel-tuning.yml
+
+- name: Load OS-specific variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - debian.yml
+
+- name: Install Valkey
+  ansible.builtin.package:
+    name: "{{ valkey_package }}"
+    state: present
+
+- name: Deploy Valkey configuration
+  ansible.builtin.template:
+    src: valkey.conf.j2
+    dest: "{{ valkey_config_file }}"
+    owner: "{{ valkey_user }}"
+    group: "{{ valkey_group }}"
+    mode: "0640"
+  notify: Restart Valkey
+
+- name: Deploy Valkey ACL file
+  ansible.builtin.template:
+    src: users.acl.j2
+    dest: "{{ valkey_acl_file }}"
+    owner: "{{ valkey_user }}"
+    group: "{{ valkey_group }}"
+    mode: "0640"
+  notify: Restart Valkey
+
+- name: Enable and start Valkey service
+  ansible.builtin.systemd:
+    name: "{{ valkey_service_name }}"
+    enabled: true
+    state: started
+
+- name: Setup firewall rules for Valkey
+  community.general.ufw:
+    rule: allow
+    src: "{{ item }}"
+    port: "{{ valkey_port }}"
+    proto: tcp
+    direction: in
+    comment: "Valkey"
+  loop: "{{ valkey_firewall_allowed_sources }}"

@@ -1,0 +1,43 @@
+---
+- name: Configure kernel memory overcommit
+  ansible.posix.sysctl:
+    name: vm.overcommit_memory
+    value: "1"
+    state: present
+    sysctl_set: true
+    reload: true
+
+- name: Check if transparent_hugepage is set in GRUB
+  ansible.builtin.shell: grep -E '^GRUB_CMDLINE_LINUX_DEFAULT=.*transparent_hugepage=' /etc/default/grub
+  register: thp_check
+  changed_when: false
+  failed_when: false
+
+- name: Add transparent_hugepage if not present
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: '^(GRUB_CMDLINE_LINUX_DEFAULT="[^"]*)"$'
+    line: '\1 transparent_hugepage=madvise"'
+    backrefs: true
+  when: thp_check.rc != 0
+  notify: Update GRUB
+  register: grub_updated
+
+- name: Check current THP runtime setting
+  ansible.builtin.shell: cat /sys/kernel/mm/transparent_hugepage/enabled
+  register: current_thp
+  changed_when: false
+
+- name: Disable THP at runtime (if not already set to madvise)
+  ansible.builtin.shell: |
+    echo madvise > /sys/kernel/mm/transparent_hugepage/enabled
+    echo madvise > /sys/kernel/mm/transparent_hugepage/defrag
+  when: "'[madvise]' not in current_thp.stdout"
+
+- name: Warn user about reboot requirement
+  ansible.builtin.debug:
+    msg: |
+      WARNING: GRUB configuration has been updated with transparent_hugepage=madvise
+      A REBOOT IS REQUIRED for this change to take effect permanently.
+      The setting has been applied at runtime temporarily.
+  when: grub_updated is changed
