@@ -20,6 +20,24 @@ This Ansible role installs and configures PostgreSQL for local use only. It prov
 Available variables with defaults (see `defaults/main.yml`):
 
 ```yaml
+# PostgreSQL admin user
+postgres_admin_user: postgres
+
+# PostgreSQL admin password (REQUIRED - must be set explicitly)
+# postgres_admin_password: ""  # Intentionally undefined
+
+# PostgreSQL data directory
+postgres_data_dir: /var/lib/postgres/data
+
+# Network configuration
+postgres_listen_addresses: 127.0.0.1  # For container access: "127.0.0.1,{{ podman_subnet_gateway }}"
+postgres_port: 5432
+
+# Firewall configuration
+postgres_firewall_allowed_sources:
+  - 127.0.0.0/8  # Localhost
+  - "{{ podman_subnet | default('10.88.0.0/16') }}"  # Podman bridge network
+
 # Performance tuning
 postgres_shared_buffers: 256MB
 postgres_effective_cache_size: 1GB
@@ -75,90 +93,38 @@ Each service role (immich, nextcloud, etc.) manages its own:
 - Each user has a unique password
 - Passwords stored in service role variables (use Ansible Vault for production)
 
-## How to Use from Service Roles
-
-### Pattern for Service Roles
-
-When creating a service role that needs PostgreSQL:
-
-**1. Add postgres as a dependency** (`meta/main.yml`):
-```yaml
-dependencies:
-  - role: postgres
-```
-
-**2. Define database variables** (`defaults/main.yml`):
-```yaml
-myservice_db_name: myservice
-myservice_db_user: myservice_user
-myservice_db_password: changeme  # Use Ansible Vault in production!
-myservice_db_host: localhost
-myservice_db_port: 5432
-```
-
-**3. Create database and user** (`tasks/main.yml`):
-```yaml
-- name: Create PostgreSQL database for myservice
-  community.postgresql.postgresql_db:
-    name: "{{ myservice_db_name }}"
-    state: present
-  become: true
-  become_user: "{{ postgres_admin_user }}"
-
-- name: Create PostgreSQL user for myservice
-  community.postgresql.postgresql_user:
-    name: "{{ myservice_db_user }}"
-    password: "{{ myservice_db_password }}"
-    db: "{{ myservice_db_name }}"
-    priv: ALL
-    state: present
-  become: true
-  become_user: "{{ postgres_admin_user }}"
-
-- name: Ensure user has no superuser privileges
-  community.postgresql.postgresql_user:
-    name: "{{ myservice_db_user }}"
-    role_attr_flags: NOSUPERUSER,NOCREATEDB,NOCREATEROLE
-    state: present
-  become: true
-  become_user: "{{ postgres_admin_user }}"
-```
-
-**Note:** `postgres_admin_user` is provided by the postgres role and defaults to `postgres`.
-
-**4. Configure your service** to connect to:
-```
-Host: localhost
-Port: 5432
-Database: myservice
-User: myservice_user
-Password: changeme
-```
-
-### Real Example: Immich
-
-See `roles/immich/` for a complete working example of using this pattern.
-
 ## Connection Methods
 
 ### From Containers
 
-If your service runs in a container (Docker/Podman), you need to:
+If your service runs in a container (Docker/Podman), you need to configure PostgreSQL to listen on the Podman bridge gateway:
 
-**Option 1: Use host network mode**
+**Step 1: Configure PostgreSQL in inventory**
 ```yaml
-network_mode: host
-```
-Then connect to `localhost:5432`
-
-**Option 2: Use host.containers.internal (Podman/Docker)**
-```yaml
-DB_HOSTNAME: host.containers.internal
-DB_PORT: 5432
+# inventory/host_vars/yourserver.yml
+postgres_listen_addresses: "127.0.0.1,{{ podman_subnet_gateway }}"
+postgres_firewall_allowed_sources:
+  - 127.0.0.0/8
+  - "{{ podman_subnet }}"
 ```
 
-**Option 3: Bridge with firewall (less secure)**
-Bind postgres to `0.0.0.0` and use container gateway IP.
+**Step 2: Use host.containers.internal in containers**
+```yaml
+# docker-compose.yml
+services:
+  myservice:
+    extra_hosts:
+      - "host.containers.internal:host-gateway"
+    environment:
+      DB_HOSTNAME: host.containers.internal
+      DB_PORT: 5432
+```
+
+**What this does:**
+- PostgreSQL listens on `127.0.0.1` (localhost) and `10.88.0.1` (Podman gateway)
+- UFW firewall allows connections from localhost and Podman subnet
+- `pg_hba.conf` automatically configured to allow Podman subnet
+- `host.containers.internal` resolves to the gateway IP inside containers
 
 ### From System Services
 
@@ -198,11 +164,14 @@ The pattern above ensures users have:
 - ❌ Cannot create roles
 - ❌ Cannot access other databases
 
-### 4. Local-Only Access
+### 4. Controlled Access
 
-PostgreSQL is configured to listen on `localhost` only:
-- No remote connections allowed
-- Services must run on the same host
+PostgreSQL default configuration:
+- Listens on `localhost` only by default
+- To allow container access, set `postgres_listen_addresses` to include Podman gateway
+- UFW firewall rules automatically configured for allowed sources
+- `pg_hba.conf` automatically configured for Podman subnet when enabled
+- No remote network access by default
 
 ## Troubleshooting
 
@@ -228,7 +197,20 @@ sudo -u postgres psql
 
 ### Test connection from service
 ```bash
+# From localhost
 psql -h localhost -U immich -d immich
+
+# From Podman gateway (if configured)
+psql -h 10.88.0.1 -U immich -d immich
+
+# Check listen addresses
+sudo -u postgres psql -c "SHOW listen_addresses;"
+
+# Check firewall rules
+sudo ufw status | grep 5432
+
+# Check pg_hba.conf
+sudo grep -v "^#" /var/lib/postgres/data/pg_hba.conf | grep -v "^$"
 ```
 
 ### View logs

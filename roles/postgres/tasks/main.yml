@@ -20,20 +20,8 @@
     name: "{{ postgres_packages }}"
     state: present
 
-- name: Create current version symlink (Debian)
-  ansible.builtin.shell:
-    cmd: set -o pipefail && ln -sf $(ls -1 /etc/postgresql/ | grep -E '^[0-9]+$' | sort -V | tail -n1) /etc/postgresql/current
-    creates: /etc/postgresql/current
-    executable: /bin/bash
-  when: ansible_facts['os_family'] == 'Debian'
-
-- name: Ensure PostgreSQL is initialized (Arch)
-  ansible.builtin.command:
-    cmd: initdb -D {{ postgres_data_dir }}
-    creates: "{{ postgres_data_dir }}/PG_VERSION"
-  become: true
-  become_user: "{{ postgres_admin_user }}"
-  when: ansible_facts['os_family'] == 'Archlinux'
+- name: Include OS-specific tasks
+  ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}.yml"
 
 - name: Ensure PostgreSQL config directory exists
   ansible.builtin.file:
@@ -60,6 +48,25 @@
     mode: "0640"
   notify: Restart PostgreSQL
 
+- name: Configure pg_hba.conf for Podman subnet access
+  ansible.builtin.lineinfile:
+    path: "{{ postgres_hba_path }}"
+    line: "host    all             all             {{ podman_subnet }}            scram-sha-256"
+    insertafter: "^# IPv4 local connections:"
+    state: present
+  when: podman_subnet is defined
+  notify: Restart PostgreSQL
+
+- name: Setup firewall rules for PostgreSQL
+  community.general.ufw:
+    rule: allow
+    src: "{{ item }}"
+    port: "{{ postgres_port }}"
+    proto: tcp
+    direction: in
+    comment: "PostgreSQL"
+  loop: "{{ postgres_firewall_allowed_sources }}"
+
 - name: Enable and start PostgreSQL service
   ansible.builtin.systemd:
     name: "{{ postgres_service_name }}"
@@ -71,5 +78,4 @@
     name: "{{ postgres_admin_user }}"
     password: "{{ postgres_admin_password }}"
     state: present
-  become: true
   become_user: "{{ postgres_admin_user }}"

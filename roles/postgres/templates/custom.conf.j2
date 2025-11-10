@@ -1,6 +1,10 @@
 # Custom PostgreSQL configuration managed by Ansible
 # Override settings from main postgresql.conf
 
+# Network configuration
+listen_addresses = '{{ postgres_listen_addresses }}'
+port = {{ postgres_port }}
+
 # Performance tuning
 shared_buffers = {{ postgres_shared_buffers }}
 effective_cache_size = {{ postgres_effective_cache_size }}

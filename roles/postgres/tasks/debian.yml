@@ -1,0 +1,16 @@
+---
+- name: Create current version symlink
+  ansible.builtin.shell:
+    cmd: set -o pipefail && ln -sf $(ls -1 /etc/postgresql/ | grep -E '^[0-9]+$' | sort -V | tail -n1) /etc/postgresql/current
+    creates: /etc/postgresql/current
+    executable: /bin/bash
+
+- name: Get installed PostgreSQL version
+  ansible.builtin.shell: psql --version | grep -oP '\d+' | head -1
+  register: postgres_version
+  changed_when: false
+
+- name: Install pgvector extension
+  ansible.builtin.package:
+    name: "postgresql-{{ postgres_version.stdout }}-pgvector"
+    state: present

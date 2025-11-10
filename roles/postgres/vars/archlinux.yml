@@ -3,6 +3,10 @@ postgres_packages:
   - postgresql
   - python-psycopg2
 
+# AUR packages (installed via paru)
+postgres_aur_packages:
+  - pgvector
+
 postgres_service_name: postgresql
 postgres_config_path: "{{ postgres_data_dir }}/postgresql.conf"
 postgres_config_dir: "{{ postgres_data_dir }}/conf.d"
