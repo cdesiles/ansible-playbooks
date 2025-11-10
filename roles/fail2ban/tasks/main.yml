@@ -52,6 +52,16 @@
         daemon_reload: true
       when: not override_conf.stat.exists
 
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled
+
+- name: Enable UFW service at startup
+  ansible.builtin.systemd:
+    name: ufw
+    enabled: true
+    state: started
+
 - name: Start and enable fail2ban
   ansible.builtin.service:
     name: fail2ban
