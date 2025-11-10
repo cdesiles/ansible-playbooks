@@ -45,4 +45,5 @@
     proto: udp
     src: "{{ item }}"
     direction: in
+    comment: "NTP traffic"
   loop: "{{ ntp_firewall_allowed_sources | default([]) }}"

@@ -26,6 +26,7 @@
     proto: tcp
     from: "{{ ssh_allowed_network }}"
     direction: in
+    comment: "SSH from local network"
 
 - name: Allow SSH VPN incoming connection
   ufw:
@@ -34,6 +35,7 @@
     proto: tcp
     from: "{{ ssh_allowed_vpn_network }}"
     direction: in
+    comment: "SSH from VPN network"
 
 - name: Add SSH public key to authorized_keys
   authorized_key:

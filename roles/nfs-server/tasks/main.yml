@@ -35,4 +35,5 @@
     port: "{{ nfs_port }}"
     proto: any
     direction: in
+    comment: "Network File System (NFS)"
   with_items: "{{ nfs_server_firewall_allowed_sources | default([]) }}"

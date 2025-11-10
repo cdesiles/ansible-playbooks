@@ -28,8 +28,12 @@ ansible-galaxy collection install -r requirements.yml
 
 ## Usage
 
+If you have a password on your ssh key `--ask-pass` is recommended, `--ask-become-pass` is always asked in these roles, as most tasks require elevated privileges. These are dropped time to time when the default user privilege is enough.
+
 ```sh
-ansible-playbook -i inventory/hosts.yml playbook.yml --ask-become-pass
+ansible-playbook -i inventory/hosts.yml playbook.yml \
+--ask-pass \
+--ask-become-pass
 ```
 
 ## Target devices configuration
