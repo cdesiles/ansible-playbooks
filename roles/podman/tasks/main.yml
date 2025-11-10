@@ -1,20 +1,36 @@
-- name: install podman
-  package:
-    name: podman
+---
+- name: Install podman packages
+  ansible.builtin.package:
+    name:
+      - podman
+      - podman-compose
+    state: present
 
-- command:
+- name: Get main user
+  ansible.builtin.command:
     cmd: whoami
   no_log: true
   become: false
   register: main_user
+  changed_when: false
 
-- set_fact:
+- name: Set main user variable
+  ansible.builtin.set_fact:
     main_user: "{{ main_user.stdout }}"
   no_log: true
 
-- name: create projects directory
-  file:
+- name: Create projects directory
+  ansible.builtin.file:
     path: "{{ podman_projects_dir }}"
     state: directory
     owner: "{{ main_user }}"
     group: "{{ main_user }}"
+    mode: "0755"
+
+- name: Deploy registries configuration
+  ansible.builtin.template:
+    src: registries.conf.j2
+    dest: /etc/containers/registries.conf
+    owner: root
+    group: root
+    mode: "0644"

@@ -1,0 +1,14 @@
+# Podman registries configuration managed by Ansible
+
+# Unqualified search registries
+# These registries will be searched when using short image names (e.g., "redis:alpine")
+unqualified-search-registries = [
+{% for registry in podman_unqualified_search_registries %}
+  "{{ registry }}"{{ "," if not loop.last else "" }}
+{% endfor %}
+]
+
+# Registry configuration
+# docker.io
+[[registry]]
+location = "docker.io"
