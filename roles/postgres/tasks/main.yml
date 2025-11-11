@@ -48,13 +48,13 @@
     mode: "0640"
   notify: Restart PostgreSQL
 
-- name: Configure pg_hba.conf for Podman subnet access
-  ansible.builtin.lineinfile:
-    path: "{{ postgres_hba_path }}"
-    line: "host    all             all             {{ podman_subnet }}            scram-sha-256"
-    insertafter: "^# IPv4 local connections:"
-    state: present
-  when: podman_subnet is defined
+- name: Deploy pg_hba.conf from template
+  ansible.builtin.template:
+    src: pg_hba.conf.j2
+    dest: "{{ postgres_hba_path }}"
+    owner: postgres
+    group: postgres
+    mode: "0640"
   notify: Restart PostgreSQL
 
 - name: Setup firewall rules for PostgreSQL

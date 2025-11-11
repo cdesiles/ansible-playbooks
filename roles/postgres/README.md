@@ -17,33 +17,19 @@ This Ansible role installs and configures PostgreSQL for local use only. It prov
 
 ## Role Variables
 
-Available variables with defaults (see `defaults/main.yml`):
+See `defaults/main.yml` for all available variables and their default values.
 
+### Key Configuration Requirements
+
+#### Required Password
+
+The `postgres_admin_password` variable must be set in your inventory (min 12 characters). The role will fail if not set.
+
+#### Container Access
+
+For containers to access PostgreSQL, set `postgres_bind` to include the Podman gateway:
 ```yaml
-# PostgreSQL admin user
-postgres_admin_user: postgres
-
-# PostgreSQL admin password (REQUIRED - must be set explicitly)
-# postgres_admin_password: ""  # Intentionally undefined
-
-# PostgreSQL data directory
-postgres_data_dir: /var/lib/postgres/data
-
-# Network configuration
-postgres_listen_addresses: 127.0.0.1  # For container access: "127.0.0.1,{{ podman_subnet_gateway }}"
-postgres_port: 5432
-
-# Firewall configuration
-postgres_firewall_allowed_sources:
-  - 127.0.0.0/8  # Localhost
-  - "{{ podman_subnet | default('10.88.0.0/16') }}"  # Podman bridge network
-
-# Performance tuning
-postgres_shared_buffers: 256MB
-postgres_effective_cache_size: 1GB
-postgres_maintenance_work_mem: 64MB
-postgres_work_mem: 4MB
-postgres_max_connections: 100
+postgres_bind: "127.0.0.1,{{ podman_subnet_gateway }}"
 ```
 
 ## Dependencies
@@ -102,7 +88,7 @@ If your service runs in a container (Docker/Podman), you need to configure Postg
 **Step 1: Configure PostgreSQL in inventory**
 ```yaml
 # inventory/host_vars/yourserver.yml
-postgres_listen_addresses: "127.0.0.1,{{ podman_subnet_gateway }}"
+postgres_bind: "127.0.0.1,{{ podman_subnet_gateway }}"
 postgres_firewall_allowed_sources:
   - 127.0.0.0/8
   - "{{ podman_subnet }}"
@@ -168,7 +154,7 @@ The pattern above ensures users have:
 
 PostgreSQL default configuration:
 - Listens on `localhost` only by default
-- To allow container access, set `postgres_listen_addresses` to include Podman gateway
+- To allow container access, set `postgres_bind` to include Podman gateway
 - UFW firewall rules automatically configured for allowed sources
 - `pg_hba.conf` automatically configured for Podman subnet when enabled
 - No remote network access by default

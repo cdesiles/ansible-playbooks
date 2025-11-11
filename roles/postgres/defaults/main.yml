@@ -13,12 +13,12 @@ postgres_admin_user: postgres
 postgres_data_dir: /var/lib/postgres/data
 
 # Binding address(es)
-postgres_listen_addresses: "127.0.0.1,{{ podman_subnet_gateway | default('10.88.0.1' }}"
+# example: postgres_bind: "127.0.0.1,10.89.0.1"
+postgres_bind: "127.0.0.1"
 
 # Firewall configuration
 postgres_firewall_allowed_sources:
-  - 127.0.0.0/8 # Localhost
-  - "{{ podman_subnet | default('10.88.0.0/16') }}" # Podman bridge network
+  - 127.0.0.0/8
 
 # Performance tuning (adjust based on your hardware)
 postgres_shared_buffers: 256MB

@@ -2,7 +2,7 @@
 # Override settings from main postgresql.conf
 
 # Network configuration
-listen_addresses = '{{ postgres_listen_addresses }}'
+listen_addresses = '{{ postgres_bind }}'
 port = {{ postgres_port }}
 
 # Performance tuning
