@@ -22,21 +22,11 @@
         line: "%wheel ALL=(ALL) NOPASSWD: ALL"
         validate: /usr/sbin/visudo -cf %s
 
-    - ansible.builtin.command:
-        cmd: whoami
-      no_log: true
-      become: false
-      register: main_user
-
-    - ansible.builtin.set_fact:
-        main_user: "{{ main_user.stdout }}"
-      no_log: true
-
     - name: Create yay sources dir
       ansible.builtin.file:
         path: "{{ yay_src_path }}"
         state: directory
-        owner: "{{ main_user }}"
+        owner: "{{ ansible_user }}"
 
     - name: Clone git sources
       become: false

@@ -6,25 +6,12 @@
       - podman-compose
     state: present
 
-- name: Get main user
-  ansible.builtin.command:
-    cmd: whoami
-  no_log: true
-  become: false
-  register: main_user
-  changed_when: false
-
-- name: Set main user variable
-  ansible.builtin.set_fact:
-    main_user: "{{ main_user.stdout }}"
-  no_log: true
-
 - name: Create projects directory
   ansible.builtin.file:
     path: "{{ podman_projects_dir }}"
     state: directory
-    owner: "{{ main_user }}"
-    group: "{{ main_user }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
     mode: "0755"
 
 - name: Deploy registries configuration
@@ -34,3 +21,12 @@
     owner: root
     group: root
     mode: "0644"
+
+- name: Create external Podman networks
+  containers.podman.podman_network:
+    name: "{{ item.name }}"
+    subnet: "{{ item.subnet }}"
+    gateway: "{{ item.gateway }}"
+    state: present
+  loop: "{{ podman_external_networks | default([]) }}"
+  when: podman_external_networks is defined and podman_external_networks | length > 0

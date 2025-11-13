@@ -14,6 +14,6 @@
   ansible.builtin.file:
     path: "{{ docker_projects_dir }}"
     state: absent
-    owner: "{{ main_user }}"
-    group: "{{ main_user }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
   when: confirmation.user_input | lower in ['yes', 'y']

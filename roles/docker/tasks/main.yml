@@ -23,26 +23,16 @@
     enabled: true
     state: started
 
-- ansible.builtin.command:
-    cmd: whoami
-  no_log: true
-  become: false
-  register: main_user
-
-- ansible.builtin.set_fact:
-    main_user: "{{ main_user.stdout }}"
-  no_log: true
-
 - name: Create projects directory
   ansible.builtin.file:
     path: "{{ docker_projects_dir }}"
     state: directory
-    owner: "{{ main_user }}"
-    group: "{{ main_user }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
 
 - name: Allow user to use docker
   ansible.builtin.user:
-    name: "{{ main_user }}"
+    name: "{{ ansible_user }}"
     groups: docker
     append: true
   register: docker_group

@@ -112,3 +112,36 @@ nfs_server_firewall_allowed_sources:
 nfs_bind_addresses:
   - 192.168.20.4
   - 192.168.1.2
+
+# Podman configuration
+# --------------------
+podman_external_networks:
+  - name: immich
+    subnet: 172.20.0.0/16
+    gateway: 172.20.0.1
+
+# PostgreSQL configuration
+# ------------------------
+postgres_admin_password: "{{ vault_postgres_admin_password }}"
+postgres_bind: "127.0.0.1"
+postgres_firewall_allowed_sources:
+  - 127.0.0.0/8
+
+# Valkey configuration
+# --------------------
+valkey_admin_password: "{{ vault_valkey_admin_password }}"
+valkey_bind: "127.0.0.1"
+valkey_firewall_allowed_sources:
+  - 127.0.0.0/8
+
+# Valkey ACL users
+valkey_acl_users:
+  - username: immich
+    password: "{{ vault_immich_valkey_password }}"
+    keypattern: "immich_bull* immich_channel*"
+    commands: "&* -@dangerous +@read +@write +@pubsub +select +auth +ping +info +eval +evalsha"
+
+# Immich configuration
+# --------------------
+immich_postgres_password: "{{ vault_immich_postgres_password }}"
+immich_valkey_password: "{{ vault_immich_valkey_password }}"

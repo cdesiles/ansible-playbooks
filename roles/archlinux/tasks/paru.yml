@@ -26,21 +26,11 @@
   #         line: "%wheel ALL=(ALL) NOPASSWD: ALL"
   #         validate: /usr/sbin/visudo -cf %s
 
-  #     - command:
-  #         cmd: whoami
-  #       no_log: true
-  #       become: false
-  #       register: main_user
-
-  #     - set_fact:
-  #         main_user: "{{ main_user.stdout }}"
-  #       no_log: true
-
   #     - name: Create paru sources dir
   #       file:
   #         path: "{{ paru_src_path }}"
   #         state: directory
-  #         owner: "{{ main_user }}"
+  #         owner: "{{ ansible_user }}"
 
   #     - name: Clone git sources
   #       become: false
