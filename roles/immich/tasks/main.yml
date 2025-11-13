@@ -1,0 +1,123 @@
+---
+- name: Validate required passwords are set
+  ansible.builtin.assert:
+    that:
+      - immich_postgres_password is defined
+      - immich_postgres_password | length >= 12
+      - immich_valkey_password is defined
+      - immich_valkey_password | length >= 12
+    fail_msg: |
+      immich_postgres_password and immich_valkey_password are required (min 12 chars).
+      See roles/immich/defaults/main.yml for configuration instructions.
+    success_msg: "Password validation passed"
+
+- name: Create PostgreSQL database for Immich
+  community.postgresql.postgresql_db:
+    name: "{{ immich_postgres_db_name }}"
+    owner: "{{ immich_postgres_user }}"
+    state: present
+  become_user: "{{ postgres_admin_user }}"
+
+- name: Create PostgreSQL user for Immich
+  community.postgresql.postgresql_user:
+    name: "{{ immich_postgres_user }}"
+    password: "{{ immich_postgres_password }}"
+    state: present
+  become_user: "{{ postgres_admin_user }}"
+
+- name: Grant all privileges on database to Immich user
+  community.postgresql.postgresql_privs:
+    login_db: "{{ immich_postgres_db_name }}"
+    roles: "{{ immich_postgres_user }}"
+    type: database
+    privs: ALL
+    state: present
+  become_user: "{{ postgres_admin_user }}"
+
+- name: Ensure Immich user has no superuser privileges
+  community.postgresql.postgresql_user:
+    name: "{{ immich_postgres_user }}"
+    role_attr_flags: NOSUPERUSER,NOCREATEDB,NOCREATEROLE
+    state: present
+  become_user: "{{ postgres_admin_user }}"
+
+- name: Enable required PostgreSQL extensions in Immich database
+  community.postgresql.postgresql_ext:
+    name: "{{ item }}"
+    login_db: "{{ immich_postgres_db_name }}"
+    state: present
+  become_user: "{{ postgres_admin_user }}"
+  loop:
+    - cube
+    - earthdistance
+    - vector
+
+- name: Grant schema permissions to Immich user
+  community.postgresql.postgresql_privs:
+    login_db: "{{ immich_postgres_db_name }}"
+    roles: "{{ immich_postgres_user }}"
+    type: schema
+    objs: public
+    privs: CREATE,USAGE
+    state: present
+  become_user: "{{ postgres_admin_user }}"
+
+- name: Create Immich project directory
+  ansible.builtin.file:
+    path: "{{ podman_projects_dir }}/immich"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Create Immich data directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  loop:
+    - "{{ immich_upload_location }}"
+
+- name: Deploy docker-compose.yml for Immich
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ podman_projects_dir }}/immich/docker-compose.yml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  notify: Restart Immich
+
+- name: Create systemd service for Immich
+  ansible.builtin.template:
+    src: immich.service.j2
+    dest: /etc/systemd/system/immich.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Enable and start Immich service
+  ansible.builtin.systemd:
+    name: immich
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Deploy nginx vhost configuration for Immich
+  ansible.builtin.template:
+    src: nginx-vhost.conf.j2
+    dest: /etc/nginx/conf.d/immich.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: immich_nginx_enabled
+  notify: Reload nginx
+
+- name: Remove nginx vhost configuration for Immich
+  ansible.builtin.file:
+    path: /etc/nginx/conf.d/immich.conf
+    state: absent
+  when: not immich_nginx_enabled
+  notify: Reload nginx

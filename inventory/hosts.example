@@ -8,3 +8,7 @@ all:
         marge:
         homer:
         maggie:
+      vars:
+        ansible_user: jgarcia
+        ansible_become: true
+        ansible_become_method: sudo

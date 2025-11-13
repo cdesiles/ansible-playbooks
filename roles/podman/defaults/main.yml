@@ -12,13 +12,16 @@ podman_unqualified_search_registries:
 # Leave empty to use Podman's default dynamic network assignment
 # Example: "10.89.0.0/24" if you want to explicitly set it
 podman_subnet: ""
-
 # Podman bridge gateway IP (typically .1 of the bridge network)
 # Used by services that need to bind to the bridge interface
-# Example: "10.89.0.1" for the 10.89.0.0/24 network
-podman_subnet_gateway: ""
 
-# Podman bridge interface name (corresponds to the network above)
-# Common values: podman0, podman1, etc.
-# Only relevant if podman_subnet is set
-podman_subnet_iface: podman1
+# Each network should define: name, subnet, gateway
+# podman_external_networks: []
+# Example:
+# podman_external_networks:
+#   - name: immich
+#     subnet: 172.20.0.0/16
+#     gateway: 172.20.0.1
+#   - name: nextcloud
+#     subnet: 172.21.0.0/16
+#     gateway: 172.21.0.1

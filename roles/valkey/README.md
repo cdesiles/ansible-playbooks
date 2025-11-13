@@ -39,46 +39,26 @@ Valkey is a high-performance key/value datastore and a drop-in replacement for R
 
 ## Role Variables
 
-Available variables with defaults (see `defaults/main.yml`):
+See `defaults/main.yml` for all available variables and their default values.
 
+### Key Configuration Requirements
+
+#### Required Password
+
+The `valkey_admin_password` variable must be set in your inventory (min 12 characters). The role will fail if not set.
+
+#### ACL Users
+
+Service users must be registered via the `valkey_acl_users` list. See the ACL Configuration Guide section below for details.
+
+#### Container Access
+
+For containers to access Valkey, set `valkey_bind` to include the Podman gateway:
 ```yaml
-# Bind address (localhost only for security)
-valkey_bind: 127.0.0.1
-
-# Port
-valkey_port: 6379
-
-# Authentication (REQUIRED - must be set explicitly)
-# valkey_admin_password: ""  # Intentionally undefined - role will fail if not set
-
-# ACL users (services register their users here)
-valkey_acl_users: []
-# Example:
-# valkey_acl_users:
-#   - username: immich
-#     password: "secretpassword"
-#     keypattern: "immich_bull* immich_channel*"  # Space-separated patterns (template converts to ~pattern1 ~pattern2)
-#     commands: "&* -@dangerous +@read +@write +@pubsub +select +auth +ping +info +eval +evalsha"
-
-# Max memory (0 = unlimited)
-valkey_maxmemory: 256mb
-
-# Eviction policy when max memory is reached
-valkey_maxmemory_policy: allkeys-lru
-
-# Data directory
-valkey_dir: /var/lib/valkey
-
-# ACL file location
-valkey_acl_file: /etc/valkey/users.acl
-
-# Log level
-valkey_loglevel: notice
+valkey_bind: "127.0.0.1 {{ podman_subnet_gateway }}"
 ```
 
-**Security Note:** This role uses ACL-based authentication. You must set `valkey_admin_password` and configure service users via `valkey_acl_users`.
-
-**System Requirements:** This role automatically config
+**System Requirements:** This role automatically configures kernel parameters (`vm.overcommit_memory=1`) and transparent hugepage settings
 
 ## Dependencies
 

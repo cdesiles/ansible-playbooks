@@ -1,0 +1,57 @@
+---
+# Immich version to deploy
+immich_version: release
+
+# Storage location (@see https://docs.immich.app/install/environment-variables/)
+immich_upload_location: "{{ podman_projects_dir }}/immich/data/upload"
+
+# PostgreSQL configuration (REQUIRED password - must be set explicitly)
+immich_postgres_db_name: immich
+immich_postgres_user: immich
+# immich_postgres_password: ""  # Intentionally undefined - role will fail if not set
+immich_postgres_host: postgres.local
+immich_postgres_port: 5432
+
+# Valkey configuration (REQUIRED password - must be set explicitly)
+immich_valkey_user: immich
+# immich_valkey_password: ""  # Intentionally undefined - role will fail if not set
+immich_valkey_host: valkey.local
+immich_valkey_port: 6379
+immich_valkey_db: 0 # Dedicated database number for isolation (0-15)
+
+# Valkey ACL configuration
+# Based on: https://github.com/immich-app/immich/discussions/19727#discussioncomment-13668749
+immich_valkey_acl:
+  username: "{{ immich_valkey_user }}"
+  password: "{{ immich_valkey_password }}"
+  keypattern: "immich_bull* immich_channel*" # BullMQ patterns used by Immich
+  commands: "&* -@dangerous +@read +@write +@pubsub +select +auth +ping +info +eval +evalsha"
+  # &* = all channels (required for pub/sub)
+  # -@dangerous = deny dangerous commands (FLUSHDB, FLUSHALL, KEYS, etc)
+  # +@read +@write = allow read/write command groups
+  # +@pubsub = allow pub/sub commands
+  # +select = allow SELECT (database switching)
+  # +auth +ping +info = connection management
+  # +eval +evalsha = Lua scripting (required by BullMQ)
+
+# Network configuration
+immich_port: 2283
+
+# External network configuration
+# Define in inventory via podman_external_networks list
+# Example:
+# podman_external_networks:
+#   - name: immich
+#     subnet: 172.20.0.0/16
+#     gateway: 172.20.0.1
+
+# Container images
+immich_server_image: ghcr.io/immich-app/immich-server
+immich_ml_image: ghcr.io/immich-app/immich-machine-learning
+
+# Timezone
+immich_timezone: UTC
+
+# Nginx reverse proxy configuration
+immich_nginx_enabled: false
+immich_nginx_hostname: photos.nas.local

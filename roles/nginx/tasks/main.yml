@@ -1,0 +1,49 @@
+---
+- name: Load OS-specific variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - debian.yml
+
+- name: Install nginx
+  ansible.builtin.package:
+    name: nginx
+    state: present
+
+- name: Ensure nginx conf.d directory exists
+  ansible.builtin.file:
+    path: "{{ nginx_conf_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy nginx main configuration
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: nginx -t -c %s
+  notify: Reload nginx
+
+- name: Allow HTTP traffic through firewall
+  community.general.ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+    comment: Nginx HTTP
+
+- name: Allow HTTPS traffic through firewall
+  community.general.ufw:
+    rule: allow
+    port: "443"
+    proto: tcp
+    comment: Nginx HTTPS
+
+- name: Enable and start nginx service
+  ansible.builtin.systemd:
+    name: nginx
+    enabled: true
+    state: started

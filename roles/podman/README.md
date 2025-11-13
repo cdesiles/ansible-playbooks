@@ -8,6 +8,7 @@ This Ansible role installs and configures Podman for container management on NAS
 - Configures container registry search paths
 - Creates shared projects directory for compose files
 - Enables short image name resolution (e.g., `redis:alpine` → `docker.io/library/redis:alpine`)
+- Creates external networks for services (e.g., dedicated Immich network)
 
 ## Requirements
 
@@ -16,85 +17,24 @@ This Ansible role installs and configures Podman for container management on NAS
 
 ## Role Variables
 
-Available variables with defaults (see `defaults/main.yml`):
+See `defaults/main.yml` for all available variables and their default values.
 
-```yaml
-# Base directory for docker-compose projects
-podman_projects_dir: /opt/podman
+### Key Configuration
 
-# Unqualified search registries (for short image names)
-podman_unqualified_search_registries:
-  - docker.io
-  - quay.io
-  - ghcr.io
+#### Unqualified Search Registries
 
-# Podman bridge network (leave empty for default dynamic assignment)
-podman_subnet: ""
+When you use short image names (without registry prefix), Podman searches configured registries in order (e.g., `redis:alpine` → `docker.io/library/redis:alpine`).
 
-# Podman bridge gateway IP (used by services binding to bridge)
-podman_subnet_gateway: ""
+Customize via the `podman_unqualified_search_registries` variable.
 
-# Podman bridge interface name (if using custom network)
-podman_subnet_iface: podman1
-```
 
-### Unqualified Search Registries
+#### External Networks
 
-When you use short image names (without registry prefix), Podman searches these registries in order:
-
-```bash
-# Short name
-podman pull redis:alpine
-
-# Resolves to
-docker.io/library/redis:alpine
-```
-
-**Default search order:**
-1. `docker.io` - Docker Hub
-2. `quay.io` - Red Hat Quay
-3. `ghcr.io` - GitHub Container Registry
-
-You can customize this list via the `podman_unqualified_search_registries` variable.
-
-### Podman Bridge Network
-
-By default, Podman dynamically assigns network subnets to bridge interfaces. You can document your network configuration using these variables:
-
-**Default behavior (empty `podman_subnet`):**
-- Podman manages networks automatically
-- No manual configuration needed
-
-**Explicit network documentation:**
-
-```yaml
-podman_subnet: "10.89.0.0/24"
-podman_subnet_gateway: "10.89.0.1"
-podman_subnet_iface: podman1
-```
-
-Use this to:
-- Document your infrastructure topology
-- Allow services to bind to the bridge gateway (e.g., PostgreSQL, Valkey)
-- Reference in other roles that need bridge network information
-- Maintain consistent network configuration across deployments
-
-**Finding your Podman network:**
-
-```bash
-# List Podman networks
-podman network ls
-
-# Show bridge interfaces
-ip addr show | grep podman
-
-# Get specific interface IP
-ip -4 addr show podman1
-```
+The role can create external Podman networks for services that need dedicated network isolation. Define the `podman_external_networks` list in your inventory. Networks persist across container restarts and compose stack rebuilds. See `defaults/main.yml` for configuration details.
 
 ## Dependencies
 
-None.
+- `containers.podman` collection (installed via `requirements.yml`)
 
 ## Example Playbook
 
@@ -108,19 +48,7 @@ None.
 
 ### Custom Configuration
 
-```yaml
----
-- hosts: servers
-  become: true
-  roles:
-    - role: podman
-      vars:
-        podman_projects_dir: /mnt/storage/containers
-        podman_unqualified_search_registries:
-          - docker.io
-          - ghcr.io
-          - registry.gitlab.com
-```
+See `defaults/main.yml` for all available variables. Override in your inventory as needed.
 
 ## Files Deployed
 

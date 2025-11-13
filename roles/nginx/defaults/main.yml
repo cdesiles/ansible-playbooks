@@ -1,0 +1,16 @@
+---
+# Nginx configuration directory for service vhosts
+nginx_conf_dir: /etc/nginx/conf.d
+
+# Worker processes (auto = number of CPU cores)
+nginx_worker_processes: auto
+
+# Worker connections
+nginx_worker_connections: 1024
+
+# Client max body size (for file uploads)
+nginx_client_max_body_size: 100M
+
+# SSL configuration (volontarily omit TLSv1.2 here)
+nginx_ssl_protocols: TLSv1.3
+nginx_ssl_prefer_server_ciphers: true

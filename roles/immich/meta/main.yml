@@ -1,0 +1,6 @@
+---
+dependencies:
+  - role: podman
+  - role: postgres
+  - role: valkey
+  - role: nginx
