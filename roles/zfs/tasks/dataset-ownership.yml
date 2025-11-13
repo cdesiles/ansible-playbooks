@@ -1,5 +1,5 @@
 ---
-# due to Ansible limitations, we cannot loop over a block, so we loop over a distinct tasks file...
+# due to Ansible limitations, we cannot loop over a block, so we loop over distinct task files
 # @see https://stackoverflow.com/a/58911694
 - name: Set ownership on dataset mountpoint
   block:
@@ -7,10 +7,18 @@
       ansible.builtin.command: "zfs get -H -o value mountpoint {{ dataset.name }}"
       register: mountpoint
       changed_when: false
-    - name: Set owner of mountpoints
+
+    - name: Fail if mountpoint is system directory
+      ansible.builtin.fail:
+        msg: "Mountpoint resolved to a system directory ({{ mountpoint.stdout }}), aborting to avoid changing ownership."
+      when:
+        - mountpoint.stdout | trim == ''
+        - mountpoint.stdout | trim is not match('^/$|^(/usr|/bin|/sbin|/etc|/var|/lib|/lib64)$')
+
+    - name: Set mountpoint ownership
       ansible.builtin.file:
         path: "{{ mountpoint.stdout }}"
-        owner: "{{ dataset.user | default(main_user) }}"
-        group: "{{ dataset.group | default(main_user) }}"
+        owner: "{{ dataset.user | default(ansible_user) }}"
+        group: "{{ dataset.group | default(ansible_user) }}"
         state: directory
-        recurse: true
+        recurse: false

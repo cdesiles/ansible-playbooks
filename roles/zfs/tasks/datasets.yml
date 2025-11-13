@@ -8,16 +8,6 @@
     origin: "{{ item.origin | default(omit) }}"
   with_items: "{{ zfs_datasets }}"
 
-- ansible.builtin.command:
-    cmd: whoami
-  no_log: true
-  become: false
-  register: main_user
-
-- ansible.builtin.set_fact:
-    main_user: "{{ main_user.stdout }}"
-  no_log: true
-
 - name: Set dataset ownership
   ansible.builtin.include_tasks: "./dataset-ownership.yml"
   loop: "{{ zfs_datasets }}"

@@ -6,7 +6,7 @@
   failed_when: false
 
 - name: Install zfs
-  when: zfs_dkms_installed.stderr
+  when: zfs_dkms_installed.stderr | length > 0
   block:
     - name: Disable SUDOERS password prompt for makepkg
       no_log: true
@@ -50,7 +50,7 @@
   failed_when: false
 
 - name: Install zrepl
-  when: zrepl_installed.stderr
+  when: zrepl_installed.stderr | length > 0
   block:
     - name: Disable SUDOERS password prompt for makepkg
       no_log: true
