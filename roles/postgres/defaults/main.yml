@@ -26,3 +26,26 @@ postgres_effective_cache_size: 1GB
 postgres_maintenance_work_mem: 64MB
 postgres_work_mem: 4MB
 postgres_max_connections: 100
+
+# Logging configuration
+# Backend: 'journald' (systemd journal) or 'file' (traditional log files)
+postgres_log_backend: journald
+
+# Logging settings (apply to both backends)
+postgres_log_min_duration_statement: -1 # -1 disables, 0 logs all, >0 logs slow queries (ms)
+postgres_log_line_prefix: "%m [%p] %q%u@%d " # timestamp [pid] user@database
+postgres_log_timezone: UTC
+
+# File backend settings (only used when postgres_log_backend: file)
+postgres_log_destination: stderr # stderr|csvlog|syslog
+postgres_logging_collector: "on" # Enable log file collection
+postgres_log_directory: log # Relative to data directory
+postgres_log_filename: postgresql-%Y-%m-%d_%H%M%S.log
+postgres_log_rotation_age: 1d # Rotate after this time (0 disables)
+postgres_log_rotation_size: 100MB # Rotate after this size (0 disables)
+postgres_log_truncate_on_rotation: "off" # Overwrite old log files with same name
+
+# Logrotate configuration (only used when postgres_log_backend: file)
+postgres_logrotate_rotate: 14 # Keep 14 days of logs
+postgres_logrotate_frequency: daily # daily|weekly|monthly
+postgres_logrotate_compress: true # Compress rotated logs

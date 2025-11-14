@@ -15,6 +15,18 @@ podman_subnet: ""
 # Podman bridge gateway IP (typically .1 of the bridge network)
 # Used by services that need to bind to the bridge interface
 
+# OCI Runtime
+# crun (default, modern C runtime - fast) or runc (original Go runtime)
+podman_runtime: crun
+
+# Container logging configuration
+# Log driver: journald (systemd journal) or k8s-file (JSON files)
+podman_log_driver: journald
+
+# k8s-file driver settings (only used when podman_log_driver: k8s-file)
+podman_log_max_size: 10mb # Max size per log file before rotation
+podman_log_max_files: 5 # Max number of rotated log files to keep
+
 # Each network should define: name, subnet, gateway
 # podman_external_networks: []
 # Example:

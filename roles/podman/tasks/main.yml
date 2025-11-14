@@ -4,6 +4,7 @@
     name:
       - podman
       - podman-compose
+      - crun
     state: present
 
 - name: Create projects directory
@@ -18,6 +19,14 @@
   ansible.builtin.template:
     src: registries.conf.j2
     dest: /etc/containers/registries.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy Podman containers configuration
+  ansible.builtin.template:
+    src: containers.conf.j2
+    dest: /etc/containers/containers.conf
     owner: root
     group: root
     mode: "0644"

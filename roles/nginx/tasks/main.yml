@@ -5,6 +5,10 @@
     - "{{ ansible_facts['os_family'] }}.yml"
     - debian.yml
 
+- name: Set nginx_user if not already set
+  ansible.builtin.set_fact:
+    nginx_user: "{{ nginx_user | default('www-data') }}"
+
 - name: Install nginx
   ansible.builtin.package:
     name: nginx
@@ -27,6 +31,21 @@
     mode: "0644"
     validate: nginx -t -c %s
   notify: Reload nginx
+
+- name: Deploy logrotate configuration for nginx
+  ansible.builtin.template:
+    src: logrotate-nginx.j2
+    dest: /etc/logrotate.d/nginx
+    owner: root
+    group: root
+    mode: "0644"
+  when: nginx_log_backend == 'file'
+
+- name: Remove logrotate configuration when using journald
+  ansible.builtin.file:
+    path: /etc/logrotate.d/nginx
+    state: absent
+  when: nginx_log_backend == 'journald'
 
 - name: Allow HTTP traffic through firewall
   community.general.ufw:

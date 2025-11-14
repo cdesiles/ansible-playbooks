@@ -11,3 +11,26 @@ effective_cache_size = {{ postgres_effective_cache_size }}
 maintenance_work_mem = {{ postgres_maintenance_work_mem }}
 work_mem = {{ postgres_work_mem }}
 max_connections = {{ postgres_max_connections }}
+
+# Logging configuration
+{% if postgres_log_backend == 'journald' %}
+# Log to systemd journal via stderr (journald captures it automatically)
+log_destination = 'stderr'
+logging_collector = off
+{% else %}
+# Log to files
+log_destination = '{{ postgres_log_destination }}'
+logging_collector = {{ postgres_logging_collector }}
+log_directory = '{{ postgres_log_directory }}'
+log_filename = '{{ postgres_log_filename }}'
+log_rotation_age = {{ postgres_log_rotation_age }}
+log_rotation_size = {{ postgres_log_rotation_size }}
+log_truncate_on_rotation = {{ postgres_log_truncate_on_rotation }}
+{% endif %}
+
+# Logging details (applies to both backends)
+log_line_prefix = '{{ postgres_log_line_prefix }}'
+log_timezone = '{{ postgres_log_timezone }}'
+{% if postgres_log_min_duration_statement >= 0 %}
+log_min_duration_statement = {{ postgres_log_min_duration_statement }}
+{% endif %}

@@ -73,6 +73,21 @@
     enabled: true
     state: started
 
+- name: Deploy logrotate configuration for PostgreSQL
+  ansible.builtin.template:
+    src: logrotate-postgresql.j2
+    dest: /etc/logrotate.d/postgresql
+    owner: root
+    group: root
+    mode: "0644"
+  when: postgres_log_backend == 'file'
+
+- name: Remove logrotate configuration when using journald
+  ansible.builtin.file:
+    path: /etc/logrotate.d/postgresql
+    state: absent
+  when: postgres_log_backend == 'journald'
+
 - name: Set PostgreSQL admin user password
   community.postgresql.postgresql_user:
     name: "{{ postgres_admin_user }}"

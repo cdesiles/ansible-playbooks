@@ -14,3 +14,12 @@ nginx_client_max_body_size: 100M
 # SSL configuration (volontarily omit TLSv1.2 here)
 nginx_ssl_protocols: TLSv1.3
 nginx_ssl_prefer_server_ciphers: true
+
+# Logging configuration
+# Backend: 'file' (traditional /var/log/nginx/*.log) or 'journald' (systemd journal)
+nginx_log_backend: journald
+
+# Logrotate configuration (only used when nginx_log_backend: file)
+nginx_logrotate_rotate: 14 # Keep 14 days of logs
+nginx_logrotate_frequency: daily # daily|weekly|monthly
+nginx_logrotate_compress: true # Compress rotated logs
