@@ -1,0 +1,58 @@
+#  This file is part of systemd.
+#
+#  systemd is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation; either version 2.1 of the License, or
+#  (at your option) any later version.
+#
+# Entries in this file show the compile time defaults.
+# You can change settings by editing this file.
+# Defaults can be restored by simply deleting this file.
+#
+# See journald.conf(5) for details.
+# Managed by Ansible - DO NOT EDIT MANUALLY
+
+[Journal]
+# Storage mode: persistent|volatile|auto|none
+Storage={{ systemd_journald_storage }}
+
+# Compress archived journal files
+Compress={{ systemd_journald_compress }}
+
+# Seal journal files (requires systemd-journal-remote)
+Seal={{ systemd_journald_seal }}
+
+# Split mode for per-user journals: uid|none
+SplitMode={{ systemd_journald_split_mode }}
+
+# Sync interval - how often to flush to disk
+SyncIntervalSec={{ systemd_journald_sync_interval_sec }}
+
+# Rate limiting to prevent log flooding
+RateLimitIntervalSec={{ systemd_journald_rate_limit_interval_sec }}
+RateLimitBurst={{ systemd_journald_rate_limit_burst }}
+
+# System journal size limits (persistent storage)
+SystemMaxUse={{ systemd_journald_system_max_use }}
+SystemKeepFree={{ systemd_journald_system_keep_free }}
+SystemMaxFileSize={{ systemd_journald_system_max_file_size }}
+SystemMaxFiles={{ systemd_journald_system_max_files }}
+
+# Runtime journal size limits (volatile storage in /run)
+RuntimeMaxUse={{ systemd_journald_runtime_max_use }}
+RuntimeKeepFree={{ systemd_journald_runtime_keep_free }}
+RuntimeMaxFileSize={{ systemd_journald_runtime_max_file_size }}
+RuntimeMaxFiles={{ systemd_journald_runtime_max_files }}
+
+# Time-based retention (e.g., 1week, 2months, 1year)
+MaxRetentionSec={{ systemd_journald_max_retention_sec }}
+
+# Maximum log level to store
+MaxLevelStore={{ systemd_journald_max_level_store }}
+MaxLevelSyslog={{ systemd_journald_max_level_syslog }}
+
+# Forward messages to other targets
+ForwardToSyslog={{ systemd_journald_forward_to_syslog }}
+ForwardToKMsg={{ systemd_journald_forward_to_kmsg }}
+ForwardToConsole={{ systemd_journald_forward_to_console }}
+ForwardToWall={{ systemd_journald_forward_to_wall }}

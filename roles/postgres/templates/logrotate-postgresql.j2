@@ -1,0 +1,40 @@
+# Logrotate configuration for PostgreSQL
+# Managed by Ansible - DO NOT EDIT MANUALLY
+
+{% if ansible_facts['os_family'] == 'Archlinux' %}
+# Arch Linux: PostgreSQL logs to data directory
+{{ postgres_data_dir }}/log/*.log {
+    {{ postgres_logrotate_frequency }}
+    missingok
+    rotate {{ postgres_logrotate_rotate }}
+    {% if postgres_logrotate_compress %}
+    compress
+    delaycompress
+    {% endif %}
+    notifempty
+    create 0600 postgres postgres
+    sharedscripts
+    postrotate
+        # Signal PostgreSQL to reopen log files
+        systemctl reload {{ postgres_service_name }} > /dev/null 2>&1 || true
+    endscript
+}
+{% else %}
+# Debian/Ubuntu: PostgreSQL logs to /var/log/postgresql
+/var/log/postgresql/*.log {
+    {{ postgres_logrotate_frequency }}
+    missingok
+    rotate {{ postgres_logrotate_rotate }}
+    {% if postgres_logrotate_compress %}
+    compress
+    delaycompress
+    {% endif %}
+    notifempty
+    create 0640 postgres postgres
+    sharedscripts
+    postrotate
+        # Signal PostgreSQL to reopen log files
+        systemctl reload {{ postgres_service_name }} > /dev/null 2>&1 || true
+    endscript
+}
+{% endif %}

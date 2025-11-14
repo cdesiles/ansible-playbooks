@@ -1,0 +1,57 @@
+---
+# systemd-journald configuration
+# See: man journald.conf
+
+# Storage mode
+# - persistent: store in /var/log/journal (survives reboots)
+# - volatile: store in /run/log/journal (cleared on reboot)
+# - auto: use /var/log/journal if it exists, otherwise /run/log/journal
+systemd_journald_storage: persistent
+
+# System journal size limits
+systemd_journald_system_max_use: 500M # Max disk space for system logs
+systemd_journald_system_keep_free: 1G # Keep this much disk space free
+systemd_journald_system_max_file_size: 50M # Max size per journal file before rotation
+systemd_journald_system_max_files: 10 # Max number of rotated files to keep
+
+# Runtime journal size limits (for volatile storage)
+systemd_journald_runtime_max_use: 100M
+systemd_journald_runtime_keep_free: 100M
+systemd_journald_runtime_max_file_size: 10M
+systemd_journald_runtime_max_files: 10
+
+# Time-based retention (e.g., 1month, 1year, 0 for unlimited)
+systemd_journald_max_retention_sec: 2weeks
+
+# Compression of journal files
+systemd_journald_compress: "yes"
+
+# Rate limiting (prevent log flooding)
+systemd_journald_rate_limit_interval_sec: 30s
+systemd_journald_rate_limit_burst: 10000
+
+# Forward to syslog (if you have rsyslog/syslog-ng)
+systemd_journald_forward_to_syslog: "no"
+systemd_journald_forward_to_kmsg: "no"
+systemd_journald_forward_to_console: "no"
+systemd_journald_forward_to_wall: "no"
+
+# Max level to store (debug, info, notice, warning, err, crit, alert, emerg)
+systemd_journald_max_level_store: debug
+systemd_journald_max_level_syslog: debug
+
+# Seal journals (requires systemd-journal-remote, adds forward-secure sealing)
+systemd_journald_seal: "no"
+
+# Split mode - controls per-user journals
+# - uid: one journal per user
+# - none: single system journal only
+systemd_journald_split_mode: uid
+
+# Sync to disk interval (performance vs losing logs on crash)
+systemd_journald_sync_interval_sec: 5m
+
+# Whether to vacuum (clean) old logs on service start
+systemd_journald_vacuum_on_deploy: true
+systemd_journald_vacuum_time: "{{ systemd_journald_max_retention_sec }}"
+systemd_journald_vacuum_size: "{{ systemd_journald_system_max_use }}"

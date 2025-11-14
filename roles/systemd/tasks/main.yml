@@ -1,0 +1,36 @@
+---
+# systemd role - manages systemd-journald configuration and log rotation
+
+- name: Deploy journald configuration
+  ansible.builtin.template:
+    src: journald.conf.j2
+    dest: /etc/systemd/journald.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart systemd-journald
+
+- name: Ensure /var/log/journal directory exists (for persistent storage)
+  ansible.builtin.file:
+    path: /var/log/journal
+    state: directory
+    owner: root
+    group: systemd-journal
+    mode: "2755"
+  when: systemd_journald_storage in ['persistent', 'auto']
+
+- name: Vacuum old journal logs (cleanup on deployment)
+  ansible.builtin.command:
+    cmd: >
+      journalctl --vacuum-time={{ systemd_journald_vacuum_time }}
+      --vacuum-size={{ systemd_journald_vacuum_size }}
+  when: systemd_journald_vacuum_on_deploy
+  changed_when: false
+  register: vacuum_result
+
+- name: Display vacuum results
+  ansible.builtin.debug:
+    msg: "{{ vacuum_result.stdout_lines }}"
+  when:
+    - systemd_journald_vacuum_on_deploy
+    - vacuum_result.stdout_lines is defined

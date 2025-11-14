@@ -1,0 +1,29 @@
+# Podman containers configuration
+# See: man containers.conf
+# {{ ansible_managed }}
+
+[containers]
+log_driver = "{{ podman_log_driver }}"
+
+{% if podman_log_driver == 'k8s-file' %}
+# k8s-file driver options (JSON file logging with rotation)
+log_size_max = {{ podman_log_max_size }}
+log_tag = "{{ '{{.Name}}' }}"
+
+# Note: log rotation is handled by the k8s-file driver itself
+# max_size triggers rotation, keeping log_max_files number of files
+{% endif %}
+# Default timezone for containers (use host timezone)
+tz = "local"
+
+[engine]
+events_logger = "journald"
+
+# Number of locks available for containers and pods
+num_locks = 2048
+
+# OCI runtime (crun or runc)
+runtime = "{{ podman_runtime }}"
+
+# Default network backend
+network_backend = "netavark"
