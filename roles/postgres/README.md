@@ -1,245 +1,86 @@
 # PostgreSQL Role
 
-This Ansible role installs and configures PostgreSQL for local use only. It provides a shared PostgreSQL instance that multiple services can use with isolated databases and users.
+Installs and configures PostgreSQL as a shared database service for multiple applications with isolated databases and users.
 
 ## Features
 
-- Installs PostgreSQL
-- Local-only access (localhost)
-- Configurable performance settings
-- Each service manages its own database/user (see below)
+- Shared PostgreSQL instance (system service)
+- Per-service database isolation
+- Per-service user privileges (minimal permissions)
+- Container access support (via Podman gateway)
+- Configurable logging backend (journald or files)
+- Performance tuning presets
 
-## Requirements
+## Architecture Pattern
 
-- Systemd-based Linux distribution
-- Root/sudo access
-- Python `psycopg2` package (for database operations from service roles)
+**Decentralized database management:**
+- PostgreSQL role: Installs and configures the server
+- Service roles: Create their own databases/users (e.g., immich, nextcloud)
+- Isolation: Each service user can only access their own database
 
-## Role Variables
+See `CLAUDE.md` for detailed architecture documentation.
 
-See `defaults/main.yml` for all available variables and their default values.
+## Container Access
 
-### Key Configuration Requirements
-
-#### Required Password
-
-The `postgres_admin_password` variable must be set in your inventory (min 12 characters). The role will fail if not set.
-
-#### Container Access
-
-For containers to access PostgreSQL, set `postgres_bind` to include the Podman gateway:
-```yaml
-postgres_bind: "127.0.0.1,{{ podman_subnet_gateway }}"
-```
-
-## Dependencies
-
-None.
-
-## Example Playbook
+For containers to reach PostgreSQL, configure in inventory:
 
 ```yaml
----
-- hosts: servers
-  become: true
-  roles:
-    - role: postgres
-    - role: immich  # Will create its own database
-    - role: nextcloud  # Will create its own database
-```
-
-## Database Isolation Strategy
-
-This role follows a **decentralized database management** pattern:
-
-### 1. PostgreSQL Role Responsibility
-- Install and configure PostgreSQL
-- Manage global performance settings
-- Ensure the service is running
-
-### 2. Service Role Responsibility
-Each service role (immich, nextcloud, etc.) manages its own:
-- Database creation
-- User creation
-- Password management
-- Schema migrations
-
-### 3. Security & Isolation
-
-**Database Isolation:**
-- Each service gets its own database
-- Example: `immich`, `nextcloud`, `gitea`
-
-**User Isolation:**
-- Each service gets its own PostgreSQL user
-- Users can only access their own database
-- Example: `immich` → `immich` database only
-
-**Authentication:**
-- Each user has a unique password
-- Passwords stored in service role variables (use Ansible Vault for production)
-
-## Connection Methods
-
-### From Containers
-
-If your service runs in a container (Docker/Podman), you need to configure PostgreSQL to listen on the Podman bridge gateway:
-
-**Step 1: Configure PostgreSQL in inventory**
-```yaml
-# inventory/host_vars/yourserver.yml
 postgres_bind: "127.0.0.1,{{ podman_subnet_gateway }}"
 postgres_firewall_allowed_sources:
   - 127.0.0.0/8
   - "{{ podman_subnet }}"
 ```
 
-**Step 2: Use host.containers.internal in containers**
-```yaml
-# docker-compose.yml
-services:
-  myservice:
-    extra_hosts:
-      - "host.containers.internal:host-gateway"
-    environment:
-      DB_HOSTNAME: host.containers.internal
-      DB_PORT: 5432
-```
+Containers use `host.containers.internal` as hostname.
 
-**What this does:**
-- PostgreSQL listens on `127.0.0.1` (localhost) and `10.88.0.1` (Podman gateway)
-- UFW firewall allows connections from localhost and Podman subnet
-- `pg_hba.conf` automatically configured to allow Podman subnet
-- `host.containers.internal` resolves to the gateway IP inside containers
+## Logging Backends
 
-### From System Services
+**journald (default):**
+- Logs via stderr → systemd journal
+- View: `journalctl -u postgresql -f`
 
-Services running directly on the host can connect to `localhost:5432` without any special configuration.
+**file:**
+- Logs to data directory or `/var/log/postgresql/`
+- Automatic logrotate configuration
 
-## Security Best Practices
+Switch via `postgres_log_backend` variable.
 
-### 1. Use Ansible Vault for Passwords
+## Hands-on Commands
 
 ```bash
-# Create encrypted variables
-ansible-vault encrypt_string 'my_secure_password' --name 'immich_db_password'
-```
-
-Add to your inventory or vars:
-```yaml
-immich_db_password: !vault |
-          $ANSIBLE_VAULT;1.1;AES256
-          ...encrypted...
-```
-
-### 2. Unique Passwords per Service
-
-Never reuse passwords between services:
-```yaml
-immich_db_password: unique_password_1
-nextcloud_db_password: unique_password_2
-gitea_db_password: unique_password_3
-```
-
-### 3. Minimal Privileges
-
-The pattern above ensures users have:
-- ✅ Access to their database only
-- ❌ No superuser privileges
-- ❌ Cannot create databases
-- ❌ Cannot create roles
-- ❌ Cannot access other databases
-
-### 4. Controlled Access
-
-PostgreSQL default configuration:
-- Listens on `localhost` only by default
-- To allow container access, set `postgres_bind` to include Podman gateway
-- UFW firewall rules automatically configured for allowed sources
-- `pg_hba.conf` automatically configured for Podman subnet when enabled
-- No remote network access by default
-
-## Troubleshooting
-
-### Check PostgreSQL status
-```bash
-systemctl status postgresql
-```
-
-### Connect to PostgreSQL
-```bash
+# Connect to PostgreSQL
 sudo -u postgres psql
-```
 
-### List databases
-```sql
-\l
-```
+# List databases
+sudo -u postgres psql -c '\l'
 
-### List users and permissions
-```sql
-\du
-```
+# List users and permissions
+sudo -u postgres psql -c '\du'
 
-### Test connection from service
-```bash
-# From localhost
-psql -h localhost -U immich -d immich
+# Test connection
+psql -h localhost -U myservice_user -d myservice_db
 
-# From Podman gateway (if configured)
-psql -h 10.88.0.1 -U immich -d immich
+# View logs (journald)
+journalctl -u postgresql -f
+journalctl -u postgresql -p err
+
+# View logs (file - Arch)
+tail -f /var/lib/postgres/data/log/postgresql-*.log
+
+# View logs (file - Debian)
+tail -f /var/log/postgresql/postgresql-*.log
 
 # Check listen addresses
 sudo -u postgres psql -c "SHOW listen_addresses;"
 
-# Check firewall rules
-sudo ufw status | grep 5432
-
-# Check pg_hba.conf
-sudo grep -v "^#" /var/lib/postgres/data/pg_hba.conf | grep -v "^$"
+# Performance settings
+sudo -u postgres psql -c "SHOW shared_buffers;"
+sudo -u postgres psql -c "SHOW effective_cache_size;"
 ```
 
-### View logs
-```bash
-journalctl -u postgresql -f
-```
+## References
 
-## Performance Tuning
-
-Adjust variables based on your hardware:
-
-**For systems with 4GB RAM:**
-```yaml
-postgres_shared_buffers: 1GB
-postgres_effective_cache_size: 3GB
-```
-
-**For systems with 16GB RAM:**
-```yaml
-postgres_shared_buffers: 4GB
-postgres_effective_cache_size: 12GB
-```
-
-**Rule of thumb:**
-- `shared_buffers`: 25% of total RAM
-- `effective_cache_size`: 50-75% of total RAM
-
-## Backup Recommendations
-
-Consider implementing:
-1. **pg_dump** for logical backups
-2. **WAL archiving** for point-in-time recovery
-3. **Automated backup scripts** via cron
-
-Example backup script for a service:
-```bash
-pg_dump -h localhost -U immich immich > /backup/immich_$(date +%Y%m%d).sql
-```
-
-## License
-
-MIT
-
-## Author Information
-
-Created for managing shared PostgreSQL instances in NAS/homelab environments.
+- [PostgreSQL Documentation](https://www.postgresql.org/docs/current/)
+- [PostgreSQL Logging](https://www.postgresql.org/docs/current/runtime-config-logging.html)
+- [PostgreSQL Performance Tuning](https://wiki.postgresql.org/wiki/Tuning_Your_PostgreSQL_Server)
+- [pg_hba.conf Documentation](https://www.postgresql.org/docs/current/auth-pg-hba-conf.html)
