@@ -10,6 +10,8 @@ This Ansible role installs and configures Nginx as a reverse proxy for web appli
 - SSL/TLS configuration
 - Modular vhost configuration via `/etc/nginx/conf.d/`
 - Zero-downtime reloads
+- Configurable logging backend (journald or traditional files)
+- Automatic logrotate configuration for file-based logging
 
 ## Requirements
 
@@ -23,6 +25,29 @@ See `defaults/main.yml` for all available variables and their default values.
 ### Key Configuration
 
 The role provides sensible defaults for worker processes, connection limits, upload sizes, compression, and SSL/TLS settings. Override as needed in your inventory.
+
+### Logging Configuration
+
+```yaml
+# Logging backend: 'journald' (systemd journal) or 'file' (traditional logs)
+nginx_log_backend: journald  # Default: journald
+
+# Logrotate settings (only used when nginx_log_backend: file)
+nginx_logrotate_rotate: 14        # Keep 14 days of logs
+nginx_logrotate_frequency: daily  # daily|weekly|monthly
+nginx_logrotate_compress: true    # Compress rotated logs
+```
+
+**journald backend (default):**
+- Logs sent to systemd journal via syslog
+- Centralized with other system logs
+- Managed by systemd-journald (size limits, retention, compression)
+- View with: `journalctl -u nginx`
+
+**file backend:**
+- Traditional `/var/log/nginx/*.log` files
+- Automatic logrotate configuration deployed
+- Useful for external log aggregation tools
 
 ## Dependencies
 
@@ -133,19 +158,75 @@ This pattern allows for independent service deployments:
 
 ## Log Management
 
-Nginx logs are written to:
+### Journald Backend (Default)
+
+When `nginx_log_backend: journald`, logs are sent to systemd journal:
+
+```bash
+# View all nginx logs
+journalctl -u nginx -f
+
+# Last 100 lines
+journalctl -u nginx -n 100
+
+# Filter by priority (error, warning, info)
+journalctl -u nginx -p err
+
+# Time range
+journalctl -u nginx --since "1 hour ago"
+
+# Export to file
+journalctl -u nginx > nginx-logs.txt
+```
+
+**Benefits:**
+- Centralized with all system logs
+- Automatic rotation/compression via systemd-journald
+- Structured metadata (timestamps, priorities)
+- No separate logrotate configuration needed
+
+### File Backend
+
+When `nginx_log_backend: file`, logs are written to:
 - `/var/log/nginx/access.log` - Access logs
 - `/var/log/nginx/error.log` - Error logs
 
-These are also captured by systemd journal:
 ```bash
-# View nginx logs
-journalctl -u nginx -f
-
 # View traditional log files
 tail -f /var/log/nginx/access.log
 tail -f /var/log/nginx/error.log
 ```
+
+Logrotate is automatically configured to:
+- Rotate daily (configurable)
+- Keep 14 days (configurable)
+- Compress old logs
+- Reload nginx gracefully after rotation
+
+### Switching Backends
+
+To switch from journald to file logging:
+
+```yaml
+- hosts: servers
+  roles:
+    - role: nginx
+      vars:
+        nginx_log_backend: file
+        nginx_logrotate_rotate: 30  # Keep 30 days
+```
+
+To switch back to journald:
+
+```yaml
+- hosts: servers
+  roles:
+    - role: nginx
+      vars:
+        nginx_log_backend: journald
+```
+
+The role automatically removes logrotate config when using journald.
 
 ## Configuration Validation
 
