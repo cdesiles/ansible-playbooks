@@ -4,11 +4,19 @@
     name: "{{ (ansible_facts['os_family'] == 'Archlinux') | ternary('wireguard-tools', 'wireguard') }}"
     state: present
 
-# to support "DNS=" if used in a "client way"
-- name: Install openresolv/resolveconf
+# Use systemd-resolved for DNS management (modern approach on all distributions)
+# Install systemd-resolvconf to provide resolvconf compatibility wrapper
+# "systemd-resolved" is prefered over "openresolv"
+- name: Install systemd-resolvconf
   ansible.builtin.package:
-    name: "{{ (ansible_facts['os_family'] == 'Archlinux') | ternary('openresolv', 'resolvconf') }}"
+    name: systemd-resolvconf
     state: present
+
+- name: Ensure systemd-resolved is enabled and started
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    enabled: true
+    state: started
 
 - name: Ensure wireguard configuration is only owned by root
   ansible.builtin.file:
@@ -45,6 +53,19 @@
   ansible.builtin.template:
     src: wireguard.conf.j2
     dest: /etc/wireguard/{{ wireguard_interface }}.conf
+
+- name: Create systemd override directory for wg-quick
+  ansible.builtin.file:
+    path: /etc/systemd/system/wg-quick@{{ wireguard_interface }}.service.d
+    state: directory
+    mode: "0755"
+
+- name: Deploy systemd override for network dependency
+  ansible.builtin.template:
+    src: systemd-override.conf.j2
+    dest: /etc/systemd/system/wg-quick@{{ wireguard_interface }}.service.d/network-dependency.conf
+    mode: "0644"
+  notify: Reload systemd
 
 - name: Configure the firewall for wireguard
   community.general.ufw:
