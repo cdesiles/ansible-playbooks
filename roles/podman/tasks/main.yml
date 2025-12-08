@@ -7,6 +7,11 @@
       - crun
     state: present
 
+- name: Enable Podman service
+  ansible.builtin.systemd:
+    name: podman.service
+    enabled: true
+
 - name: Create projects directory
   ansible.builtin.file:
     path: "{{ podman_projects_dir }}"
