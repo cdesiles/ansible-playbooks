@@ -1,0 +1,5 @@
+[Unit]
+# Wait for network to be fully online before starting WireGuard
+# Ensures systemd-resolved is ready when WireGuard needs to configure DNS
+After=network-online.target systemd-resolved.service
+Wants=network-online.target
