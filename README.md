@@ -36,6 +36,15 @@ ansible-playbook -i inventory/hosts.yml playbook.yml \
 --ask-become-pass
 ```
 
+You can also unlock your key system wide to simplify your calls:
+
+```sh
+ssh-add ~/.ssh/my_key
+# unlock it
+ansible-playbook -i inventory/hosts.yml playbook.yml \
+--ask-become-pass
+```
+
 ## Target devices configuration
 
 Requirements:
