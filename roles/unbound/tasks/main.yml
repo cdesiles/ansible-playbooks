@@ -38,6 +38,7 @@
         capability sys_resource,
 
         /etc/unbound/** r,
+        /etc/unbound/root.key* rw,
         /var/lib/unbound/** rwk,
         /run/unbound.pid rw,
         /usr/sbin/unbound mr,
@@ -67,7 +68,7 @@
 - name: Update root.hints (if older than 6 months or missing)
   when: >
     (not root_hints.stat.exists) or
-    (ansible_date_time.epoch | int - root_hints.stat.mtime > 15552000)
+    (ansible_facts['date_time']['epoch'] | int - root_hints.stat.mtime > 15552000)
 
   block:
     - name: Download latest root hints from internic
@@ -85,7 +86,7 @@
 - name: Update the ad_servers list if older than 2 weeks or missing
   when: >
     (not ad_servers.stat.exists) or
-    (ansible_date_time.epoch | int - ad_servers.stat.mtime > 1209600)
+    (ansible_facts['date_time']['epoch'] | int - ad_servers.stat.mtime > 1209600)
 
   block:
     - name: Download stevenblack's hosts file
@@ -109,6 +110,14 @@
   ansible.builtin.command: unbound-anchor -a {{ unbound_anchor_root_key }}
   args:
     creates: "{{ unbound_anchor_root_key }}"
+
+- name: Ensure root.key has correct ownership and permissions
+  ansible.builtin.file:
+    path: "{{ unbound_anchor_root_key }}"
+    owner: unbound
+    group: unbound
+    mode: "0640"
+    state: file
 
 - name: Install unbound config
   ansible.builtin.template:
@@ -151,7 +160,8 @@
     rule: allow
     port: "{{ unbound_port }}"
     proto: any
-    src: "{{ item }}"
+    src: "{{ item.src }}"
+    comment: "{{ item.comment }}"
     direction: in
   loop: "{{ unbound_firewall_allowed_sources | default([]) }}"
   retries: 5

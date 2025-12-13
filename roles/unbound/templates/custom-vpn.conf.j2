@@ -1,9 +1,12 @@
 # {{ ansible_managed }}
 view:
     name: "vpn"
+    view-first: yes
 {% for host, ips in unbound_custom_vpn_records.items() %}
     local-data: "{{ host }}.        IN A {{ ips.v4 }}"
     {% if ips.v6 is defined %}
     local-data: "{{ host }}.        IN AAAA {{ ips.v6 }}"
     {% endif %}
 {% endfor %}
+
+include: "{{ unbound_ad_servers_config_path }}"

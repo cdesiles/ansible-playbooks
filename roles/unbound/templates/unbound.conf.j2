@@ -15,6 +15,7 @@ server:
 
     # Define access controls (note that ufw might be also configured)
     access-control: 0.0.0.0/0 refuse
+    access-control: 127.0.0.0/8 allow      # lo interface
     access-control: 192.168.1.0/24 allow   # lan0 interface
     access-control: 192.168.27.0/27 allow  # wg0 interface
     access-control: ::0/0 refuse
@@ -80,7 +81,9 @@ server:
 
     # Perform prefetching of close to expired message cache entries
     # This only applies to domains that have been frequently queried
-    prefetch: yes
+    # NOTE: Disabled because prefetch doesn't work with subnet module (views)
+    # see: https://unbound.docs.nlnetlabs.nl/en/latest/manpages/unbound.conf.html#unbound-conf-prefetch
+    prefetch: no
 
     # One thread should be sufficient, can be increased on beefy machines.
     # In reality for most users running on small networks or on a single machine,
@@ -105,6 +108,5 @@ server:
     # Enable DNSSEC
     auto-trust-anchor-file: "{{ unbound_anchor_root_key }}"
 
-include: "{{ unbound_ad_servers_config_path }}"
 include: "{{ unbound_custom_lan_config_path }}"
 include: "{{ unbound_custom_vpn_config_path }}"

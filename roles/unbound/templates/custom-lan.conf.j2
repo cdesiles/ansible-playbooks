@@ -1,9 +1,20 @@
 # {{ ansible_managed }}
 view:
     name: "lan"
+    view-first: yes
 {% for host, ips in unbound_custom_lan_records.items() %}
-    local-data: "{{ host }}.        IN A {{ ips.v4 }}"
-    {% if ips.v6 is defined %}
-    local-data: "{{ host }}.        IN AAAA {{ ips.v6 }}"
-    {% endif %}
+    local-data: "{{ host }}. IN A {{ ips.v4 }}"
+{% if ips.v6 is defined %}
+    local-data: "{{ host }}. IN AAAA {{ ips.v6 }}"
+{% endif %}
+{% if ips.aliases is defined %}
+{% for alias in ips.aliases %}
+    local-data: "{{ alias }}. IN A {{ ips.v4 }}"
+{% if ips.v6 is defined %}
+    local-data: "{{ alias }}. IN AAAA {{ ips.v6 }}"
+{% endif %}
 {% endfor %}
+{% endif %}
+{% endfor %}
+
+include: "{{ unbound_ad_servers_config_path }}"
