@@ -1,0 +1,58 @@
+---
+# NTP pools/servers to sync from
+ntp_pools:
+  - "0.arch.pool.ntp.org"
+  - "1.arch.pool.ntp.org"
+  - "2.arch.pool.ntp.org"
+  - "3.arch.pool.ntp.org"
+
+# NTP servers (use pools instead for most cases)
+ntp_servers: []
+# Example:
+# ntp_servers:
+#   - server: time.example.com
+#     options: iburst
+
+# System timezone
+ntp_timezone: "UTC"
+
+# Enable NTP server functionality (allow others to sync from this server)
+ntp_server_enabled: false
+
+# NTP server port (standard is 123)
+ntp_port: 123
+
+# Networks allowed to query this NTP server (when server mode is enabled)
+# Used for both chrony config and firewall rules
+ntp_allowed_networks: []
+# Example:
+# ntp_allowed_networks:
+#   - 192.168.1.0/24
+#   - 192.168.27.0/27
+
+# Maximum clock step allowed (0 = allow any step)
+ntp_makestep_threshold: 1.0
+ntp_makestep_limit: 3
+
+# Enable hardware timestamping for better accuracy
+ntp_hwtimestamp: false
+
+# Drift file location
+ntp_driftfile: /var/lib/chrony/drift
+
+# RTC (hardware clock) sync
+ntp_rtcsync: true
+
+# Logging backend: 'journald' (systemd journal) or 'file' (traditional log files)
+ntp_log_backend: journald
+
+# File backend settings (only used when ntp_log_backend: file)
+ntp_logdir: /var/log/chrony
+ntp_log_measurements: false
+ntp_log_statistics: false
+ntp_log_tracking: false
+
+# Logrotate configuration (only used when ntp_log_backend: file)
+ntp_logrotate_rotate: 14 # Keep 14 days of logs
+ntp_logrotate_frequency: daily # daily|weekly|monthly
+ntp_logrotate_compress: true # Compress rotated logs

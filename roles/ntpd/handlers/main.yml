@@ -1,6 +1,0 @@
----
-- name: "Restart ntpd service"
-  ansible.builtin.systemd:
-    name: ntpd
-    state: restarted
-    daemon_reload: true

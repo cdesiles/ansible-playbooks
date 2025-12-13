@@ -1,0 +1,54 @@
+# {{ ansible_managed }}
+# Chrony configuration file
+
+# NTP pools - use multiple pools for redundancy
+{% for pool in ntp_pools %}
+pool {{ pool }} iburst
+{% endfor %}
+
+# NTP servers (if configured)
+{% for server in ntp_servers %}
+server {{ server.server }} {{ server.options | default('iburst') }}
+{% endfor %}
+
+# Record the rate at which the system clock gains/loses time
+driftfile {{ ntp_driftfile }}
+
+# Allow the system clock to be stepped in the first few updates if offset is large
+makestep {{ ntp_makestep_threshold }} {{ ntp_makestep_limit }}
+
+{% if ntp_rtcsync %}
+# Enable kernel synchronization of the real-time clock (RTC)
+rtcsync
+{% endif %}
+
+{% if ntp_hwtimestamp %}
+# Enable hardware timestamping on all interfaces that support it
+hwtimestamp *
+{% endif %}
+
+# Serve time to clients (when server mode is enabled)
+{% if ntp_server_enabled %}
+# Listen on all interfaces for NTP requests
+port {{ ntp_port }}
+
+# Allow NTP client access from configured networks
+{% for network in ntp_allowed_networks %}
+allow {{ network }}
+{% endfor %}
+{% else %}
+# Client-only mode: don't listen on NTP port
+port 0
+
+# Deny all client access (client-only mode)
+deny all
+{% endif %}
+
+{% if ntp_log_backend == 'file' %}
+# File-based logging (managed with logrotate)
+logdir {{ ntp_logdir }}
+log {{ [ntp_log_measurements and 'measurements', ntp_log_statistics and 'statistics', ntp_log_tracking and 'tracking'] | select | join(' ') }}
+{% else %}
+# Using journald/syslog for logging (default on systemd systems)
+# View logs with: journalctl -u chronyd
+{% endif %}

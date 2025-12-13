@@ -1,0 +1,6 @@
+---
+# Arch Linux specific variables
+ntp_user: chrony
+ntp_group: chrony
+ntp_service: chronyd
+ntp_config_path: /etc/chrony.conf

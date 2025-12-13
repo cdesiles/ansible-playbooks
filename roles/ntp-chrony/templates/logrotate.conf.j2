@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+# Logrotate configuration for chrony logs
+
+{{ ntp_logdir }}/*.log {
+    {{ ntp_logrotate_frequency }}
+    rotate {{ ntp_logrotate_rotate }}
+    missingok
+    notifempty
+    {% if ntp_logrotate_compress %}
+    compress
+    delaycompress
+    {% endif %}
+    sharedscripts
+    postrotate
+        /usr/bin/killall -HUP chronyd 2>/dev/null || true
+    endscript
+}

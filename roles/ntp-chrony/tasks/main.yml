@@ -1,0 +1,92 @@
+---
+- name: Load OS-specific variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - "debian.yml"
+
+- name: Install chrony
+  ansible.builtin.package:
+    name: chrony
+    state: present
+
+- name: Set system timezone
+  community.general.timezone:
+    name: "{{ ntp_timezone }}"
+  notify: Restart chrony
+
+- name: Ensure chrony drift file directory exists
+  ansible.builtin.file:
+    path: "{{ ntp_driftfile | dirname }}"
+    state: directory
+    owner: "{{ ntp_user }}"
+    group: "{{ ntp_group }}"
+    mode: "0755"
+
+- name: Ensure chrony log directory exists
+  ansible.builtin.file:
+    path: "{{ ntp_logdir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: ntp_log_backend == 'file'
+
+- name: Disable conflicting systemd-timesyncd service
+  ansible.builtin.systemd:
+    name: systemd-timesyncd
+    enabled: false
+    state: stopped
+  failed_when: false
+
+- name: Disable conflicting ntpd service
+  ansible.builtin.systemd:
+    name: ntpd
+    enabled: false
+    state: stopped
+  failed_when: false
+
+- name: Deploy chrony configuration
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: "{{ ntp_config_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart chrony
+
+- name: Deploy logrotate configuration for chrony
+  ansible.builtin.template:
+    src: logrotate.conf.j2
+    dest: /etc/logrotate.d/chrony
+    owner: root
+    group: root
+    mode: "0644"
+  when: ntp_log_backend == 'file'
+
+- name: Remove logrotate configuration when using journald
+  ansible.builtin.file:
+    path: /etc/logrotate.d/chrony
+    state: absent
+  when: ntp_log_backend == 'journald'
+
+- name: Enable and start chrony service
+  ansible.builtin.systemd:
+    name: "{{ ntp_service }}"
+    enabled: true
+    state: started
+
+- name: Setup firewall rules for NTP server
+  community.general.ufw:
+    rule: allow
+    port: "{{ ntp_port }}"
+    proto: udp
+    src: "{{ item }}"
+    direction: in
+    comment: "NTP server (chrony)"
+  loop: "{{ ntp_allowed_networks }}"
+  when: ntp_server_enabled and ntp_allowed_networks | length > 0
+  retries: 5
+  delay: 2
+  register: ufw_result
+  until: ufw_result is succeeded

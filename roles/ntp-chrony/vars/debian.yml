@@ -1,0 +1,6 @@
+---
+# Debian/Ubuntu specific variables
+ntp_user: _chrony
+ntp_group: _chrony
+ntp_service: chrony
+ntp_config_path: /etc/chrony/chrony.conf
