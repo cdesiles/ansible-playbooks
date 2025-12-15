@@ -1,0 +1,32 @@
+---
+# Ntfy version to deploy
+ntfy_version: latest
+
+# Storage location
+ntfy_data_dir: "{{ podman_projects_dir }}/ntfy/data"
+ntfy_cache_dir: "{{ podman_projects_dir }}/ntfy/cache"
+
+# Authentication configuration (REQUIRED - must be set explicitly)
+# Ntfy admin user for managing topics and access control
+ntfy_admin_user: admin
+# ntfy_admin_password: ""  # Intentionally undefined - role will fail if not set
+
+# Network configuration
+ntfy_port: 8080
+
+# Container image
+ntfy_image: binwiederhier/ntfy
+
+# Timezone
+ntfy_timezone: UTC
+
+# Server configuration
+ntfy_base_url: http://localhost:{{ ntfy_port }}
+ntfy_behind_proxy: false
+ntfy_enable_signup: false  # Disable public signup for security
+ntfy_enable_login: true    # Enable authentication
+ntfy_enable_reservations: true  # Only authenticated users can reserve topics
+
+# Nginx reverse proxy configuration
+ntfy_nginx_enabled: false
+ntfy_nginx_hostname: ntfy.nas.local

@@ -1,0 +1,23 @@
+---
+services:
+  ntfy:
+    container_name: ntfy
+    image: {{ ntfy_image }}:{{ ntfy_version }}
+    command:
+      - serve
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - {{ podman_projects_dir }}/ntfy/server.yml:/etc/ntfy/server.yml:ro
+      - {{ ntfy_cache_dir }}:/var/cache/ntfy:rw,Z
+      - {{ ntfy_data_dir }}:/var/lib/ntfy:rw,Z
+    ports:
+      - "{{ ntfy_port }}:80"
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --tries=1 http://localhost:80/v1/health -O - | grep -Eo '\"healthy\"\\s*:\\s*true' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    environment:
+      TZ: {{ ntfy_timezone }}

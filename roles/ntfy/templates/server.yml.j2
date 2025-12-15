@@ -1,0 +1,65 @@
+# Ntfy server configuration
+# Managed by Ansible - DO NOT EDIT MANUALLY
+
+# Public facing base URL of the service (e.g. https://ntfy.sh)
+base-url: "{{ ntfy_base_url }}"
+
+# Listen address for the HTTP & HTTPS web server. If "listen-https" is set, you must also
+# set "key-file" and "cert-file". Format: [<ip>]:<port>, e.g. "1.2.3.4:8080".
+listen-http: ":80"
+
+# If set, also publish messages to a Firebase Cloud Messaging (FCM) topic for your app.
+# This is optional and only required to support Android apps (which don't allow background
+# tasks anymore). See https://ntfy.sh/docs/config/ for details.
+# upstream-base-url: "https://ntfy.sh"
+
+# Path to the private database file. If unset, the database is in memory.
+cache-file: "/var/cache/ntfy/cache.db"
+
+# Path to the attachment cache directory. Attachments are only stored if this is set.
+attachment-cache-dir: "/var/cache/ntfy/attachments"
+
+# If set, access tokens will be stored in this file. If unset, tokens are in-memory only.
+auth-file: "/var/lib/ntfy/user.db"
+
+# Default access level for new topics. Can be "read-write", "read-only", "write-only" or "deny-all".
+# If "deny-all", no access is allowed by default and explicit ACLs must be configured.
+auth-default-access: "deny-all"
+
+# If enabled, allows users to sign up via the web app or API
+enable-signup: {{ 'true' if ntfy_enable_signup else 'false' }}
+
+# If enabled, allows users to log in via the web app or API
+enable-login: {{ 'true' if ntfy_enable_login else 'false' }}
+
+# If enabled, allows users to reserve topics via the web app or API (requires authentication)
+enable-reservations: {{ 'true' if ntfy_enable_reservations else 'false' }}
+
+# If set, the X-Forwarded-For header will be used to determine the visitor IP
+behind-proxy: {{ 'true' if ntfy_behind_proxy else 'false' }}
+
+# Interval in which keepalive messages are sent to the client. This is to prevent
+# intermediaries from closing the connection for inactivity.
+keepalive-interval: "45s"
+
+# Interval in which the manager prunes old messages, deletes old attachments, and
+# resets rate limiters. Note that these tasks are only executed if the interval has passed AND
+# if there is traffic on the server.
+manager-interval: "1m"
+
+# Allowed origins for web app (CORS). Defaults to "*", which is fine for most cases.
+# web-root: "/"
+
+# Rate limiting: Number of requests allowed per visitor
+visitor-request-limit-burst: 60
+visitor-request-limit-replenish: "5s"
+
+# Size limits
+message-size-limit: "4096"
+attachment-file-size-limit: "15M"
+attachment-total-size-limit: "5G"
+attachment-expiry-duration: "3h"
+
+# Visitor limits
+visitor-attachment-total-size-limit: "100M"
+visitor-attachment-daily-bandwidth-limit: "500M"

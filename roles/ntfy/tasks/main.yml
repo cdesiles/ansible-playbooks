@@ -1,0 +1,106 @@
+---
+- name: Validate required passwords are set
+  ansible.builtin.assert:
+    that:
+      - ntfy_admin_password is defined
+      - ntfy_admin_password | length >= 12
+    fail_msg: |
+      ntfy_admin_password is required (min 12 chars).
+      See roles/ntfy/defaults/main.yml for configuration instructions.
+    success_msg: "Password validation passed"
+
+- name: Create ntfy project directory
+  ansible.builtin.file:
+    path: "{{ podman_projects_dir }}/ntfy"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Create ntfy data directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  loop:
+    - "{{ ntfy_data_dir }}"
+    - "{{ ntfy_cache_dir }}"
+
+- name: Deploy ntfy server configuration
+  ansible.builtin.template:
+    src: server.yml.j2
+    dest: "{{ podman_projects_dir }}/ntfy/server.yml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  notify: Restart ntfy
+
+- name: Deploy docker-compose.yml for ntfy
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ podman_projects_dir }}/ntfy/docker-compose.yml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  notify: Restart ntfy
+
+- name: Create systemd service for ntfy
+  ansible.builtin.template:
+    src: ntfy.service.j2
+    dest: /etc/systemd/system/ntfy.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Enable and start ntfy service
+  ansible.builtin.systemd:
+    name: ntfy
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Wait for ntfy to be ready
+  ansible.builtin.wait_for:
+    port: "{{ ntfy_port }}"
+    host: 127.0.0.1
+    timeout: 60
+
+- name: Check if admin user already exists
+  ansible.builtin.command:
+    cmd: podman exec ntfy ntfy user list
+  register: ntfy_user_list
+  changed_when: false
+  failed_when: false
+
+- name: Create admin user in ntfy
+  ansible.builtin.shell: |
+    printf '%s\n%s\n' '{{ ntfy_admin_password }}' '{{ ntfy_admin_password }}' | podman exec -i ntfy ntfy user add --role=admin {{ ntfy_admin_user }}
+  when: ntfy_admin_user not in ntfy_user_list.stdout
+  register: ntfy_user_create
+  changed_when: ntfy_user_create.rc == 0
+
+- name: Set admin user password
+  ansible.builtin.shell: |
+    printf '%s\n%s\n' '{{ ntfy_admin_password }}' '{{ ntfy_admin_password }}' | podman exec -i ntfy ntfy user change-pass {{ ntfy_admin_user }}
+  when: ntfy_admin_user in ntfy_user_list.stdout
+  changed_when: false
+
+- name: Deploy nginx vhost configuration for ntfy
+  ansible.builtin.template:
+    src: nginx-vhost.conf.j2
+    dest: /etc/nginx/conf.d/ntfy.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: ntfy_nginx_enabled
+  notify: Reload nginx
+
+- name: Remove nginx vhost configuration for ntfy
+  ansible.builtin.file:
+    path: /etc/nginx/conf.d/ntfy.conf
+    state: absent
+  when: not ntfy_nginx_enabled
+  notify: Reload nginx
