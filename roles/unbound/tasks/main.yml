@@ -119,6 +119,24 @@
     mode: "0640"
     state: file
 
+- name: Create /etc/default/unbound for DAEMON_OPTS
+  ansible.builtin.copy:
+    dest: /etc/default/unbound
+    content: |
+      # Unbound daemon options
+      DAEMON_OPTS=""
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Configure sysctl for unbound socket buffers
+  ansible.posix.sysctl:
+    name: net.core.rmem_max
+    value: "1048576"
+    state: present
+    sysctl_set: true
+    reload: true
+
 - name: Install unbound config
   ansible.builtin.template:
     src: "{{ item.src }}"
