@@ -9,6 +9,11 @@ pid /run/nginx.pid;
 
 include /usr/share/nginx/modules/*.conf;
 
+{% if nginx_forwarder and nginx_forwarder | length > 0 %}
+# Load stream module for TCP/UDP proxying
+load_module modules/ngx_stream_module.so;
+{% endif %}
+
 events {
     worker_connections {{ nginx_worker_connections }};
 }
@@ -48,3 +53,11 @@ http {
     # Load modular configuration files from the conf.d directory
     include {{ nginx_conf_dir }}/*.conf;
 }
+
+{% if nginx_forwarder and nginx_forwarder | length > 0 %}
+# Stream block for TCP/UDP proxying
+stream {
+    # Load stream configurations
+    include {{ nginx_streams_dir }}/*.conf;
+}
+{% endif %}

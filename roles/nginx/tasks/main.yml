@@ -9,10 +9,53 @@
   ansible.builtin.set_fact:
     nginx_user: "{{ nginx_user | default('www-data') }}"
 
+- name: Add Nginx official APT signing key (Debian/Ubuntu)
+  ansible.builtin.get_url:
+    url: https://nginx.org/keys/nginx_signing.key
+    dest: /etc/apt/keyrings/nginx-archive-keyring.asc
+    mode: "0644"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Add Nginx official repository (Debian/Ubuntu)
+  ansible.builtin.deb822_repository:
+    name: nginx-official
+    types: deb
+    uris: http://nginx.org/packages/mainline/debian/
+    suites: "{{ ansible_facts['distribution_release'] }}"
+    components: nginx
+    signed_by: /etc/apt/keyrings/nginx-archive-keyring.asc
+    state: present
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
 - name: Install nginx
   ansible.builtin.package:
     name: nginx
     state: present
+
+- name: Install nginx stream module (Debian)
+  ansible.builtin.package:
+    name: libnginx-mod-stream
+    state: present
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - nginx_forwarder is defined
+    - nginx_forwarder | length > 0
+
+- name: Install Certbot
+  ansible.builtin.package:
+    name: certbot
+    state: present
+  when: acme_email is defined
+
+- name: Enable Certbot renewal timer
+  ansible.builtin.systemd:
+    name: certbot-renew.timer
+    enabled: true
+    state: started
+  when: acme_email is defined
+  ignore_errors: true
 
 - name: Ensure nginx conf.d directory exists
   ansible.builtin.file:
@@ -21,6 +64,23 @@
     owner: root
     group: root
     mode: "0755"
+
+- name: Ensure nginx streams.d directory exists
+  ansible.builtin.file:
+    path: "{{ nginx_streams_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure Certbot webroot directory exists
+  ansible.builtin.file:
+    path: /var/www/certbot
+    state: directory
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+    mode: "0755"
+  when: acme_email is defined
 
 - name: Deploy nginx main configuration
   ansible.builtin.template:
@@ -31,6 +91,31 @@
     mode: "0644"
     validate: nginx -t -c %s
   notify: Reload nginx
+
+- name: Deploy stream forwarder configurations
+  ansible.builtin.template:
+    src: forwarder.conf.j2
+    dest: "{{ nginx_streams_dir }}/forwarder-{{ domain | replace('.', '_') }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ nginx_forwarder | dict2items }}"
+  loop_control:
+    loop_var: item
+  vars:
+    domain: "{{ item.key }}"
+    config: "{{ item.value }}"
+  when:
+    - nginx_forwarder is defined
+    - nginx_forwarder | length > 0
+  notify: Reload nginx
+
+- name: Validate nginx configuration after stream forwarder deployment
+  ansible.builtin.command: nginx -t
+  changed_when: false
+  when:
+    - nginx_forwarder is defined
+    - nginx_forwarder | length > 0
 
 - name: Deploy logrotate configuration for nginx
   ansible.builtin.template:

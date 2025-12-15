@@ -206,11 +206,44 @@ The role implements proper data isolation for both database backends:
 
 The compose file is deployed to `{{ podman_projects_dir }}/immich/docker-compose.yml` and managed via a systemd service.
 
+## Nginx Reverse Proxy with ACME/Let's Encrypt
+
+The role includes an Nginx vhost template with native ACME support for automatic HTTPS certificate management.
+
+**Prerequisites:**
+1. Nginx role deployed with `acme_email` configured
+2. Port 80/443 accessible from internet (for ACME HTTP-01 challenge)
+3. DNS pointing to your server
+
+**Configuration:**
+```yaml
+# Enable Nginx reverse proxy
+immich_nginx_enabled: true
+immich_nginx_hostname: "blog.hello.com"
+
+# In nginx role configuration (host_vars or group_vars)
+acme_email: "admin@carabosse.cloud"
+```
+
+**What it does:**
+- Deploys HTTPS vhost with automatic Let's Encrypt certificate
+- HTTP → HTTPS redirect
+- Proxies to Immich container on localhost
+- Handles WebSocket upgrades for live photos
+- Large file upload support (50GB max)
+
+**ACME automatic features:**
+- Certificate issuance on first deployment
+- Automatic renewal
+- HTTP-01 challenge handling
+
 ## Post-Installation
 
 After deployment:
 
-1. Access Immich at `http://<host-ip>:2283`
+1. Access Immich at:
+   - **With Nginx enabled**: `https://{{ immich_nginx_hostname }}`
+   - **Without Nginx**: `http://<host-ip>:{{ immich_port }}`
 2. Create an admin account on first login
 3. Configure mobile/desktop apps to point to your server
 

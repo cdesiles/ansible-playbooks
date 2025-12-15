@@ -2,6 +2,9 @@
 # Nginx configuration directory for service vhosts
 nginx_conf_dir: /etc/nginx/conf.d
 
+# Nginx stream configuration directory (TCP/UDP proxies)
+nginx_streams_dir: /etc/nginx/streams.d
+
 # Worker processes (auto = number of CPU cores)
 nginx_worker_processes: auto
 
@@ -23,3 +26,16 @@ nginx_log_backend: journald
 nginx_logrotate_rotate: 14 # Keep 14 days of logs
 nginx_logrotate_frequency: daily # daily|weekly|monthly
 nginx_logrotate_compress: true # Compress rotated logs
+
+# Forwarder configuration (transparent proxy to other hosts)
+# Example:
+#   nginx_forwarder:
+#     "blog.hello.com":
+#       forward_to: "you.domain.org"
+#       http: true    # Forward port 80 (default: true)
+#       https: true   # Forward port 443 (default: true)
+nginx_forwarder: {}
+
+# Let's Encrypt / Certbot configuration
+# acme_email: ""  # Required for Let's Encrypt - intentionally undefined
+# Set this variable to enable Certbot installation and certificate management

@@ -1,0 +1,25 @@
+# TCP stream forwarder for {{ domain }}
+# Managed by Ansible - DO NOT EDIT MANUALLY
+# Transparent TCP proxy (no protocol inspection)
+
+{% if config.http | default(true) %}
+upstream {{ domain | replace('.', '_') | replace('-', '_') }}_http {
+    server {{ config.forward_to }}:80;
+}
+
+server {
+    listen 80;
+    proxy_pass {{ domain | replace('.', '_') | replace('-', '_') }}_http;
+}
+{% endif %}
+
+{% if config.https | default(true) %}
+upstream {{ domain | replace('.', '_') | replace('-', '_') }}_https {
+    server {{ config.forward_to }}:443;
+}
+
+server {
+    listen 443;
+    proxy_pass {{ domain | replace('.', '_') | replace('-', '_') }}_https;
+}
+{% endif %}
