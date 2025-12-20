@@ -1,0 +1,67 @@
+---
+- name: Load OS-specific variables for nginx
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - "../../nginx/vars/{{ ansible_facts['os_family'] }}.yml"
+    - "../../nginx/vars/debian.yml"
+
+- name: Install git
+  ansible.builtin.package:
+    name: git
+    state: present
+
+- name: Ensure static web base directory exists
+  ansible.builtin.file:
+    path: "{{ static_web_base_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create site directories
+  ansible.builtin.file:
+    path: "{{ static_web_base_dir }}/{{ item.key }}"
+    state: directory
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+    mode: "0755"
+  loop: "{{ static_web_sites | dict2items }}"
+  when: static_web_sites | length > 0
+
+- name: Clone or update git repositories
+  ansible.builtin.git:
+    repo: "{{ item.value.git_repo }}"
+    dest: "{{ static_web_base_dir }}/{{ item.key }}"
+    version: "{{ item.value.git_branch | default('main') }}"
+    depth: "{{ item.value.git_depth | default(1) }}"
+    force: true
+  loop: "{{ static_web_sites | dict2items }}"
+  when: static_web_sites | length > 0
+  become_user: "{{ nginx_user }}"
+  notify: Reload nginx
+
+- name: Run build commands if specified
+  ansible.builtin.shell: "{{ item.value.build_command }}"
+  args:
+    chdir: "{{ static_web_base_dir }}/{{ item.key }}"
+  loop: "{{ static_web_sites | dict2items }}"
+  when:
+    - static_web_sites | length > 0
+    - item.value.build_command is defined
+    - item.value.build_command | length > 0
+  become_user: "{{ nginx_user }}"
+  changed_when: true
+
+- name: Deploy nginx vhost configurations
+  ansible.builtin.template:
+    src: nginx-vhost.conf.j2
+    dest: "{{ nginx_conf_dir }}/{{ item.key }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ static_web_sites | dict2items }}"
+  vars:
+    hostname: "{{ item.key }}"
+    site_config: "{{ item.value }}"
+  when: static_web_sites | length > 0
+  notify: Reload nginx

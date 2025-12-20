@@ -165,6 +165,9 @@
           [Unit]
           After=wg-quick@wg0.service
           Requires=wg-quick@wg0.service
+          # Make Unbound part of network-online.target (provides DNS)
+          Before=network-online.target
+          Wants=network-online.target
       notify: Reload systemd and restart unbound
 
 - name: Enables unbound service

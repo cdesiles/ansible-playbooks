@@ -57,11 +57,6 @@ http {
 {% if nginx_forwarder and nginx_forwarder | length > 0 %}
 # Stream block for TCP/UDP proxying
 stream {
-    # DNS resolver for runtime hostname resolution
-    # Using 127.0.0.1 (systemd-resolved) with 30s cache and 5s timeout
-    resolver 127.0.0.1 valid=30s ipv6=off;
-    resolver_timeout 5s;
-
     # Load stream configurations
     include {{ nginx_streams_dir }}/*.conf;
 }

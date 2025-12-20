@@ -1,0 +1,20 @@
+---
+# Static web sites configuration
+# Define sites as a dictionary with hostname as key
+# Example:
+#   static_web_sites:
+#     "portfolio.example.fr":
+#       git_repo: "https://github.com/example/portfolio.git"
+#       git_branch: "main"  # optional, defaults to main
+#       git_depth: 1  # optional, shallow clone depth
+#       build_command: ""  # optional, command to run after git clone (e.g., npm build)
+#       root_dir: ""  # optional, subdirectory to serve (e.g., "dist" or "build")
+#       ssl_enabled: true  # optional, enable HTTPS with Let's Encrypt (default: true)
+
+static_web_sites: {}
+
+# Base directory for static web sites
+static_web_base_dir: /var/www/static
+
+# Nginx user (auto-detected from nginx role)
+# static_web_nginx_user: www-data  # Set by nginx role vars
