@@ -51,11 +51,10 @@
 
 - name: Enable Certbot renewal timer
   ansible.builtin.systemd:
-    name: certbot-renew.timer
+    name: "{{ certbot_timer }}"
     enabled: true
     state: started
   when: acme_email is defined
-  ignore_errors: true
 
 - name: Ensure nginx conf.d directory exists
   ansible.builtin.file:

@@ -1,0 +1,13 @@
+---
+services:
+  uptime-kuma:
+    container_name: uptime-kuma
+    image: {{ uptime_kuma_image }}:{{ uptime_kuma_version }}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - {{ uptime_kuma_data_dir }}:/app/data:rw,Z
+    ports:
+      - "{{ uptime_kuma_port }}:3001"
+    restart: unless-stopped
+    environment:
+      TZ: {{ uptime_kuma_timezone }}

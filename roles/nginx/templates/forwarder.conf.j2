@@ -3,23 +3,19 @@
 # Transparent TCP proxy (no protocol inspection)
 
 {% if config.http | default(true) %}
-upstream {{ domain | replace('.', '_') | replace('-', '_') }}_http {
-    server {{ config.forward_to }}:80;
-}
-
 server {
     listen 80;
-    proxy_pass {{ domain | replace('.', '_') | replace('-', '_') }}_http;
+    # Using variable forces runtime DNS resolution (avoids startup failures)
+    set $upstream_http {{ config.forward_to }};
+    proxy_pass $upstream_http:80;
 }
 {% endif %}
 
 {% if config.https | default(true) %}
-upstream {{ domain | replace('.', '_') | replace('-', '_') }}_https {
-    server {{ config.forward_to }}:443;
-}
-
 server {
     listen 443;
-    proxy_pass {{ domain | replace('.', '_') | replace('-', '_') }}_https;
+    # Using variable forces runtime DNS resolution (avoids startup failures)
+    set $upstream_https {{ config.forward_to }};
+    proxy_pass $upstream_https:443;
 }
 {% endif %}

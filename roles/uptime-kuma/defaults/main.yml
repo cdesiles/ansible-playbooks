@@ -1,0 +1,20 @@
+---
+# Uptime Kuma version to deploy
+uptime_kuma_version: "2"
+
+# Storage location (CRITICAL: Must be local storage, NOT NFS)
+# NFS is NOT supported - will cause SQLite corruption
+uptime_kuma_data_dir: "{{ podman_projects_dir }}/uptime-kuma/data"
+
+# Network configuration
+uptime_kuma_port: 3001
+
+# Container image
+uptime_kuma_image: louislam/uptime-kuma
+
+# Timezone
+uptime_kuma_timezone: UTC
+
+# Nginx reverse proxy configuration
+uptime_kuma_nginx_enabled: false
+uptime_kuma_nginx_hostname: uptime.nas.local

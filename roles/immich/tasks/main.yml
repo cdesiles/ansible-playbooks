@@ -108,7 +108,7 @@
 - name: Deploy nginx vhost configuration for Immich
   ansible.builtin.template:
     src: nginx-vhost.conf.j2
-    dest: /etc/nginx/conf.d/immich.conf
+    dest: "{{ nginx_conf_dir }}/immich.conf"
     owner: root
     group: root
     mode: "0644"
@@ -117,7 +117,7 @@
 
 - name: Remove nginx vhost configuration for Immich
   ansible.builtin.file:
-    path: /etc/nginx/conf.d/immich.conf
+    path: "{{ nginx_conf_dir }}/immich.conf"
     state: absent
   when: not immich_nginx_enabled
   notify: Reload nginx

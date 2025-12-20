@@ -1,0 +1,15 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart uptime-kuma
+  ansible.builtin.systemd:
+    name: uptime-kuma
+    state: restarted
+    daemon_reload: true
+
+- name: Reload nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: reloaded

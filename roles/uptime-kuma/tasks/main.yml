@@ -1,0 +1,58 @@
+---
+- name: Create uptime-kuma project directory
+  ansible.builtin.file:
+    path: "{{ podman_projects_dir }}/uptime-kuma"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Create uptime-kuma data directory
+  ansible.builtin.file:
+    path: "{{ uptime_kuma_data_dir }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Deploy docker-compose.yml for uptime-kuma
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ podman_projects_dir }}/uptime-kuma/docker-compose.yml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  notify: Restart uptime-kuma
+
+- name: Create systemd service for uptime-kuma
+  ansible.builtin.template:
+    src: uptime-kuma.service.j2
+    dest: /etc/systemd/system/uptime-kuma.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Enable and start uptime-kuma service
+  ansible.builtin.systemd:
+    name: uptime-kuma
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Deploy nginx vhost configuration for uptime-kuma
+  ansible.builtin.template:
+    src: nginx-vhost.conf.j2
+    dest: "{{ nginx_conf_dir }}/uptime-kuma.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  when: uptime_kuma_nginx_enabled
+  notify: Reload nginx
+
+- name: Remove nginx vhost configuration for uptime-kuma
+  ansible.builtin.file:
+    path: "{{ nginx_conf_dir }}/uptime-kuma.conf"
+    state: absent
+  when: not uptime_kuma_nginx_enabled
+  notify: Reload nginx

@@ -1,12 +1,12 @@
 [Unit]
-Description=Ntfy Notification Service
+Description=Uptime Kuma Monitoring Service
 Requires=network-online.target
 After=network-online.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=true
-WorkingDirectory={{ podman_projects_dir }}/ntfy
+WorkingDirectory={{ podman_projects_dir }}/uptime-kuma
 ExecStart=/usr/bin/podman-compose up -d
 ExecStop=/usr/bin/podman-compose down
 Restart=on-failure

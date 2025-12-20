@@ -222,7 +222,7 @@ immich_nginx_enabled: true
 immich_nginx_hostname: "blog.hello.com"
 
 # In nginx role configuration (host_vars or group_vars)
-acme_email: "admin@carabosse.cloud"
+acme_email: "admin@blog.com"
 ```
 
 **What it does:**

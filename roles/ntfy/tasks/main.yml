@@ -91,7 +91,7 @@
 - name: Deploy nginx vhost configuration for ntfy
   ansible.builtin.template:
     src: nginx-vhost.conf.j2
-    dest: /etc/nginx/conf.d/ntfy.conf
+    dest: "{{ nginx_conf_dir }}/ntfy.conf"
     owner: root
     group: root
     mode: "0644"
@@ -100,7 +100,7 @@
 
 - name: Remove nginx vhost configuration for ntfy
   ansible.builtin.file:
-    path: /etc/nginx/conf.d/ntfy.conf
+    path: "{{ nginx_conf_dir }}/ntfy.conf"
     state: absent
   when: not ntfy_nginx_enabled
   notify: Reload nginx
