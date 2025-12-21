@@ -14,6 +14,10 @@ network_interfaces:
   - name: lan1
     type: ethernet
     mac_address: 0a:3f:5b:1c:d2:e4
+  - name: podman-gw
+    type: bridge
+    ipv4:
+      address: "{{ podman_gw_gateway }}/10"
 
 # NTP servers configuration
 # -------------------------
@@ -115,24 +119,24 @@ nfs_bind_addresses:
 
 # Podman configuration
 # --------------------
-podman_external_networks:
-  - name: immich
-    subnet: 172.20.0.0/16
-    gateway: 172.20.0.1
+podman_gw_gateway: 100.64.0.1
+podman_gw_subnet: 100.64.0.0/10
 
 # PostgreSQL configuration
 # ------------------------
 postgres_admin_password: "{{ vault_postgres_admin_password }}"
-postgres_bind: "127.0.0.1"
+postgres_bind: "127.0.0.1,{{ podman_gw_gateway }}" # Comma-separated for PostgreSQL
 postgres_firewall_allowed_sources:
   - 127.0.0.0/8
+  - "{{ podman_gw_subnet }}"
 
 # Valkey configuration
 # --------------------
 valkey_admin_password: "{{ vault_valkey_admin_password }}"
-valkey_bind: "127.0.0.1"
+valkey_bind: "127.0.0.1 {{ podman_gw_gateway }}" # Space-separated for Valkey
 valkey_firewall_allowed_sources:
   - 127.0.0.0/8
+  - "{{ podman_gw_subnet }}"
 
 # Valkey ACL users
 valkey_acl_users:

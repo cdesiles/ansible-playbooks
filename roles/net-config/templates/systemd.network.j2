@@ -11,9 +11,14 @@ RouteMetric={{ interface.ipv4.metric }}
 {% endif %}
 
 [Network]
+{% if interface.type is defined and interface.type == 'bridge' %}
+ConfigureWithoutCarrier=yes
+{% endif %}
+{% if interface.ipv4.nameservers is defined %}
 {% for dns in interface.ipv4.nameservers %}
 DNS={{ dns }}
 {% endfor %}
+{% endif %}
 
 {% if interface.ipv4.gateway is defined %}
 [Route]

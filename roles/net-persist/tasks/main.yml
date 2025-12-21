@@ -1,28 +1,35 @@
 ---
-- name: "Check {{ interface.name }} ({{ interface.mac_address }}) rule"
-  ansible.builtin.set_fact:
-    interface_original_name: "{{ ansible_facts.interfaces | select('in', ansible_facts) | map('extract', ansible_facts) | selectattr('pciid', 'defined') | selectattr('macaddress',
-      'equalto', interface.mac_address) | map(attribute='device') | first }}"
-
-- name: What patch is needed
+- name: Skip net-persist for non-ethernet interfaces
   ansible.builtin.debug:
-    msg: >-
-      {%- if interface_original_name != interface.name -%}
-        iface {{ interface_original_name }} ({{ interface.mac_address }}) will be patched to {{ interface.name }}.
-      {%- else -%}
-        iface {{ interface.name }} is already set, no action needed.
-      {%- endif -%}
+    msg: "Skipping net-persist for {{ interface.name }} (type: {{ interface.type }})"
+  when: interface.type is defined and interface.type != 'ethernet'
 
-- name: Create persistent-net link file
-  when: interface_original_name != interface.name
-  ansible.builtin.template:
-    src: persistent-net.link.j2
-    dest: /etc/systemd/network/10-persistent-net-{{ interface.name }}.link
-    owner: root
-    group: root
-    mode: "0644"
+- name: Process ethernet interface persistence
+  when: interface.type is not defined or interface.type == 'ethernet'
+  block:
+    - name: "Check {{ interface.name }} ({{ interface.mac_address }}) rule"
+      ansible.builtin.set_fact:
+        interface_original_name: "{{ ansible_facts.interfaces | select('in', ansible_facts) | map('extract', ansible_facts) | selectattr('pciid', 'defined') | selectattr('macaddress', 'equalto', interface.mac_address) | map(attribute='device') | first }}"
 
-- name: Notify a reboot is required
-  ansible.builtin.set_fact:
-    reboot_required: true
-  when: interface_original_name != interface.name
+    - name: What patch is needed
+      ansible.builtin.debug:
+        msg: >-
+          {%- if interface_original_name != interface.name -%}
+            iface {{ interface_original_name }} ({{ interface.mac_address }}) will be patched to {{ interface.name }}.
+          {%- else -%}
+            iface {{ interface.name }} is already set, no action needed.
+          {%- endif -%}
+
+    - name: Create persistent-net link file
+      when: interface_original_name != interface.name
+      ansible.builtin.template:
+        src: persistent-net.link.j2
+        dest: /etc/systemd/network/10-persistent-net-{{ interface.name }}.link
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Notify a reboot is required
+      ansible.builtin.set_fact:
+        reboot_required: true
+      when: interface_original_name != interface.name

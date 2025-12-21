@@ -22,16 +22,19 @@ See `CLAUDE.md` for detailed architecture documentation.
 
 ## Container Access
 
-For containers to reach PostgreSQL, configure in inventory:
+For containers to reach PostgreSQL:
 
+PostgreSQL binds to `127.0.0.1` by default (secure, localhost-only).
+
+Containers can reach PostgreSQL via Pasta's `--map-host-loopback` feature, which routes container's `127.0.0.1` to the host's `127.0.0.1`.
+
+In docker-compose files, use:
 ```yaml
-postgres_bind: "127.0.0.1,{{ podman_subnet_gateway }}"
-postgres_firewall_allowed_sources:
-  - 127.0.0.0/8
-  - "{{ podman_subnet }}"
+extra_hosts:
+  - "postgres.local:127.0.0.1"
 ```
 
-Containers use `host.containers.internal` as hostname.
+No additional bind addresses or firewall rules needed!
 
 ## Logging Backends
 

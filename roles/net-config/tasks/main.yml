@@ -1,36 +1,34 @@
 ---
 - name: Check if the interface ipv4 address is defined
+  ansible.builtin.debug:
+    msg: "Warning: iface {{ interface.name }} has no defined ipv4 address, skipping configuration"
   when: interface.ipv4.address is not defined
 
+- name: Process interface configuration
+  when: interface.ipv4.address is defined
   block:
-    - ansible.builtin.debug:
-        msg: "Warning: iface {{ interface.name }} has no defined ipv4 address, skipping configuration"
-    - name: Skip net-config role for {{ interface.name }}
-      ansible.builtin.meta: end_play
-- name: Check if the interface is already configured
-  ansible.builtin.stat:
-    path: /etc/systemd/network/20-{{ interface.name }}.network
-  register: network_file
+    - name: Create systemd-netdev file for virtual interface
+      when:
+        - interface.type is defined
+        - interface.type != 'ethernet'
+      ansible.builtin.template:
+        src: systemd.netdev.j2
+        dest: /etc/systemd/network/10-{{ interface.name }}.netdev
+        owner: root
+        group: root
+        mode: "0644"
+      register: netdev_result
 
-- name: What patch is needed
-  ansible.builtin.debug:
-    msg: >-
-      {%- if network_file.stat.exists == true -%}
-        iface {{ interface.name }} is already configured, no action needed.
-      {%- else -%}
-        iface {{ interface.name }} will be configured.
-      {%- endif -%}
+    - name: Create systemd-network configuration file
+      ansible.builtin.template:
+        src: systemd.network.j2
+        dest: /etc/systemd/network/20-{{ interface.name }}.network
+        owner: root
+        group: root
+        mode: "0644"
+      register: network_result
 
-- name: Create systemd-network link file
-  when: network_file.stat.exists != true
-  ansible.builtin.template:
-    src: systemd.network.j2
-    dest: /etc/systemd/network/20-{{ interface.name }}.network
-    owner: root
-    group: root
-    mode: "0644"
-
-- name: Notify a reload is required
-  ansible.builtin.set_fact:
-    network_reload_required: true
-  when: network_file.stat.exists != true
+    - name: Notify a reload is required
+      ansible.builtin.set_fact:
+        network_reload_required: true
+      when: netdev_result is changed or network_result is changed

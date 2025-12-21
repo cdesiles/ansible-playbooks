@@ -53,10 +53,17 @@ Service users must be registered via the `valkey_acl_users` list. See the ACL Co
 
 #### Container Access
 
-For containers to access Valkey, set `valkey_bind` to include the Podman gateway:
+Valkey binds to `127.0.0.1` by default (secure, localhost-only).
+
+Containers can reach Valkey via Pasta's `--map-host-loopback` feature, which routes container's `127.0.0.1` to the host's `127.0.0.1`.
+
+In docker-compose files, use:
 ```yaml
-valkey_bind: "127.0.0.1 {{ podman_subnet_gateway }}"
+extra_hosts:
+  - "host.containers.internal:127.0.0.1"
 ```
+
+No additional bind addresses needed!
 
 **System Requirements:** This role automatically configures kernel parameters (`vm.overcommit_memory=1`) and transparent hugepage settings
 
