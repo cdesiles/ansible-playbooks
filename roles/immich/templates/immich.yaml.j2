@@ -1,0 +1,102 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: immich
+  labels:
+    app: immich
+  annotations:
+    io.podman.annotations.network.mode: bridge
+    io.podman.annotations.network.name: podman-gw
+spec:
+  containers:
+    - name: server
+      image: {{ immich_server_image }}:{{ immich_version }}
+      ports:
+        - containerPort: 2283
+          hostPort: {{ immich_port }}
+      env:
+        - name: DB_HOSTNAME
+          value: "{{ immich_postgres_host }}"
+        - name: DB_PORT
+          value: "{{ immich_postgres_port }}"
+        - name: DB_USERNAME
+          value: "{{ immich_postgres_user }}"
+        - name: DB_PASSWORD
+          value: "{{ immich_postgres_password }}"
+        - name: DB_DATABASE_NAME
+          value: "{{ immich_postgres_db_name }}"
+        - name: REDIS_HOSTNAME
+          value: "{{ immich_valkey_host }}"
+        - name: REDIS_PORT
+          value: "{{ immich_valkey_port }}"
+        - name: REDIS_USERNAME
+          value: "{{ immich_valkey_user }}"
+        - name: REDIS_PASSWORD
+          value: "{{ immich_valkey_password }}"
+        - name: REDIS_DBINDEX
+          value: "{{ immich_valkey_db }}"
+        - name: IMMICH_MACHINE_LEARNING_URL
+          value: http://localhost:3003
+        - name: UPLOAD_LOCATION
+          value: /data
+        - name: TZ
+          value: "{{ immich_timezone }}"
+      volumeMounts:
+        - name: localtime
+          mountPath: /etc/localtime
+          readOnly: true
+        - name: immich-data
+          mountPath: /data
+      livenessProbe:
+        httpGet:
+          path: /api/server/ping
+          port: 2283
+        initialDelaySeconds: 60
+        periodSeconds: 30
+        timeoutSeconds: 10
+        failureThreshold: 3
+      restartPolicy: Always
+
+    - name: machine-learning
+      image: {{ immich_ml_image }}:{{ immich_version }}
+      env:
+        - name: TZ
+          value: "{{ immich_timezone }}"
+      volumeMounts:
+        - name: model-cache
+          mountPath: /cache
+      livenessProbe:
+        exec:
+          command:
+            - python
+            - /usr/src/healthcheck.py
+        initialDelaySeconds: 60
+        periodSeconds: 30
+        timeoutSeconds: 10
+        failureThreshold: 3
+      restartPolicy: Always
+
+  volumes:
+    - name: localtime
+      hostPath:
+        path: /etc/localtime
+        type: File
+    - name: immich-data
+      hostPath:
+        path: {{ immich_upload_location }}
+        type: Directory
+    - name: model-cache
+      persistentVolumeClaim:
+        claimName: immich-model-cache
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-model-cache
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi

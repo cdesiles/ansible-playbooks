@@ -7,6 +7,35 @@
       - crun
     state: present
 
+- name: Check if tun module is available
+  ansible.builtin.stat:
+    path: "/lib/modules/{{ ansible_kernel }}/modules.builtin"
+  register: kernel_modules
+
+- name: Load tun kernel module for rootless Podman networking
+  community.general.modprobe:
+    name: tun
+    state: present
+  when: kernel_modules.stat.exists
+  register: tun_loaded
+  ignore_errors: true
+
+- name: Ensure tun module loads on boot
+  ansible.builtin.copy:
+    content: "tun\n"
+    dest: /etc/modules-load.d/tun.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Warn user about reboot requirement for tun module
+  ansible.builtin.debug:
+    msg: |
+      WARNING: tun kernel module could not be loaded (kernel modules not available).
+      A REBOOT IS REQUIRED for the tun module to load and enable Pasta networking.
+      After reboot, rootless Podman containers will have better network performance.
+  when: not kernel_modules.stat.exists or (tun_loaded is defined and tun_loaded is failed)
+
 - name: Enable Podman service
   ansible.builtin.systemd:
     name: podman.service
@@ -35,12 +64,3 @@
     owner: root
     group: root
     mode: "0644"
-
-- name: Create external Podman networks
-  containers.podman.podman_network:
-    name: "{{ item.name }}"
-    subnet: "{{ item.subnet }}"
-    gateway: "{{ item.gateway }}"
-    state: present
-  loop: "{{ podman_external_networks | default([]) }}"
-  when: podman_external_networks is defined and podman_external_networks | length > 0

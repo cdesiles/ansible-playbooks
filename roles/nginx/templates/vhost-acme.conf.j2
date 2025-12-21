@@ -26,7 +26,7 @@ server {
 
     # SSL configuration
     ssl_protocols {{ nginx_ssl_protocols }};
-    ssl_prefer_server_ciphers {{ 'on' if nginx_ssl_prefer_server_ciphers else 'off' }};
+    ssl_prefer_server_ciphers on;
 
 {% if nginx_log_backend == 'journald' %}
     access_log syslog:server=unix:/dev/log,nohostname,tag=nginx_{{ server_name | replace('.', '_') }};

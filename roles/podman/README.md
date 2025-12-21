@@ -6,9 +6,8 @@ Installs and configures Podman for container management with support for Docker 
 
 - Installs Podman, podman-compose, and crun (OCI runtime)
 - Configurable logging backend (journald or k8s-file)
-- External network creation for service isolation
 - Container registry search configuration
-- Shared projects directory for compose files
+- Shared projects directory for Kubernetes YAML files
 
 ## Container Logging
 
@@ -21,19 +20,6 @@ Installs and configures Podman for container management with support for Docker 
 - Configured via `podman_log_max_size` and `podman_log_max_files`
 
 Switch via `podman_log_driver` variable.
-
-## External Networks
-
-Define networks in inventory for persistent, isolated container networks:
-
-```yaml
-podman_external_networks:
-  - name: immich
-    subnet: 172.20.0.0/16
-    gateway: 172.20.0.1
-```
-
-Networks persist across container restarts and compose rebuilds.
 
 ## Hands-on Commands
 
@@ -53,8 +39,14 @@ podman inspect <container> | jq '.[0].HostConfig.LogConfig'
 # Test configuration
 podman run --rm alpine echo "OK"
 
-# List networks
-podman network ls
+# Play Kubernetes YAML
+podman play kube --replace /path/to/pod.yaml
+
+# Stop pod
+podman play kube --down /path/to/pod.yaml
+
+# List pods
+podman pod ls
 ```
 
 ## References

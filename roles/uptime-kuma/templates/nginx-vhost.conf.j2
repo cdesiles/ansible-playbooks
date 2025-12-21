@@ -25,10 +25,10 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/{{ uptime_kuma_nginx_hostname }}/privkey.pem;
 
     # SSL configuration
-    ssl_protocols {{ nginx_ssl_protocols }};
-    ssl_prefer_server_ciphers {{ 'on' if nginx_ssl_prefer_server_ciphers else 'off' }};
+    ssl_protocols {{ nginx_ssl_protocols | default('TLSv1.3') }};
+    ssl_prefer_server_ciphers on;
 
-{% if nginx_log_backend == 'journald' %}
+{% if nginx_log_backend | default('journald') == 'journald' %}
     access_log syslog:server=unix:/dev/log,nohostname,tag=nginx_uptime_kuma;
     error_log syslog:server=unix:/dev/log,nohostname,tag=nginx_uptime_kuma;
 {% else %}

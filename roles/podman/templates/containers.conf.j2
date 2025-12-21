@@ -27,3 +27,7 @@ runtime = "{{ podman_runtime }}"
 
 # Default network backend
 network_backend = "netavark"
+
+[network]
+# Default rootless network command (pasta for better performance)
+default_rootless_network_cmd = "pasta"

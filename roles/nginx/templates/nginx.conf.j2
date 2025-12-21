@@ -48,7 +48,7 @@ http {
 
     # SSL configuration
     ssl_protocols {{ nginx_ssl_protocols }};
-    ssl_prefer_server_ciphers {{ 'on' if nginx_ssl_prefer_server_ciphers else 'off' }};
+    ssl_prefer_server_ciphers on;
 
     # Load modular configuration files from the conf.d directory
     include {{ nginx_conf_dir }}/*.conf;

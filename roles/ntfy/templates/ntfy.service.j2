@@ -8,9 +8,9 @@ Type=oneshot
 RemainAfterExit=true
 User={{ ansible_user }}
 Group={{ ansible_user }}
-WorkingDirectory={{ podman_projects_dir }}/ntfy
-ExecStart=/usr/bin/podman-compose up -d
-ExecStop=/usr/bin/podman-compose down
+WorkingDirectory={{ podman_projects_dir | default('/opt/podman') }}/ntfy
+ExecStart=/usr/bin/podman play kube --replace ntfy.yaml
+ExecStop=/usr/bin/podman play kube --down ntfy.yaml
 Restart=on-failure
 RestartSec=10
 

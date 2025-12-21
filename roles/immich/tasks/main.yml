@@ -16,14 +16,14 @@
     name: "{{ immich_postgres_db_name }}"
     owner: "{{ immich_postgres_user }}"
     state: present
-  become_user: "{{ postgres_admin_user }}"
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
 
 - name: Create PostgreSQL user for Immich
   community.postgresql.postgresql_user:
     name: "{{ immich_postgres_user }}"
     password: "{{ immich_postgres_password }}"
     state: present
-  become_user: "{{ postgres_admin_user }}"
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
 
 - name: Grant all privileges on database to Immich user
   community.postgresql.postgresql_privs:
@@ -32,21 +32,21 @@
     type: database
     privs: ALL
     state: present
-  become_user: "{{ postgres_admin_user }}"
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
 
 - name: Ensure Immich user has no superuser privileges
   community.postgresql.postgresql_user:
     name: "{{ immich_postgres_user }}"
     role_attr_flags: NOSUPERUSER,NOCREATEDB,NOCREATEROLE
     state: present
-  become_user: "{{ postgres_admin_user }}"
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
 
 - name: Enable required PostgreSQL extensions in Immich database
   community.postgresql.postgresql_ext:
     name: "{{ item }}"
     login_db: "{{ immich_postgres_db_name }}"
     state: present
-  become_user: "{{ postgres_admin_user }}"
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
   loop:
     - cube
     - earthdistance
@@ -60,11 +60,11 @@
     objs: public
     privs: CREATE,USAGE
     state: present
-  become_user: "{{ postgres_admin_user }}"
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
 
 - name: Create Immich project directory
   ansible.builtin.file:
-    path: "{{ podman_projects_dir }}/immich"
+    path: "{{ podman_projects_dir | default('/opt/podman') }}/immich"
     state: directory
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
@@ -80,10 +80,10 @@
   loop:
     - "{{ immich_upload_location }}"
 
-- name: Deploy docker-compose.yml for Immich
+- name: Deploy Kubernetes YAML for Immich
   ansible.builtin.template:
-    src: docker-compose.yml.j2
-    dest: "{{ podman_projects_dir }}/immich/docker-compose.yml"
+    src: immich.yaml.j2
+    dest: "{{ podman_projects_dir | default('/opt/podman') }}/immich/immich.yaml"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0644"
@@ -108,7 +108,7 @@
 - name: Deploy nginx vhost configuration for Immich
   ansible.builtin.template:
     src: nginx-vhost.conf.j2
-    dest: "{{ nginx_conf_dir }}/immich.conf"
+    dest: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/immich.conf"
     owner: root
     group: root
     mode: "0644"
@@ -117,7 +117,7 @@
 
 - name: Remove nginx vhost configuration for Immich
   ansible.builtin.file:
-    path: "{{ nginx_conf_dir }}/immich.conf"
+    path: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/immich.conf"
     state: absent
   when: not immich_nginx_enabled
   notify: Reload nginx

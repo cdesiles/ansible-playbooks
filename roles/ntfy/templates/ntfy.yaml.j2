@@ -1,0 +1,57 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ntfy
+  labels:
+    app: ntfy
+spec:
+  containers:
+    - name: server
+      image: {{ ntfy_image }}:{{ ntfy_version }}
+      args:
+        - serve
+      ports:
+        - containerPort: 80
+          hostPort: {{ ntfy_port }}
+      env:
+        - name: TZ
+          value: "{{ ntfy_timezone }}"
+      volumeMounts:
+        - name: localtime
+          mountPath: /etc/localtime
+          readOnly: true
+        - name: ntfy-config
+          mountPath: /etc/ntfy/server.yml
+          readOnly: true
+        - name: ntfy-cache
+          mountPath: /var/cache/ntfy
+        - name: ntfy-data
+          mountPath: /var/lib/ntfy
+      livenessProbe:
+        httpGet:
+          path: /v1/health
+          port: 80
+        initialDelaySeconds: 40
+        periodSeconds: 30
+        timeoutSeconds: 10
+        failureThreshold: 3
+      restartPolicy: Always
+
+  volumes:
+    - name: localtime
+      hostPath:
+        path: /etc/localtime
+        type: File
+    - name: ntfy-config
+      hostPath:
+        path: {{ podman_projects_dir | default('/opt/podman') }}/ntfy/server.yml
+        type: File
+    - name: ntfy-cache
+      hostPath:
+        path: {{ ntfy_cache_dir }}
+        type: Directory
+    - name: ntfy-data
+      hostPath:
+        path: {{ ntfy_data_dir }}
+        type: Directory
