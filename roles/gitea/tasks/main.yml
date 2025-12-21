@@ -1,0 +1,116 @@
+---
+- name: Validate required passwords are set
+  ansible.builtin.assert:
+    that:
+      - gitea_postgres_password is defined
+      - gitea_postgres_password | length >= 12
+    fail_msg: |
+      gitea_postgres_password is required (min 12 chars).
+      See roles/gitea/defaults/main.yml for configuration instructions.
+    success_msg: "Password validation passed"
+
+- name: Create PostgreSQL user for Gitea
+  community.postgresql.postgresql_user:
+    name: "{{ gitea_postgres_user }}"
+    password: "{{ gitea_postgres_password }}"
+    state: present
+  become_user: "{{ postgres_admin_user }}"
+
+- name: Create PostgreSQL database for Gitea
+  community.postgresql.postgresql_db:
+    name: "{{ gitea_postgres_db_name }}"
+    owner: "{{ gitea_postgres_user }}"
+    state: present
+  become_user: "{{ postgres_admin_user }}"
+
+- name: Grant all privileges on database to Gitea user
+  community.postgresql.postgresql_privs:
+    login_db: "{{ gitea_postgres_db_name }}"
+    roles: "{{ gitea_postgres_user }}"
+    type: database
+    privs: ALL
+    state: present
+  become_user: "{{ postgres_admin_user }}"
+
+- name: Ensure Gitea user has no superuser privileges
+  community.postgresql.postgresql_user:
+    name: "{{ gitea_postgres_user }}"
+    role_attr_flags: NOSUPERUSER,NOCREATEDB,NOCREATEROLE
+    state: present
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
+
+- name: Create PostgreSQL schema for Gitea
+  community.postgresql.postgresql_schema:
+    name: "{{ gitea_postgres_schema }}"
+    database: "{{ gitea_postgres_db_name }}"
+    owner: "{{ gitea_postgres_user }}"
+    state: present
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
+
+- name: Grant schema permissions to Gitea user
+  community.postgresql.postgresql_privs:
+    login_db: "{{ gitea_postgres_db_name }}"
+    roles: "{{ gitea_postgres_user }}"
+    type: schema
+    objs: "{{ gitea_postgres_schema }}"
+    privs: CREATE,USAGE
+    state: present
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
+
+- name: Create Gitea project directory
+  ansible.builtin.file:
+    path: "{{ podman_projects_dir | default('/opt/podman') }}/gitea"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Create Gitea data directory
+  ansible.builtin.file:
+    path: "{{ gitea_data_dir }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Deploy Kubernetes YAML for Gitea
+  ansible.builtin.template:
+    src: gitea.yaml.j2
+    dest: "{{ podman_projects_dir | default('/opt/podman') }}/gitea/gitea.yaml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  notify: Restart gitea
+
+- name: Create systemd service for Gitea
+  ansible.builtin.template:
+    src: gitea.service.j2
+    dest: /etc/systemd/system/gitea.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Enable and start Gitea service
+  ansible.builtin.systemd:
+    name: gitea
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Deploy nginx vhost configuration for Gitea
+  ansible.builtin.template:
+    src: nginx-vhost.conf.j2
+    dest: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/gitea.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  when: gitea_nginx_enabled
+  notify: Reload nginx
+
+- name: Remove nginx vhost configuration for Gitea
+  ansible.builtin.file:
+    path: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/gitea.conf"
+    state: absent
+  when: not gitea_nginx_enabled
+  notify: Reload nginx

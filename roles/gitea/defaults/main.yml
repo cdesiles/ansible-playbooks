@@ -1,0 +1,33 @@
+---
+# Gitea version
+gitea_version: "1.22"
+
+# Network configuration
+gitea_port: 3000
+
+# Container image
+gitea_image: gitea/gitea
+
+# Data directory
+gitea_data_dir: "{{ podman_projects_dir }}/gitea/data"
+
+# Database configuration (PostgreSQL)
+gitea_postgres_db_name: gitea
+gitea_postgres_user: gitea
+gitea_postgres_schema: gitea
+# gitea_postgres_password: ""  # Required - set in inventory
+
+# Application configuration
+gitea_app_name: "Gitea"
+gitea_domain: git.nas.local
+gitea_root_url: "https://{{ gitea_domain }}"
+
+# Disable SSH (HTTPS only for Git operations)
+gitea_disable_ssh: true
+
+# Disable registration
+gitea_disable_registration: false
+
+# Nginx reverse proxy configuration
+gitea_nginx_enabled: true
+gitea_nginx_hostname: "{{ gitea_domain }}"
