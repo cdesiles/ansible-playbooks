@@ -28,8 +28,8 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/{{ hostname }}/privkey.pem;
 
     # SSL configuration
-    ssl_protocols {{ nginx_ssl_protocols }};
-    ssl_prefer_server_ciphers {{ 'on' if nginx_ssl_prefer_server_ciphers else 'off' }};
+    ssl_protocols {{ nginx_ssl_protocols | default('TLSv1.3') }};
+    ssl_prefer_server_ciphers on;
 {% endif %}
 
     # Document root
@@ -51,7 +51,7 @@ server {
 {% endif %}
 
     # Logging
-{% if nginx_log_backend == 'journald' %}
+{% if nginx_log_backend | default('journald') == 'journald' %}
     access_log syslog:server=unix:/dev/log,nohostname,tag=nginx_{{ hostname | replace('.', '_') | replace('-', '_') }};
     error_log syslog:server=unix:/dev/log,nohostname,tag=nginx_{{ hostname | replace('.', '_') | replace('-', '_') }};
 {% else %}

@@ -55,7 +55,7 @@
 - name: Deploy nginx vhost configurations
   ansible.builtin.template:
     src: nginx-vhost.conf.j2
-    dest: "{{ nginx_conf_dir }}/{{ item.key }}.conf"
+    dest: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/{{ item.key }}.conf"
     owner: root
     group: root
     mode: "0644"
