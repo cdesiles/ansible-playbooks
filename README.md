@@ -6,6 +6,33 @@ This project is designed for personal/familial scale maintenance, if you find th
 
 This is a good playground to learn and I encourage you to adapt these roles to your needs. While they might not be production-ready for all environments, I'm open to adapting them for [Ansible Galaxy](<(https://galaxy.ansible.com)>) if there's community interest!
 
+## Architecture Overview
+
+**Platform Support:** Arch Linux, Debian/Ubuntu
+
+**Core Design:**
+
+- A unique system administrator (`{{ ansible_user }}`)
+- Security hardened sshd
+- Shared services pattern: Single PostgreSQL and Valkey (Redis) instances serve all services
+- Rootless Podman: Containers run as `{{ ansible_user }}` (daemonless, `sudo podman ps` shows nothing)
+- User systemd services: `systemctl --user status <service>` with lingering enabled
+- Nginx reverse proxy for web services
+
+**Available Services:**
+
+| Service     | Description                                              |
+| ----------- | -------------------------------------------------------- |
+| dns         | Unbound caching DNS + Pi-hole ad blocking + VPN resolver |
+| nfs         | Network file system server                               |
+| zfs         | ZFS installation and management                          |
+| uptime-kuma | Uptime monitoring                                        |
+| ntfy        | Notification server                                      |
+| gitea       | Git server                                               |
+| immich      | Photo management                                         |
+| static-web  | Static website hosting                                   |
+| vpn         | WireGuard server                                         |
+
 ## Requirements
 
 Base tools:
@@ -36,7 +63,7 @@ ansible-playbook -i inventory/hosts.yml playbook.yml \
 --ask-become-pass
 ```
 
-You can also unlock your key system wide to simplify your calls:
+You can also call you ssh agent to unlock your key prior to simplify your calls:
 
 ```sh
 ssh-add ~/.ssh/my_key
@@ -45,7 +72,7 @@ ansible-playbook -i inventory/hosts.yml playbook.yml \
 --ask-become-pass
 ```
 
-## Target devices configuration
+## Target configuration
 
 Requirements:
 

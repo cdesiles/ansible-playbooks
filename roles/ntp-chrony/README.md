@@ -20,10 +20,10 @@ Sync time from public NTP pools, don't serve time to others:
 # host_vars/example.yml
 ntp_timezone: "Europe/Paris"
 ntp_pools:
-  - "0.fr.pool.ntp.org"
-  - "1.fr.pool.ntp.org"
-  - "2.fr.pool.ntp.org"
-  - "3.fr.pool.ntp.org"
+    - "0.fr.pool.ntp.org"
+    - "1.fr.pool.ntp.org"
+    - "2.fr.pool.ntp.org"
+    - "3.fr.pool.ntp.org"
 ```
 
 ### Server mode
@@ -35,20 +35,20 @@ Serve time to local network:
 ntp_timezone: "UTC"
 ntp_server_enabled: true
 ntp_allowed_networks:
-  - 192.168.1.0/24  # Configures both chrony and firewall
-  - 192.168.27.0/27
+    - 192.168.1.0/24 # Configures both chrony and firewall
+    - 192.168.27.0/27
 ```
 
 ### Client syncing from local server
 
 ```yaml
 # host_vars/client.yml
-ntp_pools: []  # Don't use public pools
+ntp_pools: [] # Don't use public pools
 ntp_servers:
-  - server: ntp.local.lan
-    options: iburst prefer
-  - server: 192.168.1.1
-    options: iburst
+    - server: ntp.local.lan
+      options: iburst prefer
+    - server: 192.168.1.1
+      options: iburst
 ```
 
 ## Logging
