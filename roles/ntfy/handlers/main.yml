@@ -3,11 +3,15 @@
   ansible.builtin.systemd:
     daemon_reload: true
 
+- name: Reload systemd user
+  ansible.builtin.command: "systemctl --user daemon-reload"
+  become: true
+  become_user: "{{ ansible_user }}"
+
 - name: Restart ntfy
-  ansible.builtin.systemd:
-    name: ntfy
-    state: restarted
-    daemon_reload: true
+  ansible.builtin.command: "systemctl --user restart ntfy.service"
+  become: true
+  become_user: "{{ ansible_user }}"
 
 - name: Reload nginx
   ansible.builtin.systemd:

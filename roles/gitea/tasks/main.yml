@@ -82,21 +82,39 @@
     mode: "0644"
   notify: Restart gitea
 
-- name: Create systemd service for Gitea
+- name: Get home directory for {{ ansible_user }}
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ ansible_user }}"
+
+- name: Set user home directory fact
+  ansible.builtin.set_fact:
+    user_home_dir: "{{ getent_passwd[ansible_user][4] }}"
+
+- name: Create systemd user directory for Gitea
+  ansible.builtin.file:
+    path: "{{ user_home_dir }}/.config/systemd/user"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Create systemd service for Gitea (user scope)
   ansible.builtin.template:
     src: gitea.service.j2
-    dest: /etc/systemd/system/gitea.service
-    owner: root
-    group: root
+    dest: "{{ user_home_dir }}/.config/systemd/user/gitea.service"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
     mode: "0644"
-  notify: Reload systemd
+  notify: Reload systemd user
 
-- name: Enable and start Gitea service
-  ansible.builtin.systemd:
-    name: gitea
-    enabled: true
-    state: started
-    daemon_reload: true
+- name: Enable lingering for user {{ ansible_user }}
+  ansible.builtin.command: "loginctl enable-linger {{ ansible_user }}"
+  when: ansible_user != 'root'
+
+- name: Enable and start Gitea service (user scope)
+  ansible.builtin.command: "systemctl --user enable --now gitea.service"
+  become_user: "{{ ansible_user }}"
 
 - name: Deploy nginx vhost configuration for Gitea
   ansible.builtin.template:

@@ -23,9 +23,9 @@ ntfy_timezone: UTC
 # Server configuration
 ntfy_base_url: http://localhost:{{ ntfy_port }}
 ntfy_behind_proxy: false
-ntfy_enable_signup: false  # Disable public signup for security
-ntfy_enable_login: true    # Enable authentication
-ntfy_enable_reservations: true  # Only authenticated users can reserve topics
+ntfy_enable_signup: false # Disable public signup for security
+ntfy_enable_login: true # Enable authentication
+ntfy_enable_reservations: true # Only authenticated users can reserve topics
 
 # Nginx reverse proxy configuration
 ntfy_nginx_enabled: false

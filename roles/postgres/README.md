@@ -14,6 +14,7 @@ Installs and configures PostgreSQL as a shared database service for multiple app
 ## Architecture Pattern
 
 **Decentralized database management:**
+
 - PostgreSQL role: Installs and configures the server
 - Service roles: Create their own databases/users (e.g., immich, nextcloud)
 - Isolation: Each service user can only access their own database
@@ -29,9 +30,10 @@ PostgreSQL binds to `127.0.0.1` by default (secure, localhost-only).
 Containers can reach PostgreSQL via Pasta's `--map-host-loopback` feature, which routes container's `127.0.0.1` to the host's `127.0.0.1`.
 
 In docker-compose files, use:
+
 ```yaml
 extra_hosts:
-  - "postgres.local:127.0.0.1"
+    - "postgres.local:127.0.0.1"
 ```
 
 No additional bind addresses or firewall rules needed!
@@ -39,10 +41,12 @@ No additional bind addresses or firewall rules needed!
 ## Logging Backends
 
 **journald (default):**
+
 - Logs via stderr → systemd journal
 - View: `journalctl -u postgresql -f`
 
 **file:**
+
 - Logs to data directory or `/var/log/postgresql/`
 - Automatic logrotate configuration
 

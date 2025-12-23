@@ -4,6 +4,7 @@ inventory/*
 inventory/host_vars/*
 !inventory/host_vars/example.yml
 inventory_data/
+playbook.yml
 playbooks/*
 !playbooks/example.yml
 TODO.md

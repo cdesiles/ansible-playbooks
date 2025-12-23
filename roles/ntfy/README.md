@@ -5,6 +5,7 @@ Deploys [ntfy](https://ntfy.sh/) - a simple HTTP-based pub-sub notification serv
 ## Security Model
 
 **Secure by default:**
+
 - `auth-default-access: deny-all` - No anonymous access
 - `enable-signup: false` - No public registration
 - `enable-login: true` - Authentication required
@@ -19,7 +20,7 @@ All notifications require authentication to send or receive.
 Set in inventory or vault:
 
 ```yaml
-ntfy_admin_password: "your-secure-password-here"  # Min 12 chars
+ntfy_admin_password: "your-secure-password-here" # Min 12 chars
 ```
 
 ### Optional Variables
@@ -44,21 +45,25 @@ ntfy_nginx_hostname: ntfy.nas.local
 ### Managing Users
 
 List users:
+
 ```bash
 podman exec ntfy ntfy user list
 ```
 
 Add user:
+
 ```bash
 podman exec ntfy ntfy user add <username>
 ```
 
 Change password:
+
 ```bash
 podman exec -i ntfy ntfy user change-pass <username>
 ```
 
 Remove user:
+
 ```bash
 podman exec ntfy ntfy user remove <username>
 ```
@@ -66,6 +71,7 @@ podman exec ntfy ntfy user remove <username>
 ### Managing Topic Access
 
 Grant access to topic:
+
 ```bash
 podman exec ntfy ntfy access <username> <topic> <permission>
 ```
@@ -73,6 +79,7 @@ podman exec ntfy ntfy access <username> <topic> <permission>
 Permissions: `read-write`, `read-only`, `write-only`, `deny`
 
 Example:
+
 ```bash
 # Allow user to publish and subscribe to "alerts" topic
 podman exec ntfy ntfy access alice alerts read-write
@@ -82,6 +89,7 @@ podman exec ntfy ntfy access bob monitoring write-only
 ```
 
 List access control:
+
 ```bash
 podman exec ntfy ntfy access
 ```
@@ -89,11 +97,13 @@ podman exec ntfy ntfy access
 ### Publishing Notifications
 
 Using curl with authentication:
+
 ```bash
 curl -u admin:password -d "Backup completed" http://localhost:8080/backups
 ```
 
 Using ntfy CLI:
+
 ```bash
 ntfy publish --token <access-token> ntfy.nas.local mytopic "Hello World"
 ```
@@ -103,6 +113,7 @@ ntfy publish --token <access-token> ntfy.nas.local mytopic "Hello World"
 Web UI: https://ntfy.nas.local (if nginx enabled)
 
 CLI:
+
 ```bash
 ntfy subscribe --token <access-token> ntfy.nas.local mytopic
 ```

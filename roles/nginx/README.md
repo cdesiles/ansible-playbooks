@@ -17,19 +17,20 @@ Installs and configures Nginx as a reverse proxy for web applications with modul
 Each service role should deploy its own vhost config:
 
 **In service role tasks:**
+
 ```yaml
 - name: Deploy nginx vhost
   ansible.builtin.template:
-    src: nginx-vhost.conf.j2
-    dest: /etc/nginx/conf.d/myservice.conf
-    validate: nginx -t
+      src: nginx-vhost.conf.j2
+      dest: /etc/nginx/conf.d/myservice.conf
+      validate: nginx -t
   when: myservice_nginx_enabled
   notify: Reload nginx
 
 - name: Remove nginx vhost when disabled
   ansible.builtin.file:
-    path: /etc/nginx/conf.d/myservice.conf
-    state: absent
+      path: /etc/nginx/conf.d/myservice.conf
+      state: absent
   when: not myservice_nginx_enabled
   notify: Reload nginx
 ```
@@ -39,15 +40,17 @@ Each service role should deploy its own vhost config:
 Forward TCP traffic from this Nginx instance to services on other hosts using the `stream` module (layer 4 proxy).
 
 **Configuration:**
+
 ```yaml
 nginx_forwarder:
-  "blog.hello.com":
-    forward_to: "my.host.lan"
-    http: true    # Forward port 80 (default: true)
-    https: true   # Forward port 443 (default: true)
+    "blog.hello.com":
+        forward_to: "my.host.lan"
+        http: true # Forward port 80 (default: true)
+        https: true # Forward port 443 (default: true)
 ```
 
 **How it works:**
+
 - **Stream-based TCP proxy** (layer 4, not HTTP layer 7)
 - No protocol inspection - just forwards raw TCP packets
 - **HTTPS passes through encrypted** - backend host handles TLS termination
@@ -56,6 +59,7 @@ nginx_forwarder:
 **Use case:** Omega (gateway) forwards all traffic to Andromeda (internal server) that handles its own TLS certificates.
 
 **Important notes:**
+
 - Stream configs deployed to `/etc/nginx/streams.d/`
 - No HTTP logging (stream doesn't understand HTTP protocol)
 - No X-Forwarded-For headers (transparent TCP forwarding)
@@ -64,10 +68,12 @@ nginx_forwarder:
 ## Logging Backends
 
 **journald (default):**
+
 - Logs sent to systemd journal via syslog
 - View: `journalctl -u nginx -f`
 
 **file:**
+
 - Traditional `/var/log/nginx/*.log` files
 - Automatic logrotate configuration
 

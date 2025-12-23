@@ -1,13 +1,9 @@
 [Unit]
 Description=Ntfy Notification Service
-Requires=network-online.target
-After=network-online.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=true
-User={{ ansible_user }}
-Group={{ ansible_user }}
 WorkingDirectory={{ podman_projects_dir | default('/opt/podman') }}/ntfy
 ExecStart=/usr/bin/podman play kube --replace ntfy.yaml
 ExecStop=/usr/bin/podman play kube --down ntfy.yaml
@@ -15,4 +11,4 @@ Restart=on-failure
 RestartSec=10
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target

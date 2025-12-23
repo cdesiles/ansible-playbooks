@@ -1,13 +1,9 @@
 [Unit]
 Description=Immich Media Server
-Requires=network-online.target
-After=network-online.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=true
-User={{ ansible_user }}
-Group={{ ansible_user }}
 WorkingDirectory={{ podman_projects_dir | default('/opt/podman') }}/immich
 ExecStart=/usr/bin/podman play kube --replace immich.yaml
 ExecStop=/usr/bin/podman play kube --down immich.yaml
@@ -15,4 +11,4 @@ Restart=on-failure
 RestartSec=10
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target

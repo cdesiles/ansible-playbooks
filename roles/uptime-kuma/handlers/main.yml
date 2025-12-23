@@ -3,11 +3,15 @@
   ansible.builtin.systemd:
     daemon_reload: true
 
+- name: Reload systemd user
+  ansible.builtin.command: "systemctl --user daemon-reload"
+  become: true
+  become_user: "{{ ansible_user }}"
+
 - name: Restart uptime-kuma
-  ansible.builtin.systemd:
-    name: uptime-kuma
-    state: restarted
-    daemon_reload: true
+  ansible.builtin.command: "systemctl --user restart uptime-kuma.service"
+  become: true
+  become_user: "{{ ansible_user }}"
 
 - name: Reload nginx
   ansible.builtin.systemd:

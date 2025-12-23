@@ -49,6 +49,7 @@ uptime_kuma_nginx_hostname: uptime.nas.local
 ### Adding Monitors
 
 Web UI → Add New Monitor:
+
 - **Monitor Type:** HTTP(s), TCP Port, Ping, DNS, etc.
 - **Friendly Name:** Display name
 - **URL/Host:** Target to monitor
@@ -59,6 +60,7 @@ Web UI → Add New Monitor:
 ### Notification Endpoints
 
 Web UI → Settings → Notifications:
+
 - Email (SMTP)
 - Discord, Slack, Telegram
 - ntfy (recommended for local notifications)

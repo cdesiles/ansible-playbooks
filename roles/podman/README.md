@@ -12,10 +12,12 @@ Installs and configures Podman for container management with support for Docker 
 ## Container Logging
 
 **journald (default):**
+
 - Logs sent to systemd journal
 - View: `journalctl CONTAINER_NAME=<name> -f`
 
 **k8s-file:**
+
 - Logs stored as JSON files with automatic rotation
 - Configured via `podman_log_max_size` and `podman_log_max_files`
 

@@ -9,6 +9,7 @@ See `defaults/main.yml` for all available variables and their default values.
 ### Required Passwords
 
 Both passwords must be set in your inventory (min 12 characters):
+
 - `immich_postgres_password` - PostgreSQL database password
 - `immich_valkey_password` - Valkey/Redis password
 
@@ -17,6 +18,7 @@ Both passwords must be set in your inventory (min 12 characters):
 ### Valkey ACL Issues
 
 **Test Immich user credentials:**
+
 ```bash
 valkey-cli
 AUTH immich <immich_valkey_password>
