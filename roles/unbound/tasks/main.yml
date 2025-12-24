@@ -151,24 +151,11 @@
     - Check Unbound config syntax
     - Reload systemd and restart unbound
 
-- name: Make sure unbound starts after wg-quick@wg0
-  block:
-    - name: Ensure unbound.service.d directory exists
-      ansible.builtin.file:
-        path: /etc/systemd/system/unbound.service.d
-        state: directory
-        mode: "0755"
-    - name: Configure unbound systemd service
-      ansible.builtin.copy:
-        dest: /etc/systemd/system/unbound.service.d/override.conf
-        content: |
-          [Unit]
-          After=wg-quick@wg0.service
-          Requires=wg-quick@wg0.service
-          # Make Unbound part of network-online.target (provides DNS)
-          Before=network-online.target
-          Wants=network-online.target
-      notify: Reload systemd and restart unbound
+- name: Remove WireGuard dependency from unbound (using ip-freebind instead)
+  ansible.builtin.file:
+    path: /etc/systemd/system/unbound.service.d
+    state: absent
+  notify: Reload systemd and restart unbound
 
 - name: Enables unbound service
   ansible.builtin.service:

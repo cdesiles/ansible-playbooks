@@ -18,6 +18,7 @@ This is a good playground to learn and I encourage you to adapt these roles to y
 - Rootless Podman: Containers run as `{{ ansible_user }}` (daemonless, `sudo podman ps` shows nothing)
 - User systemd services: `systemctl --user status <service>` with lingering enabled
 - Nginx reverse proxy for web services
+- IP Freebind when available (e.g. unbound does not wait for wireguard to be up to start resolving DNS)
 
 **Available Services:**
 

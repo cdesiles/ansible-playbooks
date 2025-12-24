@@ -8,6 +8,9 @@ server:
     # listening port
     port: {{ unbound_port }}
 
+    # Allow binding to interfaces that don't exist yet (e.g., WireGuard at boot)
+    ip-freebind: yes
+
     # Define interfaces binds
     interface: lo
     interface: lan0
