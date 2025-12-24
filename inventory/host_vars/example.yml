@@ -19,6 +19,33 @@ network_interfaces:
     ipv4:
       address: "{{ podman_gw_gateway }}/10"
 
+# Unbound DNS resolver configuration
+# ----------------------------------
+# Interface IPs for binding
+unbound_interface_lan: 192.168.1.2
+unbound_interface_vpn: 192.168.20.4
+
+# unbound LAN configuration
+unbound_custom_lan_domain: "example.lan"
+unbound_custom_lan_config_path: "{{ unbound_config_base_path }}/lan.conf"
+unbound_custom_lan_records:
+  "server.example.lan":
+    v4: 192.168.1.2
+    aliases:
+      - "server"
+
+# unbound VPN configuration
+unbound_custom_vpn_config_path: "{{ unbound_config_base_path }}/vpn.conf"
+unbound_custom_vpn_records:
+  "server.example.lan":
+    v4: 192.168.20.4
+    aliases:
+      - "server"
+
+unbound_firewall_allowed_sources:
+  - { src: "192.168.1.0/24", comment: "DNS from LAN" }
+  - { src: "192.168.20.0/27", comment: "DNS from VPN" }
+
 # NTP servers configuration
 # -------------------------
 ntp_pools:

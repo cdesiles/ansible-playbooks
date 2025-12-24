@@ -9,9 +9,14 @@ unbound_custom_vpn_config_path: "{{ unbound_config_base_path }}/vpn.conf"
 unbound_custom_lan_domain: "example.lan"
 unbound_port: 53
 unbound_apparmor_profile_path: /etc/apparmor.d/usr.sbin.unbound
+
+unbound_interface_lan: 192.168.1.1
+unbound_interface_vpn: 192.168.27.1
+
 unbound_firewall_allowed_sources:
   - { src: "192.168.1.0/24", comment: "DNS from LAN" }
   - { src: "192.168.27.0/27", comment: "DNS from VPN" }
+
 unbound_custom_lan_records:
   "example.lan":
     v4: 192.168.1.2

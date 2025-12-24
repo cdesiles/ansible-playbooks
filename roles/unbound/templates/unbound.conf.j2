@@ -8,13 +8,13 @@ server:
     # listening port
     port: {{ unbound_port }}
 
-    # Allow binding to interfaces that don't exist yet (e.g., WireGuard at boot)
+    # Allow binding to IP addresses that don't exist yet (e.g., WireGuard at boot)
     ip-freebind: yes
 
-    # Define interfaces binds
-    interface: lo
-    interface: lan0
-    interface: wg0
+    # Define interface binds by IP address
+    interface: 127.0.0.1                      # lo
+    interface: {{ unbound_interface_lan }}    # lan0
+    interface: {{ unbound_interface_vpn }}    # wg0
 
     # Define access controls (note that ufw might be also configured)
     access-control: 0.0.0.0/0 refuse
