@@ -1,4 +1,5 @@
 ---
-- name: install oryx
-  cmd: paru -S oryx
+- name: Install oryx
+  ansible.builtin.command: paru -S --noconfirm oryx
   when: ansible_facts['os_family'] == 'Archlinux'
+  changed_when: false

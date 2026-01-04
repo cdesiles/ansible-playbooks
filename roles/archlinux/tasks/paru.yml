@@ -77,12 +77,19 @@
         mode: "0644"
 
     - name: Extract paru
-      ansible.builtin.command:
-        cmd: "tar -xf /tmp/paru-{{ os_arch }}.tar.zst paru -C /tmp"
+      ansible.builtin.unarchive:
+        src: "/tmp/paru-{{ os_arch }}.tar.zst"
+        dest: /tmp
+        remote_src: true
+        extra_opts:
+          - paru
 
     - name: Install paru binary
-      ansible.builtin.command:
-        cmd: "mv /tmp/paru /usr/bin/paru"
+      ansible.builtin.copy:
+        src: /tmp/paru
+        dest: /usr/bin/paru
+        remote_src: true
+        mode: "0755"
 
     - name: Ensure permissions
       ansible.builtin.file:

@@ -6,7 +6,7 @@
 
 - name: Setup persistent network interface(s)
   ansible.builtin.include_role:
-    name: net-persist
+    name: net_persist
     public: true
   vars:
     interface: "{{ item }}"
@@ -14,7 +14,7 @@
 
 - name: Configure network interface(s)
   ansible.builtin.include_role:
-    name: net-config
+    name: net_config
     public: true
   vars:
     interface: "{{ item }}"

@@ -55,7 +55,12 @@
   when: ansible_user != 'root'
 
 - name: Enable and start uptime-kuma service (user scope)
-  ansible.builtin.command: "systemctl --user enable --now uptime-kuma.service"
+  ansible.builtin.systemd:
+    name: uptime-kuma.service
+    enabled: true
+    state: started
+    scope: user
+  become: false
   become_user: "{{ ansible_user }}"
 
 - name: Deploy nginx vhost configuration for uptime-kuma

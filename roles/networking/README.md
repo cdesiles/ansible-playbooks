@@ -6,8 +6,8 @@ This role configures the networking on the target machine.
 
 Roles:
 
-- net-persist
-- net-config
+- net_persist
+- net_config
 
 ## Inventory Variables
 

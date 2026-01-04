@@ -97,6 +97,7 @@
 
     - name: Convert hosts file to unbound format
       ansible.builtin.shell: |
+        set -o pipefail
         grep '^0\.0\.0\.0' /tmp/hosts.txt | awk '{print "local-zone: \""$2"\" always_nxdomain"}' > "{{ unbound_ad_servers_config_path }}" &&
         chown unbound:unbound "{{ unbound_ad_servers_config_path }}"
       args:

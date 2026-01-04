@@ -17,9 +17,7 @@
   when: zfs_pools is defined
 
 - name: Creating basic zpool(s)
-  ansible.builtin.command:
-    "zpool create {{ '-o '+ item.options.items() |map('join', '=') | join (' -o ') if item.options is defined else '' }} {{ item.name }} {{
-    item.devices|join (' ') }}"
+  ansible.builtin.command: "zpool create {{ '-o ' + item.options.items() | map('join', '=') | join(' -o ') if item.options is defined else '' }} {{ item.name }} {{ item.devices | join(' ') }}"
   with_items: "{{ zfs_pools }}"
   when:
     - zfs_pools is defined
@@ -29,9 +27,7 @@
     - item.devices[0] not in zpool_devices.stdout
 
 - name: Creating mirror/zraid zpool(s)
-  ansible.builtin.command:
-    "zpool create {{ '-o '+ item.options.items() |map('join', '=') | join (' -o ') if item.options is defined else '' }} {{ item.name }} {{
-    item.type }} {{ item.devices|join (' ') }}"
+  ansible.builtin.command: "zpool create {{ '-o ' + item.options.items() | map('join', '=') | join(' -o ') if item.options is defined else '' }} {{ item.name }} {{ item.type }} {{ item.devices | join(' ') }}"
   with_items: "{{ zfs_pools }}"
   when:
     - zfs_pools is defined

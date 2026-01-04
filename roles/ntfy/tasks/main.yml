@@ -77,7 +77,12 @@
   when: ansible_user != 'root'
 
 - name: Enable and start ntfy service (user scope)
-  ansible.builtin.command: "systemctl --user enable --now ntfy.service"
+  ansible.builtin.systemd:
+    name: ntfy.service
+    enabled: true
+    state: started
+    scope: user
+  become: false
   become_user: "{{ ansible_user }}"
 
 - name: Wait for ntfy to be ready
@@ -92,21 +97,26 @@
   register: ntfy_user_list
   changed_when: false
   failed_when: false
+  become: false
   become_user: "{{ ansible_user }}"
 
 - name: Create admin user in ntfy
   ansible.builtin.shell: |
+    set -o pipefail
     printf '%s\n%s\n' '{{ ntfy_admin_password }}' '{{ ntfy_admin_password }}' | podman exec -i ntfy-server ntfy user add --role=admin {{ ntfy_admin_user }}
   when: ntfy_admin_user not in ntfy_user_list.stdout
   register: ntfy_user_create
   changed_when: ntfy_user_create.rc == 0
+  become: false
   become_user: "{{ ansible_user }}"
 
 - name: Set admin user password
   ansible.builtin.shell: |
+    set -o pipefail
     printf '%s\n%s\n' '{{ ntfy_admin_password }}' '{{ ntfy_admin_password }}' | podman exec -i ntfy-server ntfy user change-pass {{ ntfy_admin_user }}
   when: ntfy_admin_user in ntfy_user_list.stdout
   changed_when: false
+  become: false
   become_user: "{{ ansible_user }}"
 
 - name: Deploy nginx vhost configuration for ntfy

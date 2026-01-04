@@ -1,15 +1,21 @@
 ---
 - name: Configure locales
   block:
-    - name: Activate locale
-      ansible.builtin.command:
-        cmd: localectl set-locale LANG={{ arch_locale }}
     - name: Edit /etc/locale.gen
       ansible.builtin.lineinfile:
         dest: /etc/locale.gen
         state: present
         regexp: "{{ arch_locale }}"
         line: "{{ arch_locale }} UTF-8"
+      register: locale_gen_changed
+
     - name: Regenerate locales
       ansible.builtin.command:
         cmd: locale-gen
+      when: locale_gen_changed is changed
+      changed_when: true
+
+    - name: Activate locale
+      ansible.builtin.command:
+        cmd: localectl set-locale LANG={{ arch_locale }}
+      changed_when: false

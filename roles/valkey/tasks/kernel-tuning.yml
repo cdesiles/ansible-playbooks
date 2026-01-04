@@ -20,8 +20,9 @@
     line: '\1 transparent_hugepage=madvise"'
     backrefs: true
   when: thp_check.rc != 0
-  notify: Update GRUB
-  register: grub_updated
+  notify:
+    - Update GRUB
+    - Warn user about reboot requirement
 
 - name: Check current THP runtime setting
   ansible.builtin.shell: cat /sys/kernel/mm/transparent_hugepage/enabled
@@ -33,11 +34,3 @@
     echo madvise > /sys/kernel/mm/transparent_hugepage/enabled
     echo madvise > /sys/kernel/mm/transparent_hugepage/defrag
   when: "'[madvise]' not in current_thp.stdout"
-
-- name: Warn user about reboot requirement
-  ansible.builtin.debug:
-    msg: |
-      WARNING: GRUB configuration has been updated with transparent_hugepage=madvise
-      A REBOOT IS REQUIRED for this change to take effect permanently.
-      The setting has been applied at runtime temporarily.
-  when: grub_updated is changed

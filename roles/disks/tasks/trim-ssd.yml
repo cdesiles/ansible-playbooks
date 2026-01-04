@@ -23,11 +23,7 @@
     group: root
     mode: "0644"
   register: timer_config
-
-- name: Systemd daemon reload
-  ansible.builtin.systemd:
-    daemon_reload: true
-  when: timer_config.changed
+  notify: Systemd daemon reload
 
 - name: Enable periodic trim
   ansible.builtin.systemd:

@@ -97,4 +97,5 @@
     name: "{{ postgres_admin_user }}"
     password: "{{ postgres_admin_password }}"
     state: present
+  become: false
   become_user: "{{ postgres_admin_user }}"

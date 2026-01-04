@@ -35,9 +35,4 @@
     name: "{{ ansible_user }}"
     groups: docker
     append: true
-  register: docker_group
-
-- name: Inform the user that user needs to logout and login again
-  ansible.builtin.debug:
-    msg: "Please logout and login again to make sure the user is added to the docker group"
-  when: docker_group.changed
+  notify: Inform user to relogin

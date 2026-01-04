@@ -20,3 +20,10 @@
     else
       grub-mkconfig -o /boot/grub/grub.cfg
     fi
+
+- name: Warn user about reboot requirement
+  ansible.builtin.debug:
+    msg: |
+      WARNING: GRUB configuration has been updated with transparent_hugepage=madvise
+      A REBOOT IS REQUIRED for this change to take effect permanently.
+      The setting has been applied at runtime temporarily.

@@ -1,0 +1,4 @@
+---
+- name: Inform user to relogin
+  ansible.builtin.debug:
+    msg: "Please logout and login again to make sure the user is added to the docker group"

@@ -14,6 +14,7 @@
     name: "{{ gitea_postgres_user }}"
     password: "{{ gitea_postgres_password }}"
     state: present
+  become: false
   become_user: "{{ postgres_admin_user }}"
 
 - name: Create PostgreSQL database for Gitea
@@ -21,6 +22,7 @@
     name: "{{ gitea_postgres_db_name }}"
     owner: "{{ gitea_postgres_user }}"
     state: present
+  become: false
   become_user: "{{ postgres_admin_user }}"
 
 - name: Grant all privileges on database to Gitea user
@@ -30,6 +32,7 @@
     type: database
     privs: ALL
     state: present
+  become: false
   become_user: "{{ postgres_admin_user }}"
 
 - name: Ensure Gitea user has no superuser privileges
@@ -37,6 +40,7 @@
     name: "{{ gitea_postgres_user }}"
     role_attr_flags: NOSUPERUSER,NOCREATEDB,NOCREATEROLE
     state: present
+  become: false
   become_user: "{{ postgres_admin_user | default('postgres') }}"
 
 - name: Create PostgreSQL schema for Gitea
@@ -45,6 +49,7 @@
     database: "{{ gitea_postgres_db_name }}"
     owner: "{{ gitea_postgres_user }}"
     state: present
+  become: false
   become_user: "{{ postgres_admin_user | default('postgres') }}"
 
 - name: Grant schema permissions to Gitea user
@@ -55,6 +60,7 @@
     objs: "{{ gitea_postgres_schema }}"
     privs: CREATE,USAGE
     state: present
+  become: false
   become_user: "{{ postgres_admin_user | default('postgres') }}"
 
 - name: Create Gitea project directory
@@ -113,7 +119,12 @@
   when: ansible_user != 'root'
 
 - name: Enable and start Gitea service (user scope)
-  ansible.builtin.command: "systemctl --user enable --now gitea.service"
+  ansible.builtin.systemd:
+    name: gitea.service
+    enabled: true
+    state: started
+    scope: user
+  become: false
   become_user: "{{ ansible_user }}"
 
 - name: Deploy nginx vhost configuration for Gitea

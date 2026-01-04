@@ -37,6 +37,7 @@
     force: true
   loop: "{{ static_web_sites | dict2items }}"
   when: static_web_sites | length > 0
+  become: false
   become_user: "{{ nginx_user }}"
   notify: Reload nginx
 
@@ -49,6 +50,7 @@
     - static_web_sites | length > 0
     - item.value.build_command is defined
     - item.value.build_command | length > 0
+  become: false
   become_user: "{{ nginx_user }}"
   changed_when: true
 

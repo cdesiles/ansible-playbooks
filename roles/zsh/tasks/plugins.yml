@@ -24,18 +24,12 @@
     update: true
     version: master
   loop:
-    - {
-        repo: https://github.com/zsh-users/zsh-syntax-highlighting.git,
-        dest: "{{ zsh_plugins_path }}/zsh-syntax-highlighting",
-      }
-    - {
-        repo: https://github.com/zsh-users/zsh-autosuggestions.git,
-        dest: "{{ zsh_plugins_path }}/zsh-autosuggestions",
-      }
-    - {
-        repo: https://github.com/romkatv/powerlevel10k.git,
-        dest: "{{ zsh_plugins_path }}/powerlevel10k",
-      }
+    - repo: https://github.com/zsh-users/zsh-syntax-highlighting.git
+      dest: "{{ zsh_plugins_path }}/zsh-syntax-highlighting"
+    - repo: https://github.com/zsh-users/zsh-autosuggestions.git
+      dest: "{{ zsh_plugins_path }}/zsh-autosuggestions"
+    - repo: https://github.com/romkatv/powerlevel10k.git
+      dest: "{{ zsh_plugins_path }}/powerlevel10k"
 
 - name: Assert plugins are available for any user
   ansible.builtin.file:

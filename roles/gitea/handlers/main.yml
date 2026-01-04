@@ -4,13 +4,18 @@
     daemon_reload: true
 
 - name: Reload systemd user
-  ansible.builtin.command: "systemctl --user daemon-reload"
-  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+    scope: user
+  become: false
   become_user: "{{ ansible_user }}"
 
 - name: Restart gitea
-  ansible.builtin.command: "systemctl --user restart gitea.service"
-  become: true
+  ansible.builtin.systemd:
+    name: gitea.service
+    state: restarted
+    scope: user
+  become: false
   become_user: "{{ ansible_user }}"
 
 - name: Reload nginx

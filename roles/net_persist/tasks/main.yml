@@ -7,7 +7,7 @@
 - name: Process ethernet interface persistence
   when: interface.type is not defined or interface.type == 'ethernet'
   block:
-    - name: "Check {{ interface.name }} ({{ interface.mac_address }}) rule"
+    - name: "Check interface rule for {{ interface.name }} ({{ interface.mac_address }})"
       ansible.builtin.set_fact:
         interface_original_name: "{{ ansible_facts.interfaces | select('in', ansible_facts) | map('extract', ansible_facts) | selectattr('pciid', 'defined') | selectattr('macaddress', 'equalto', interface.mac_address) | map(attribute='device') | first }}"
 

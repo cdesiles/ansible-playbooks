@@ -16,6 +16,7 @@
     name: "{{ immich_postgres_db_name }}"
     owner: "{{ immich_postgres_user }}"
     state: present
+  become: false
   become_user: "{{ postgres_admin_user | default('postgres') }}"
 
 - name: Create PostgreSQL user for Immich
@@ -23,6 +24,7 @@
     name: "{{ immich_postgres_user }}"
     password: "{{ immich_postgres_password }}"
     state: present
+  become: false
   become_user: "{{ postgres_admin_user | default('postgres') }}"
 
 - name: Grant all privileges on database to Immich user
@@ -32,6 +34,7 @@
     type: database
     privs: ALL
     state: present
+  become: false
   become_user: "{{ postgres_admin_user | default('postgres') }}"
 
 - name: Ensure Immich user has no superuser privileges
@@ -39,6 +42,7 @@
     name: "{{ immich_postgres_user }}"
     role_attr_flags: NOSUPERUSER,NOCREATEDB,NOCREATEROLE
     state: present
+  become: false
   become_user: "{{ postgres_admin_user | default('postgres') }}"
 
 - name: Enable required PostgreSQL extensions in Immich database
@@ -46,6 +50,7 @@
     name: "{{ item }}"
     login_db: "{{ immich_postgres_db_name }}"
     state: present
+  become: false
   become_user: "{{ postgres_admin_user | default('postgres') }}"
   loop:
     - cube
@@ -60,6 +65,7 @@
     objs: public
     privs: CREATE,USAGE
     state: present
+  become: false
   become_user: "{{ postgres_admin_user | default('postgres') }}"
 
 - name: Create Immich project directory
@@ -120,7 +126,12 @@
   when: ansible_user != 'root'
 
 - name: Enable and start Immich service (user scope)
-  ansible.builtin.command: "systemctl --user enable --now immich.service"
+  ansible.builtin.systemd:
+    name: immich.service
+    enabled: true
+    state: started
+    scope: user
+  become: false
   become_user: "{{ ansible_user }}"
 
 - name: Deploy nginx vhost configuration for Immich

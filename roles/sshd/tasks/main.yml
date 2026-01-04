@@ -1,26 +1,27 @@
 ---
-- include_vars: "{{ item }}"
+- name: Load OS-specific variables
+  ansible.builtin.include_vars: "{{ item }}"
   with_first_found:
     - "vars/{{ ansible_facts['os_family'] }}.yml"
     - "vars/debian.yml"
 
 - name: Install OpenSSH
-  package:
+  ansible.builtin.package:
     name: "{{ ssh_package_name }}"
     state: present
 
 - name: Install UFW
-  package:
+  ansible.builtin.package:
     name: ufw
     state: present
 
 - name: Enable SSH
-  service:
+  ansible.builtin.service:
     name: "{{ ssh_service_name }}"
     enabled: true
 
 - name: Allow local network incoming connection
-  ufw:
+  community.general.ufw:
     rule: allow
     port: "{{ ssh_port }}"
     proto: tcp
@@ -29,7 +30,7 @@
     comment: "SSH from local network"
 
 - name: Allow SSH VPN incoming connection
-  ufw:
+  community.general.ufw:
     rule: allow
     port: "{{ ssh_port }}"
     proto: tcp
@@ -37,36 +38,41 @@
     direction: in
     comment: "SSH from VPN network"
 
-- name: Add SSH public key to authorized_keys
-  authorized_key:
-    user: "{{ item }}"
-    state: present
-    key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
-    comment: "{{ lookup('env', 'USER') | default('ansible') }}@{{ lookup('pipe', 'hostname -s') }}"
-  loop: "{{ ssh_users.split() }}"
+# TODO
+# - name: Add SSH public key to authorized_keys
+#   authorized_key:
+#     user: "{{ item }}"
+#     state: present
+#     key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+#     comment: "{{ lookup('env', 'USER') | default('ansible') }}@{{ lookup('pipe', 'hostname -s') }}"
+#   loop: "{{ ssh_users.split() }}"
 
-- name: Authorized keys fallback
+- name: Authorized keys fallback (when home cannot be mounted)
+  when: ssh_authorized_keys_fallback_enabled
   block:
     - name: Create the directory
-      file:
-        path: "{{ssh_authorized_keys_fallback_dir}}"
+      ansible.builtin.file:
+        path: "{{ ssh_authorized_keys_fallback_dir }}"
         state: directory
+        owner: root
+        group: root
+        mode: "0755"
 
     - name: Backup authorized_keys out of HOME dir (if unavailable at startup)
-      command: "cp /home/{{ item }}/.ssh/authorized_keys {{ssh_authorized_keys_fallback_dir}}/{{ item }}"
+      ansible.builtin.command: "cp /home/{{ item }}/.ssh/authorized_keys {{ ssh_authorized_keys_fallback_dir }}/{{ item }}"
       loop: "{{ ssh_users.split() }}"
+      changed_when: false
 
     - name: Fix ownership
-      file:
-        path: "{{ssh_authorized_keys_fallback_dir}}/{{ item }}"
+      ansible.builtin.file:
+        path: "{{ ssh_authorized_keys_fallback_dir }}/{{ item }}"
         owner: "{{ item }}"
         group: "{{ item }}"
         mode: "0600"
       loop: "{{ ssh_users.split() }}"
-  when: ssh_authorized_keys_fallback_enabled
 
 - name: Create an SSH banner
-  template:
+  ansible.builtin.template:
     src: templates/sshd_banner.j2
     dest: "{{ sshd_banner }}"
     owner: root
@@ -74,27 +80,33 @@
     mode: "0644"
 
 - name: Remove motd on Debian
-  file:
+  ansible.builtin.file:
     path: /etc/motd
     state: absent
   when: ansible_facts['os_family'] == 'Debian'
 
 - name: Hardening sshd_config
-  template:
+  ansible.builtin.template:
     src: templates/sshd_config.j2
     dest: "{{ sshd_config }}"
     owner: root
     group: root
     mode: "0600"
     validate: "{{ sshd_binary }} -t -f %s"
-  register: ssh_hardening_task
-
-- name: Restart SSH service
-  service:
-    name: "{{ ssh_service_name }}"
-    state: restarted
-  when: ssh_hardening_task.changed
+  notify: Restart SSH service
 
 - name: Enable UFW
   community.general.ufw:
     state: enabled
+
+- name: Enable UFW service at startup
+  ansible.builtin.systemd:
+    name: ufw
+    enabled: true
+    state: started
+
+- name: Start and enable fail2ban
+  ansible.builtin.service:
+    name: fail2ban
+    state: started
+    enabled: true

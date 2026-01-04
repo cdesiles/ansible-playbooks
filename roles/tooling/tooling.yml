@@ -16,3 +16,9 @@
     name: bottom
     state: present
   changed_when: false
+
+- name: Install wget
+  package:
+    name: wget
+    state: present
+  changed_when: false

@@ -35,4 +35,5 @@
   ansible.builtin.command:
     cmd: initdb -D {{ postgres_data_dir }}
     creates: "{{ postgres_data_dir }}/PG_VERSION"
+  become: false
   become_user: "{{ postgres_admin_user }}"

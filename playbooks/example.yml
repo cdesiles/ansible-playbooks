@@ -1,7 +1,7 @@
 ---
-- hosts: marge
+- name: Sample of a playbook
+  hosts: marge
   become: true
   roles:
-    - role: ntpd
     - role: fail2ban
     - role: unbound
