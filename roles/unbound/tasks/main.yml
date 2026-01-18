@@ -107,10 +107,17 @@
       ansible.builtin.file:
         path: /tmp/hosts.txt
         state: absent
+- name: Check if root.key exists
+  ansible.builtin.stat:
+    path: "{{ unbound_anchor_root_key }}"
+  register: root_key_stat
+
 - name: Initialize dnssec trust anchor if missing
   ansible.builtin.command: unbound-anchor -a {{ unbound_anchor_root_key }}
-  args:
-    creates: "{{ unbound_anchor_root_key }}"
+  when: not root_key_stat.stat.exists
+  register: unbound_anchor_result
+  failed_when: unbound_anchor_result.rc != 0 and unbound_anchor_result.rc != 1
+  changed_when: unbound_anchor_result.rc == 0
 
 - name: Ensure root.key has correct ownership and permissions
   ansible.builtin.file:
