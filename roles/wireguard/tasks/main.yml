@@ -1,4 +1,16 @@
 ---
+- name: Validate required variables are set
+  ansible.builtin.assert:
+    that:
+      - wireguard_address is defined
+      - wireguard_address | length > 0
+      - wireguard_dns is defined
+      - wireguard_dns | length > 0
+    fail_msg: |
+      wireguard_address and wireguard_dns are required.
+      See roles/wireguard/defaults/main.yml for configuration instructions.
+    success_msg: "Variable validation passed"
+
 - name: Install wireguard
   ansible.builtin.package:
     name: "{{ (ansible_facts['os_family'] == 'Archlinux') | ternary('wireguard-tools', 'wireguard') }}"
