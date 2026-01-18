@@ -12,7 +12,8 @@ server:
     ip-freebind: yes
 
     # Define interface binds by IP address
-    interface: 127.0.0.1                      # lo
+    interface: 127.0.0.1                      # lo (IPv4)
+    interface: ::1                            # lo (IPv6)
     interface: {{ unbound_interface_lan }}    # lan0
     interface: {{ unbound_interface_vpn }}    # wg0
 
@@ -95,6 +96,7 @@ server:
 
     # Ensure kernel buffer is large enough to not lose messages in traffic spikes
     so-rcvbuf: 1m
+    so-sndbuf: 0
 
     # Ensure privacy of local IP ranges
     private-address: 192.168.0.0/16
