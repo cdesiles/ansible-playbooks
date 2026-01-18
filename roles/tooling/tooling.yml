@@ -22,3 +22,9 @@
     name: wget
     state: present
   changed_when: false
+
+- name: Install dig utility
+  package:
+    name: "{{ (ansible_facts['os_family'] == 'Archlinux') | ternary('bind', 'dnsutils') }}"
+    state: present
+  changed_when: false
