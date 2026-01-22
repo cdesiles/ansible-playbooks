@@ -90,6 +90,7 @@
   delay: 2
   register: ufw_result
   until: ufw_result is succeeded
+  when: wireguard_server_mode | default(false)
 
 - name: Start and enable service
   ansible.builtin.service:
