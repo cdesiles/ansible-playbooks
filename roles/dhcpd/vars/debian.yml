@@ -1,0 +1,4 @@
+dhcpd_package: isc-dhcp-server
+dhcpd_service: isc-dhcp-server
+dhcpd_config_path: /etc/dhcp/dhcpd.conf
+dhcpd_defaults_path: /etc/default/isc-dhcp-server

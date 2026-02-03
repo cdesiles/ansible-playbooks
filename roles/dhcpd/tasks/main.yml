@@ -1,0 +1,46 @@
+---
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - dhcpd_interface is defined
+      - dhcpd_interface | length > 0
+    fail_msg: |
+      dhcpd_interface is required.
+      See roles/dhcpd/defaults/main.yml for configuration instructions.
+    success_msg: "Variable validation passed"
+
+- name: Load OS-specific variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_facts['os_family'] | lower }}.yml"
+    - "debian.yml"
+
+- name: Install DHCP server
+  ansible.builtin.package:
+    name: "{{ dhcpd_package }}"
+    state: present
+
+- name: Deploy DHCP server configuration
+  ansible.builtin.template:
+    src: dhcpd.conf.j2
+    dest: "{{ dhcpd_config_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart dhcpd
+
+- name: Configure interface for DHCP server (Debian)
+  ansible.builtin.template:
+    src: isc-dhcp-server.j2
+    dest: "{{ dhcpd_defaults_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['os_family'] | lower == 'debian'
+  notify: Restart dhcpd
+
+- name: Enable and start DHCP server
+  ansible.builtin.systemd:
+    name: "{{ dhcpd_service }}"
+    enabled: true
+    state: started

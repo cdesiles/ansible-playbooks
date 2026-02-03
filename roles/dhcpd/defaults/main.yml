@@ -1,0 +1,27 @@
+# Network configuration
+dhcpd_subnet: "192.168.1.0"
+dhcpd_netmask: "255.255.255.0"
+dhcpd_range_start: "192.168.1.20"
+dhcpd_range_end: "192.168.1.200"
+dhcpd_gateway: "192.168.1.1"
+dhcpd_dns_servers:
+  - "1.1.1.1"
+
+# Lease times (in seconds)
+dhcpd_default_lease_time: 86400   # 24 hours
+dhcpd_max_lease_time: 172800      # 48 hours
+
+# Interface to listen on (required)
+# dhcpd_interface: "lan0"
+
+# Domain name (optional)
+# dhcpd_domain_name: "home.lan"
+
+# Static reservations
+# dhcpd_reservations:
+#   - hostname: printer
+#     mac: "aa:bb:cc:dd:ee:ff"
+#     ip: "192.168.1.10"
+#   - hostname: nas
+#     mac: "11:22:33:44:55:66"
+#     ip: "192.168.1.2"
