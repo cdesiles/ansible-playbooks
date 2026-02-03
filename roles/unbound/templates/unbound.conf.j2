@@ -26,8 +26,8 @@ server:
     access-control: ::1 allow
 
     # Specify custom local answers for each interface by using views:
-    access-control-view: 192.168.1.56/24 lan
-    access-control-view: 192.168.27.1/27 vpn
+    access-control-view: 192.168.1.0/24 lan
+    access-control-view: 192.168.27.0/27 vpn
 
     do-ip4: yes
     do-udp: yes
@@ -59,12 +59,18 @@ server:
     use-caps-for-id: no
 
     # the time to live (TTL) value lower bound, in seconds. Default 0.
-    # If more than an hour could easily give trouble due to stale data.
-    cache-min-ttl: 3600
+    # Setting to 0 respects upstream TTLs, avoiding outages on fast-flux services.
+    cache-min-ttl: 0
 
     # the time to live (TTL) value cap for RRsets and messages in the
     # cache. Items are not cached for longer. In seconds.
     cache-max-ttl: 86400
+
+    # Serve expired records while fetching fresh ones in the background.
+    # Improves reliability when upstream resolvers are temporarily unavailable.
+    serve-expired: yes
+    serve-expired-ttl: 86400
+    serve-expired-client-timeout: 0
 
     # Reduce EDNS reassembly buffer size.
     # IP fragmentation is unreliable on the Internet today, and can cause
@@ -89,14 +95,20 @@ server:
     # see: https://unbound.docs.nlnetlabs.nl/en/latest/manpages/unbound.conf.html#unbound-conf-prefetch
     prefetch: no
 
-    # One thread should be sufficient, can be increased on beefy machines.
-    # In reality for most users running on small networks or on a single machine,
-    # it should be unnecessary to seek performance enhancement by increasing num-threads above 1.
-    num-threads: 1
+    # Threads and cache slabs optimized for 4-core CPU
+    num-threads: 4
+    msg-cache-slabs: 4
+    rrset-cache-slabs: 4
+    infra-cache-slabs: 4
+    key-cache-slabs: 4
+
+    # Cache sizes optimized for 64GB RAM
+    msg-cache-size: 512m
+    rrset-cache-size: 1g
 
     # Ensure kernel buffer is large enough to not lose messages in traffic spikes
-    so-rcvbuf: 1m
-    so-sndbuf: 0
+    so-rcvbuf: 4m
+    so-sndbuf: 4m
 
     # Ensure privacy of local IP ranges
     private-address: 192.168.0.0/16
