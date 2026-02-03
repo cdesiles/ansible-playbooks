@@ -17,9 +17,6 @@ ntfy_port: 8080
 # Container image
 ntfy_image: binwiederhier/ntfy
 
-# Timezone
-ntfy_timezone: UTC
-
 # Server configuration
 ntfy_base_url: http://localhost:{{ ntfy_port }}
 ntfy_behind_proxy: false

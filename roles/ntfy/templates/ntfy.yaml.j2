@@ -14,9 +14,6 @@ spec:
       ports:
         - containerPort: 80
           hostPort: {{ ntfy_port }}
-      env:
-        - name: TZ
-          value: "{{ ntfy_timezone }}"
       volumeMounts:
         - name: localtime
           mountPath: /etc/localtime
