@@ -15,6 +15,13 @@
     group: "{{ ansible_user }}"
     mode: "0755"
 
+- name: Pull Uptime Kuma container image
+  ansible.builtin.command: "podman pull {{ uptime_kuma_image }}:{{ uptime_kuma_version }}"
+  changed_when: pull_result.stdout is search('Writing manifest')
+  register: pull_result
+  become: false
+  become_user: "{{ ansible_user }}"
+
 - name: Deploy Kubernetes YAML for uptime-kuma
   ansible.builtin.template:
     src: uptime-kuma.yaml.j2

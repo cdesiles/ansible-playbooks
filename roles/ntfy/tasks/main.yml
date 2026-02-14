@@ -37,6 +37,13 @@
     mode: "0644"
   notify: Restart ntfy
 
+- name: Pull ntfy container image
+  ansible.builtin.command: "podman pull {{ ntfy_image }}:{{ ntfy_version }}"
+  changed_when: pull_result.stdout is search('Writing manifest')
+  register: pull_result
+  become: false
+  become_user: "{{ ansible_user }}"
+
 - name: Deploy Kubernetes YAML for ntfy
   ansible.builtin.template:
     src: ntfy.yaml.j2

@@ -79,6 +79,13 @@
     group: "{{ ansible_user }}"
     mode: "0755"
 
+- name: Pull Gitea container image
+  ansible.builtin.command: "podman pull {{ gitea_image }}:{{ gitea_version }}"
+  changed_when: pull_result.stdout is search('Writing manifest')
+  register: pull_result
+  become: false
+  become_user: "{{ ansible_user }}"
+
 - name: Deploy Kubernetes YAML for Gitea
   ansible.builtin.template:
     src: gitea.yaml.j2

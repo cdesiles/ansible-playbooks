@@ -1,9 +1,9 @@
 ---
 # Gitea version
-gitea_version: "1.22"
+gitea_version: "latest"
 
 # Network configuration
-gitea_port: 3000
+gitea_port: 3100
 
 # Container image
 gitea_image: gitea/gitea

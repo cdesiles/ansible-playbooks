@@ -7,7 +7,7 @@ uptime_kuma_version: "2"
 uptime_kuma_data_dir: "{{ podman_projects_dir }}/uptime-kuma/data"
 
 # Network configuration
-uptime_kuma_port: 3001
+uptime_kuma_port: 3300
 
 # Container image
 uptime_kuma_image: louislam/uptime-kuma

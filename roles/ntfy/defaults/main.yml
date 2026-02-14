@@ -12,7 +12,7 @@ ntfy_admin_user: admin
 # ntfy_admin_password: ""  # Intentionally undefined - role will fail if not set
 
 # Network configuration
-ntfy_port: 8080
+ntfy_port: 8090
 
 # Container image
 ntfy_image: binwiederhier/ntfy
