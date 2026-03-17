@@ -7,4 +7,5 @@ inventory_data/
 playbook.yml
 playbooks/*
 !playbooks/example.yml
+!playbooks/bootstrap.yml
 TODO.md
