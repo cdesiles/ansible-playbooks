@@ -39,8 +39,43 @@
   when: ansible_facts['os_family'] | lower == 'debian'
   notify: Restart dhcpd
 
+- name: Deploy dhcpd4@ systemd template unit (Arch)
+  ansible.builtin.template:
+    src: dhcpd4@.service.j2
+    dest: /usr/lib/systemd/system/dhcpd4@.service
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['os_family'] == 'Archlinux'
+  notify:
+    - Reload systemd
+    - Restart dhcpd
+
+- name: Disable generic dhcpd4.service (Arch)
+  ansible.builtin.systemd:
+    name: "{{ dhcpd_service_generic }}"
+    enabled: false
+    state: stopped
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - dhcpd_service_generic is defined
+  failed_when: false
+
 - name: Enable and start DHCP server
   ansible.builtin.systemd:
     name: "{{ dhcpd_service }}"
     enabled: true
     state: started
+
+- name: Allow DHCP traffic on {{ dhcpd_interface }}
+  community.general.ufw:
+    rule: allow
+    port: "67"
+    proto: udp
+    direction: in
+    interface: "{{ dhcpd_interface }}"
+    comment: "DHCP on {{ dhcpd_interface }}"
+  retries: 5
+  delay: 2
+  register: ufw_dhcp_result
+  until: ufw_dhcp_result is succeeded

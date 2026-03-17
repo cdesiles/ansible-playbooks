@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description=IPv4 DHCP server on %I
+After=sys-subsystem-net-devices-%i.device
+BindsTo=sys-subsystem-net-devices-%i.device
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/dhcpd -4 -q -cf /etc/dhcpd.conf -pf /run/dhcpd4/dhcpd-%i.pid %I
+RuntimeDirectory=dhcpd4
+PIDFile=/run/dhcpd4/dhcpd-%i.pid
+
+[Install]
+WantedBy=multi-user.target
