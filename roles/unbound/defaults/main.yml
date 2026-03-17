@@ -10,8 +10,13 @@ unbound_custom_lan_domain: "example.lan"
 unbound_port: 53
 unbound_apparmor_profile_path: /etc/apparmor.d/usr.sbin.unbound
 
-unbound_interface_lan: 192.168.1.1
-unbound_interface_vpn: 192.168.27.1
+unbound_interfaces:
+  - { address: "192.168.1.1", comment: "lan" }
+  - { address: "192.168.27.1", comment: "vpn" }
+
+unbound_access_control:
+  - { subnet: "192.168.1.0/24", action: "allow", view: "lan", comment: "lan" }
+  - { subnet: "192.168.27.0/27", action: "allow", view: "vpn", comment: "vpn" }
 
 unbound_firewall_allowed_sources:
   - { src: "192.168.1.0/24", comment: "DNS from LAN" }

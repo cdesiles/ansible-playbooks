@@ -14,20 +14,25 @@ server:
     # Define interface binds by IP address
     interface: 127.0.0.1                      # lo (IPv4)
     interface: ::1                            # lo (IPv6)
-    interface: {{ unbound_interface_lan }}    # lan0
-    interface: {{ unbound_interface_vpn }}    # wg0
+{% for iface in unbound_interfaces %}
+    interface: {{ iface.address }}    # {{ iface.comment | default('') }}
+{% endfor %}
 
     # Define access controls (note that ufw might be also configured)
     access-control: 0.0.0.0/0 refuse
     access-control: 127.0.0.0/8 allow      # lo interface
-    access-control: 192.168.1.0/24 allow   # lan0 interface
-    access-control: 192.168.27.0/27 allow  # wg0 interface
+{% for acl in unbound_access_control %}
+    access-control: {{ acl.subnet }} {{ acl.action }}   # {{ acl.comment | default('') }}
+{% endfor %}
     access-control: ::0/0 refuse
     access-control: ::1 allow
 
     # Specify custom local answers for each interface by using views:
-    access-control-view: 192.168.1.0/24 lan
-    access-control-view: 192.168.27.0/27 vpn
+{% for acl in unbound_access_control %}
+{% if acl.view is defined %}
+    access-control-view: {{ acl.subnet }} {{ acl.view }}
+{% endif %}
+{% endfor %}
 
     do-ip4: yes
     do-udp: yes

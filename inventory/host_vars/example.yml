@@ -21,12 +21,15 @@ network_interfaces:
 
 # Unbound DNS resolver configuration
 # ----------------------------------
-# Interface IPs for binding
-unbound_interface_lan: 192.168.1.2
-unbound_interface_vpn: 192.168.20.4
-
-# unbound LAN configuration
 unbound_custom_lan_domain: "example.lan"
+
+unbound_interfaces:
+  - { address: "192.168.1.2", comment: "lan0" }
+  - { address: "192.168.20.4", comment: "wg0" }
+
+unbound_access_control:
+  - { subnet: "192.168.1.0/24", action: "allow", view: "lan", comment: "lan0" }
+  - { subnet: "192.168.20.0/27", action: "allow", view: "vpn", comment: "wg0" }
 unbound_custom_lan_config_path: "{{ unbound_config_base_path }}/lan.conf"
 unbound_custom_lan_records:
   "server.example.lan":
