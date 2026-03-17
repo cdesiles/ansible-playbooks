@@ -1,0 +1,73 @@
+---
+# Bootstrap a fresh host: create the admin user with sudo and SSH access.
+# Run this before any other playbook, when only root access is available:
+#
+#   ansible-playbook playbooks/bootstrap.yml -l somehost
+#
+# After this, run other playbooks normally.
+
+- name: Bootstrap admin user
+  hosts: "{{ target | default('all') }}"
+  gather_facts: false
+  vars:
+    ansible_user: root
+    ansible_become: false
+    # bootstrap_user: jambon
+    # bootstrap_ssh_public_key: "ssh-ed25519 AAAA..."
+  tasks:
+    - name: Detect OS and install python3 + sudo
+      ansible.builtin.raw: |
+        if command -v pacman > /dev/null 2>&1; then
+          pacman -Sy --noconfirm python sudo
+        elif command -v apt-get > /dev/null 2>&1; then
+          apt-get update -qq && apt-get install -y python3 sudo
+        else
+          echo "Unsupported OS" && exit 1
+        fi
+      changed_when: true
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
+    - name: Create admin user
+      ansible.builtin.user:
+        name: "{{ bootstrap_user }}"
+        groups: "{{ 'wheel' if ansible_facts['os_family'] == 'Archlinux' else 'sudo' }}"
+        append: true
+        shell: /bin/bash
+        create_home: true
+        state: present
+
+    - name: Allow sudo group to use sudo (Debian)
+      ansible.builtin.copy:
+        content: "%sudo ALL=(ALL:ALL) ALL\n"
+        dest: /etc/sudoers.d/sudo
+        owner: root
+        group: root
+        mode: "0440"
+        validate: visudo -cf %s
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Allow wheel group to use sudo (Arch)
+      ansible.builtin.copy:
+        content: "%wheel ALL=(ALL:ALL) ALL\n"
+        dest: /etc/sudoers.d/wheel
+        owner: root
+        group: root
+        mode: "0440"
+        validate: visudo -cf %s
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Create .ssh directory
+      ansible.builtin.file:
+        path: "/home/{{ bootstrap_user }}/.ssh"
+        state: directory
+        owner: "{{ bootstrap_user }}"
+        group: "{{ bootstrap_user }}"
+        mode: "0700"
+
+    - name: Add SSH authorized key
+      ansible.posix.authorized_key:
+        user: "{{ bootstrap_user }}"
+        key: "{{ bootstrap_ssh_public_key | default(lookup('file', '~/.ssh/id_ed25519.pub')) }}"
+        state: present

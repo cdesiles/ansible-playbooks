@@ -73,18 +73,34 @@ ansible-playbook -i inventory/hosts.yml playbook.yml \
 --ask-become-pass
 ```
 
-## Target configuration
+## Bootstrapping a new host
 
-Requirements:
-
-- sshd up and running
-- public key copied:
+For fresh hosts (only `root` available, no admin user yet):
 
 ```sh
-ssh-copy-id -i ~/.ssh/id_rsa.pub username@remote_host
+ansible-playbook playbooks/bootstrap.yml -l <hostname> --ask-pass
 ```
 
-- python3 installed (`pacman -Syu python3`)
+This installs Python and sudo, creates `{{ ansible_user }}` with sudo rights, and copies your local `~/.ssh/id_ed25519.pub`. Supports Arch Linux and Debian/Ubuntu.
+
+To use a different SSH key:
+
+```sh
+ansible-playbook playbooks/bootstrap.yml -l <hostname> --ask-pass \
+  --extra-vars 'bootstrap_ssh_public_key="ssh-ed25519 AAAA..."'
+```
+
+Then set a password for the new user (required for sudo `--ask-become-pass`):
+
+```sh
+ssh root@<hostname> passwd jambon
+```
+
+After that, run the host playbook normally:
+
+```sh
+ansible-playbook playbooks/<hostname>.yml --ask-become-pass
+```
 
 ## Developping
 
