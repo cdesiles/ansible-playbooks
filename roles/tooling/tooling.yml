@@ -28,3 +28,15 @@
     name: "{{ (ansible_facts['os_family'] == 'Archlinux') | ternary('bind', 'dnsutils') }}"
     state: present
   changed_when: false
+
+- name: Install ethtool
+  package:
+    name: ethtool
+    state: present
+  changed_when: false
+
+- name: Install iperf3
+  package:
+    name: iperf3
+    state: present
+  changed_when: false
