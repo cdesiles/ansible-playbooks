@@ -68,7 +68,7 @@
       ansible.builtin.set_fact:
         paru_url: "{{ item.browser_download_url }}"
       loop: "{{ paru_release.json.assets }}"
-      when: "'os_arch.tar.zst' in item.name"
+      when: "(os_arch + '.tar.zst') in item.name"
 
     - name: Download
       ansible.builtin.get_url:
