@@ -40,3 +40,21 @@
     name: iperf3
     state: present
   changed_when: false
+
+- name: Install vi
+  package:
+    name: vi
+    state: present
+  changed_when: false
+
+- name: Install vim
+  package:
+    name: vim
+    state: present
+  changed_when: false
+
+- name: Install nano
+  package:
+    name: nano
+    state: present
+  changed_when: false
