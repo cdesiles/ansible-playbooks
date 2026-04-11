@@ -70,6 +70,12 @@
   become: false
   become_user: "{{ ansible_user }}"
 
+- name: Provision TLS certificate for uptime-kuma
+  ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"
+  vars:
+    certbot_hostname: "{{ uptime_kuma_nginx_hostname }}"
+  when: uptime_kuma_nginx_enabled
+
 - name: Deploy nginx vhost configuration for uptime-kuma
   ansible.builtin.template:
     src: nginx-vhost.conf.j2
