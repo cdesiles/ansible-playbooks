@@ -1,4 +1,12 @@
 ---
+- name: Setup .zshenv (environment variables)
+  ansible.builtin.template:
+    src: zshenv.j2
+    dest: "{{ zsh_home }}/.zshenv"
+    owner: "{{ zsh_user }}"
+    group: "{{ zsh_user }}"
+    mode: "0600"
+
 - name: Setup zsh base config
   ansible.builtin.template:
     src: main.zshrc.j2
@@ -27,6 +35,18 @@
   ansible.builtin.copy:
     src: ./templates/aliases
     dest: "{{ zsh_config_path }}/aliases"
+    owner: "{{ zsh_user }}"
+    group: "{{ zsh_user }}"
+    mode: "0600"
+
+- name: Configure fzf-tab plugin
+  ansible.builtin.copy:
+    dest: "{{ zsh_config_path }}/fzf-tab.zsh"
+    content: |
+      # Enable fzf-tab
+      zstyle ':fzf-tab:*' continuous-trigger 'right'
+      zstyle ':fzf-tab:*' group-colors ''
+      zstyle ':fzf-tab:*' preview-contained-categories true
     owner: "{{ zsh_user }}"
     group: "{{ zsh_user }}"
     mode: "0600"

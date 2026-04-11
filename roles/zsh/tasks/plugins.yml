@@ -22,7 +22,7 @@
     repo: "{{ item.repo }}"
     dest: "{{ item.dest }}"
     update: true
-    version: master
+    version: "{{ item.version | default('master') }}"
   loop:
     - repo: https://github.com/zsh-users/zsh-syntax-highlighting.git
       dest: "{{ zsh_plugins_path }}/zsh-syntax-highlighting"
@@ -30,6 +30,16 @@
       dest: "{{ zsh_plugins_path }}/zsh-autosuggestions"
     - repo: https://github.com/romkatv/powerlevel10k.git
       dest: "{{ zsh_plugins_path }}/powerlevel10k"
+    - repo: https://github.com/zsh-users/zsh-history-substring-search.git
+      dest: "{{ zsh_plugins_path }}/zsh-history-substring-search"
+    - repo: https://github.com/Aloxaf/fzf-tab.git
+      dest: "{{ zsh_plugins_path }}/fzf-tab"
+      version: master
+
+- name: Install fzf package
+  ansible.builtin.package:
+    name: fzf
+    state: present
 
 - name: Assert plugins are available for any user
   ansible.builtin.file:
@@ -42,3 +52,5 @@
     - "{{ zsh_plugins_path }}/zsh-syntax-highlighting"
     - "{{ zsh_plugins_path }}/zsh-autosuggestions"
     - "{{ zsh_plugins_path }}/powerlevel10k"
+    - "{{ zsh_plugins_path }}/zsh-history-substring-search"
+    - "{{ zsh_plugins_path }}/fzf-tab"

@@ -1,3 +1,9 @@
-alias dc="docker compose"
+alias p="podman"
+alias pp="podman play"
+alias pl="podman logs -f"
 alias pc="podman compose"
-alias w="cd ~/workspace"
+alias sd="systemctl"
+alias jd="journalctl -xe"
+alias docker="echo 'use podman instead'"
+alias docker-compose="echo 'use podman-compose instead'"
+alias w='cd $HOME/workspace'
