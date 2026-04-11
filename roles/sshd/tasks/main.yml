@@ -20,23 +20,15 @@
     name: "{{ ssh_service_name }}"
     enabled: true
 
-- name: Allow local network incoming connection
+- name: Allow SSH incoming connections
   community.general.ufw:
     rule: allow
     port: "{{ ssh_port }}"
     proto: tcp
-    from: "{{ ssh_allowed_network }}"
+    from: "{{ item.src }}"
     direction: in
-    comment: "SSH from local network"
-
-- name: Allow SSH VPN incoming connection
-  community.general.ufw:
-    rule: allow
-    port: "{{ ssh_port }}"
-    proto: tcp
-    from: "{{ ssh_allowed_vpn_network }}"
-    direction: in
-    comment: "SSH from VPN network"
+    comment: "{{ item.comment }}"
+  loop: "{{ ssh_allowed_networks }}"
 
 # TODO
 # - name: Add SSH public key to authorized_keys
@@ -105,8 +97,3 @@
     enabled: true
     state: started
 
-- name: Start and enable fail2ban
-  ansible.builtin.service:
-    name: fail2ban
-    state: started
-    enabled: true
