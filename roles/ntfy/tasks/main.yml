@@ -79,9 +79,17 @@
     mode: "0644"
   notify: Reload systemd user
 
+- name: Check if lingering is enabled for {{ ansible_user }}
+  ansible.builtin.stat:
+    path: "/var/lib/systemd/linger/{{ ansible_user }}"
+  register: linger_file
+
 - name: Enable lingering for user {{ ansible_user }}
   ansible.builtin.command: "loginctl enable-linger {{ ansible_user }}"
-  when: ansible_user != 'root'
+  changed_when: true
+  when:
+    - ansible_user != 'root'
+    - not linger_file.stat.exists
 
 - name: Enable and start ntfy service (user scope)
   ansible.builtin.systemd:
@@ -125,6 +133,12 @@
   changed_when: false
   become: false
   become_user: "{{ ansible_user }}"
+
+- name: Provision TLS certificate for ntfy
+  ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"
+  vars:
+    certbot_hostname: "{{ ntfy_nginx_hostname }}"
+  when: ntfy_nginx_enabled
 
 - name: Deploy nginx vhost configuration for ntfy
   ansible.builtin.template:
