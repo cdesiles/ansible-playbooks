@@ -1,0 +1,29 @@
+# {{ ansible_managed }}
+# Essential environment variables - loaded before .zshrc for all sessions
+
+# XDG Base Directory
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+
+# Enable color support
+export CLICOLOR=1
+export COLORTERM=truecolor
+
+# Less configuration
+export LESS=-R
+export LESS_TERMCAP_mb=$'\E[1;31m'
+export LESS_TERMCAP_md=$'\E[1;36m'
+export LESS_TERMCAP_me=$'\E[0m'
+export LESS_TERMCAP_se=$'\E[0m'
+export LESS_TERMCAP_so=$'\E[1;44;33m'
+export LESS_TERMCAP_ue=$'\E[0m'
+export LESS_TERMCAP_us=$'\E[1;32m'
+
+# Editors
+export EDITOR=vim
+export VISUAL=vim
+
+# Locale
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8

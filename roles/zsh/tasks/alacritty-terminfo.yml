@@ -1,0 +1,21 @@
+---
+- name: Install ncurses for tic command
+  ansible.builtin.package:
+    name: ncurses
+    state: present
+
+- name: Copy alacritty terminfo source
+  ansible.builtin.copy:
+    src: alacritty.terminfo
+    dest: /tmp/alacritty.terminfo
+    mode: "0644"
+
+- name: Compile alacritty terminfo
+  ansible.builtin.command:
+    cmd: tic -x /tmp/alacritty.terminfo
+  changed_when: false
+
+- name: Remove terminfo source
+  ansible.builtin.file:
+    path: /tmp/alacritty.terminfo
+    state: absent

@@ -4,6 +4,9 @@
     name: zsh
     state: present
 
+- name: Install alacritty terminfo
+  ansible.builtin.include_tasks: alacritty-terminfo.yml
+
 - name: Install zsh plugins
   ansible.builtin.include_tasks: plugins.yml
 - name: Setup zsh for the user(s)

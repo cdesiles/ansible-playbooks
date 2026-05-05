@@ -20,6 +20,9 @@ setopt PUSHD_IGNORE_DUPS     # don't push duplicates
 setopt CORRECT               # correct command spelling
 setopt NO_BEEP               # no beeps
 
+# Force emacs keybindings (zsh defaults to vi when EDITOR=vim)
+bindkey -e
+
 # Completion
 autoload -Uz compinit
 compinit -C                  # faster completion (cache)
@@ -34,6 +37,19 @@ source $ZSH_PLUGINS/powerlevel10k/powerlevel10k.zsh-theme
 
 # Load powerlevel10k configuration
 source {{ zsh_p10k_theme_config }}
+
+# Exclude forward-word from partial-accept so that Opt+Right always navigates
+# instead of accepting the next word from the autosuggestion.
+# Right arrow (forward-char) still accepts the full suggestion.
+ZSH_AUTOSUGGEST_PARTIAL_ACCEPT_WIDGETS=(
+  emacs-forward-word
+  vi-forward-word
+  vi-forward-word-end
+  vi-forward-blank-word
+  vi-forward-blank-word-end
+  vi-find-next-char
+  vi-find-next-char-skip
+)
 
 # Enable autosuggestions (before syntax highlighting)
 source $ZSH_PLUGINS/zsh-autosuggestions/zsh-autosuggestions.zsh
@@ -62,3 +78,9 @@ export ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=8'
 # Useful keybindings
 bindkey "^[[A" history-substring-search-up
 bindkey "^[[B" history-substring-search-down
+
+# Line and word navigation (Alacritty Cmd/Opt+arrow compatibility)
+bindkey '\eOH' beginning-of-line    # Home / Cmd+Left
+bindkey '\eOF' end-of-line          # End / Cmd+Right
+bindkey '\eb'  backward-word        # Opt+Left
+bindkey '\ef'  forward-word         # Opt+Right
