@@ -114,17 +114,19 @@ zfs_datasets:
       mountpoint: /mnt/omer/movies
     state: present
 
-# Wireguard "client" VPN configuration
-# ------------------------------------
-wireguard_address: 192.168.20.4/27
-wireguard_peers:
-  - name: "Marge server"
-    public_key: fB6zC8oWpQxN4yR2sT1uA7vJ9kH3mG5eD0cLlI8bV6aF2dP3eXwZ1qY4rU7tO9
-    allowed_ips:
-      - 192.168.20.1/32
-    endpoint: 192.168.1.56:51820
-wireguard_dns: 192.168.20.1
-wireguard_server_mode: false
+# Wireguard VPN configuration
+# ----------------------------
+wireguard_tunnels:
+  - interface: wg0
+    address: 192.168.20.4/27
+    dns: 192.168.20.1
+    server_mode: false
+    peers:
+      - name: "Marge server"
+        public_key: fB6zC8oWpQxN4yR2sT1uA7vJ9kH3mG5eD0cLlI8bV6aF2dP3eXwZ1qY4rU7tO9
+        allowed_ips:
+          - 192.168.20.1/32
+        endpoint: 192.168.1.56:51820
 
 # NFS server configuration
 # ------------------------
