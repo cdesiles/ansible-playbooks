@@ -1,0 +1,30 @@
+---
+# sys_autoupdate_ntfy_topic: ""  # Intentionally undefined - role will fail if not set
+
+sys_autoupdate_ntfy_server: https://ntfy.sh
+
+# sys_autoupdate_ntfy_token: ""  # Intentionally undefined - unauthenticated if not set
+
+sys_autoupdate_script_path: /usr/local/bin/sys-autoupdate.sh
+
+# Schedule: daily at 04:00 with up to 60min jitter
+sys_autoupdate_update_hour: 4
+sys_autoupdate_update_minute: 0
+sys_autoupdate_randomized_delay: 60m
+
+# Arch Linux only: check archlinux.org/news before updating
+# Ignored on Debian (sys_autoupdate_has_news_check is false in vars/debian.yml)
+sys_autoupdate_check_news: true
+sys_autoupdate_news_hours: 24
+
+sys_autoupdate_allow_downgrade: false
+
+# Podman image auto-update (rootless, runs as ansible_user)
+# Pulls latest images via podman-compose and recreates containers if changed
+sys_autoupdate_podman_enabled: true
+sys_autoupdate_podman_projects_dir: "{{ podman_projects_dir | default('/opt/podman') }}"
+
+# Prune images older than this duration after update.
+# Format: hours suffix (e.g. 720h = 30 days). Set to "" to disable age-based prune
+# (only dangling images will be removed in that case).
+sys_autoupdate_podman_prune_until: "720h"

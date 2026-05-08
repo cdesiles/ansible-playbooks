@@ -1,0 +1,316 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NTFY_SERVER="{{ sys_autoupdate_ntfy_server }}"
+NTFY_TOPIC="{{ sys_autoupdate_ntfy_topic }}"
+{% if sys_autoupdate_ntfy_token is defined %}
+NTFY_TOKEN="{{ sys_autoupdate_ntfy_token }}"
+{% else %}
+NTFY_TOKEN=""
+{% endif %}
+PODMAN_ENABLED="{{ sys_autoupdate_podman_enabled | lower }}"
+PODMAN_PROJECTS_DIR="{{ sys_autoupdate_podman_projects_dir }}"
+PODMAN_USER="{{ ansible_user }}"
+PODMAN_PRUNE_UNTIL="{{ sys_autoupdate_podman_prune_until }}"
+
+DISTRO_NAME="{{ sys_autoupdate_distro_name }}"
+OS_KEY="{{ sys_autoupdate_os_key }}"
+ALLOW_DOWNGRADE="{{ sys_autoupdate_allow_downgrade | lower }}"
+HAS_NEWS_CHECK="{{ sys_autoupdate_has_news_check | lower }}"
+CHECK_NEWS="{{ sys_autoupdate_check_news | lower }}"
+NEWS_HOURS="{{ sys_autoupdate_news_hours }}"
+NEWS_URL="{{ sys_autoupdate_news_url }}"
+
+{% raw %}
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+}
+
+send_notification() {
+    local title="$1"
+    local message="$2"
+    local tags="$3"
+    local priority="${4:-default}"
+
+    local auth_args=()
+    if [[ -n "$NTFY_TOKEN" ]]; then
+        auth_args=(-H "Authorization: Bearer $NTFY_TOKEN")
+    fi
+
+    curl -s --max-time 15 \
+        "${auth_args[@]}" \
+        -H "Title: $title" \
+        -H "Tags: $tags" \
+        -H "Priority: $priority" \
+        -d "$message" \
+        "$NTFY_SERVER/$NTFY_TOPIC" || log "WARNING: Failed to send notification"
+}
+
+# Per-OS dispatchers: keep all package-manager specifics in one place,
+# avoid eval on Ansible-injected strings.
+check_pending_updates() {
+    case "$OS_KEY" in
+        archlinux)
+            # checkupdates (pacman-contrib) exits 2 when no updates are pending;
+            # swallow non-zero so set -e doesn't abort the script.
+            checkupdates 2>/dev/null || true
+            ;;
+        debian)
+            apt-get update -qq >/dev/null 2>&1
+            apt-get -s dist-upgrade 2>/dev/null | grep '^Inst ' || true
+            ;;
+        *)
+            log "ERROR: Unsupported OS_KEY='$OS_KEY'"
+            return 1
+            ;;
+    esac
+}
+
+apply_upgrade() {
+    case "$OS_KEY" in
+        archlinux)
+            if [[ "$ALLOW_DOWNGRADE" == "true" ]]; then
+                pacman -Syu --noconfirm --allow-downgrade
+            else
+                pacman -Syu --noconfirm
+            fi
+            ;;
+        debian)
+            local -a apt_args=(dist-upgrade -y)
+            if [[ "$ALLOW_DOWNGRADE" == "true" ]]; then
+                apt_args+=(--allow-downgrades)
+            fi
+            DEBIAN_FRONTEND=noninteractive apt-get "${apt_args[@]}"
+            ;;
+        *)
+            log "ERROR: Unsupported OS_KEY='$OS_KEY'"
+            return 1
+            ;;
+    esac
+}
+
+check_distro_news() {
+    local hours="${1:-24}"
+    local cutoff_epoch
+    cutoff_epoch=$(date -d "$hours hours ago" +%s 2>/dev/null || date -v-"${hours}"H +%s 2>/dev/null || echo "")
+
+    if [[ -z "$cutoff_epoch" ]]; then
+        log "WARNING: Cannot determine cutoff date, skipping news check"
+        return 0
+    fi
+
+    local rss_feed
+    rss_feed=$(curl -s --max-time 10 "${NEWS_URL}feed/" 2>/dev/null || echo "")
+
+    if [[ -z "$rss_feed" ]]; then
+        log "WARNING: Failed to fetch news feed, skipping news check"
+        return 0
+    fi
+
+    # Parse RSS items: extract title and pubDate pairs
+    local recent_titles=()
+    local titles dates
+    titles=$(echo "$rss_feed" | grep -oP '(?<=<title>).*?(?=</title>)' | tail -n +2 | head -10 || echo "")
+    dates=$(echo "$rss_feed" | grep -oP '(?<=<pubDate>).*?(?=</pubDate>)' | head -10 || echo "")
+
+    if [[ -z "$titles" || -z "$dates" ]]; then
+        log "No news items found in feed"
+        return 0
+    fi
+
+    local i=0
+    while IFS= read -r pub_date; do
+        local item_epoch
+        item_epoch=$(date -d "$pub_date" +%s 2>/dev/null || echo "0")
+
+        if [[ "$item_epoch" -gt "$cutoff_epoch" ]]; then
+            local title
+            title=$(echo "$titles" | sed -n "$((i + 1))p")
+            recent_titles+=("$title")
+        fi
+        ((i++)) || true
+    done <<< "$dates"
+
+    if [[ ${#recent_titles[@]} -gt 0 ]]; then
+        local news_list
+        news_list=$(printf '- %s\n' "${recent_titles[@]}")
+        log "Recent $DISTRO_NAME news detected (${#recent_titles[@]} items within ${hours}h):"
+        log "$news_list"
+        send_notification \
+            "$(hostname): Manual Intervention Required" \
+            "Recent $DISTRO_NAME news (last ${hours}h). Review before updating.\n\n${news_list}\n\n$NEWS_URL" \
+            "warning" \
+            "high"
+        return 1
+    fi
+
+    log "No recent $DISTRO_NAME news (last ${hours}h)"
+    return 0
+}
+
+update_system() {
+    log "Checking for pending updates..."
+    local pending_updates
+    pending_updates=$(check_pending_updates)
+
+    if [[ -z "$pending_updates" ]]; then
+        log "No system updates available"
+        return 0
+    fi
+
+    local update_count
+    update_count=$(echo "$pending_updates" | wc -l | tr -d ' ')
+    log "Found $update_count updates pending"
+
+    if apply_upgrade 2>&1; then
+        log "System updates completed successfully ($update_count packages)"
+        send_notification \
+            "$(hostname): System Update Success" \
+            "$update_count packages updated" \
+            "white_check_mark" \
+            "default"
+    else
+        log "ERROR: System update failed"
+        send_notification \
+            "$(hostname): System Update FAILED" \
+            "Update failed. Check: journalctl -u sys-autoupdate.service" \
+            "x" \
+            "urgent"
+        return 1
+    fi
+}
+
+# Run a command as the rootless Podman user with a proper login environment.
+# `runuser -l` invokes a login shell, so XDG_RUNTIME_DIR, DBUS_SESSION_BUS_ADDRESS,
+# PATH, and HOME are set correctly for rootless Podman state under
+# ~/.local/share/containers. Plain `sudo -u` does not set these and breaks
+# rootless storage discovery and user-systemd interaction.
+as_podman_user() {
+    runuser -l "$PODMAN_USER" -c "$(printf '%q ' "$@")"
+}
+
+update_podman_images() {
+    log "Checking for Podman image updates..."
+
+    local compose_files
+    compose_files=$(find "$PODMAN_PROJECTS_DIR" -maxdepth 2 -name 'docker-compose.yml' -type f 2>/dev/null || echo "")
+
+    if [[ -z "$compose_files" ]]; then
+        log "No docker-compose.yml files found in $PODMAN_PROJECTS_DIR"
+        return 0
+    fi
+
+    local updated_services=()
+
+    while IFS= read -r compose_file; do
+        local project_dir
+        project_dir=$(dirname "$compose_file")
+        local project_name
+        project_name=$(basename "$project_dir")
+
+        log "Checking project $project_name..."
+
+        # Capture image digests before pull. `podman-compose images` lists the
+        # images referenced by the compose file with their current local IDs.
+        # Comparing pre/post sets is more reliable than parsing pull stdout.
+        local digests_before
+        digests_before=$(as_podman_user podman-compose -f "$compose_file" images --format '{{.ID}}' 2>/dev/null | sort -u || echo "")
+
+        local pull_output
+        if ! pull_output=$(as_podman_user podman-compose -f "$compose_file" pull 2>&1); then
+            log "ERROR: Pull failed for $project_name"
+            log "$pull_output"
+            local pull_tail
+            pull_tail=$(echo "$pull_output" | tail -n 5)
+            send_notification \
+                "$(hostname): Podman Pull Failed ($project_name)" \
+                "Failed to pull images.\n\nLast output:\n$pull_tail\n\nFull log: journalctl -u sys-autoupdate.service" \
+                "x" \
+                "high"
+            continue
+        fi
+
+        local digests_after
+        digests_after=$(as_podman_user podman-compose -f "$compose_file" images --format '{{.ID}}' 2>/dev/null | sort -u || echo "")
+
+        if [[ "$digests_before" == "$digests_after" ]]; then
+            log "Project $project_name: all images up to date"
+            continue
+        fi
+
+        log "New images for $project_name, recreating containers..."
+        local up_output
+        local up_status=0
+        up_output=$(as_podman_user podman-compose -f "$compose_file" up -d 2>&1) || up_status=$?
+
+        if [[ "$up_status" -eq 0 ]]; then
+            log "Project $project_name updated successfully"
+            updated_services+=("$project_name")
+        else
+            log "ERROR: Failed to restart project $project_name (exit $up_status)"
+            log "$up_output"
+
+            # Probe stack state: are containers running despite the non-zero exit?
+            # podman-compose sometimes returns non-zero for partial successes.
+            local running_count
+            running_count=$(as_podman_user podman ps --filter "label=com.docker.compose.project=$project_name" --format '{{.ID}}' 2>/dev/null | wc -l | tr -d ' ' || echo "0")
+
+            # Tail of stderr/stdout for the notification body (truncate to keep ntfy payload small).
+            local up_tail
+            up_tail=$(echo "$up_output" | tail -n 5)
+
+            send_notification \
+                "$(hostname): Podman Restart FAILED ($project_name)" \
+                "up -d exit=$up_status, $running_count container(s) running.\n\nLast output:\n$up_tail\n\nFull log: journalctl -u sys-autoupdate.service" \
+                "x" \
+                "urgent"
+        fi
+    done <<< "$compose_files"
+
+    # Prune images. Always remove dangling; optionally remove tagged images
+    # older than PODMAN_PRUNE_UNTIL to bound disk usage from accumulated
+    # historical tags (compose pulls don't auto-clean prior versions).
+    log "Pruning unused Podman images..."
+    if [[ -n "$PODMAN_PRUNE_UNTIL" ]]; then
+        as_podman_user podman image prune -af --filter "until=$PODMAN_PRUNE_UNTIL" 2>&1 \
+            || log "WARNING: Image prune (until=$PODMAN_PRUNE_UNTIL) failed"
+    else
+        as_podman_user podman image prune -f 2>&1 || log "WARNING: Image prune failed"
+    fi
+
+    if [[ ${#updated_services[@]} -gt 0 ]]; then
+        local service_list
+        service_list=$(printf '%s, ' "${updated_services[@]}")
+        service_list="${service_list%, }"
+        send_notification \
+            "$(hostname): Podman Images Updated" \
+            "${#updated_services[@]} project(s) updated: $service_list" \
+            "whale" \
+            "default"
+    else
+        log "All Podman images are up to date"
+    fi
+}
+
+main() {
+    log "=== Starting $DISTRO_NAME auto-update run ==="
+
+    if [[ "$HAS_NEWS_CHECK" == "true" && "$CHECK_NEWS" == "true" ]]; then
+        log "Checking for recent $DISTRO_NAME news..."
+        if ! check_distro_news "$NEWS_HOURS"; then
+            log "ABORTED: Recent $DISTRO_NAME news requires manual intervention"
+            exit 1
+        fi
+    fi
+
+    update_system
+
+    if [[ "$PODMAN_ENABLED" == "true" ]]; then
+        update_podman_images
+    fi
+
+    log "=== Auto-update run complete ==="
+}
+
+main "$@"
+{% endraw %}

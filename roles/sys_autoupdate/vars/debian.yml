@@ -1,0 +1,12 @@
+---
+sys_autoupdate_packages:
+  - apt-listchanges
+  - curl
+
+sys_autoupdate_os_key: debian
+
+sys_autoupdate_distro_name: Debian
+
+# No news check needed - stable release, no manual intervention expected
+sys_autoupdate_has_news_check: false
+sys_autoupdate_news_url: ""

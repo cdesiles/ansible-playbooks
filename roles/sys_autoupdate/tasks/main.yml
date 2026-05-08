@@ -1,0 +1,56 @@
+---
+- name: Validate required configuration
+  ansible.builtin.assert:
+    that:
+      - sys_autoupdate_ntfy_topic is defined
+      - sys_autoupdate_ntfy_topic | length > 0
+    fail_msg: |
+      sys_autoupdate_ntfy_topic is required.
+      See roles/sys_autoupdate/defaults/main.yml for configuration.
+
+- name: Load OS-specific variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - debian.yml
+
+- name: Install required packages
+  ansible.builtin.package:
+    name: "{{ sys_autoupdate_packages }}"
+    state: present
+
+- name: Deploy autoupdate script
+  ansible.builtin.template:
+    src: sys-autoupdate.sh.j2
+    dest: "{{ sys_autoupdate_script_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart sys-autoupdate timer
+
+- name: Deploy systemd service
+  ansible.builtin.template:
+    src: sys-autoupdate.service.j2
+    dest: /etc/systemd/system/sys-autoupdate.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart sys-autoupdate timer
+
+- name: Deploy systemd timer
+  ansible.builtin.template:
+    src: sys-autoupdate.timer.j2
+    dest: /etc/systemd/system/sys-autoupdate.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart sys-autoupdate timer
+
+- name: Flush handlers before enabling timer
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start update timer
+  ansible.builtin.systemd:
+    name: sys-autoupdate.timer
+    enabled: true
+    state: started

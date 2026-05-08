@@ -1,0 +1,6 @@
+---
+- name: Restart sys-autoupdate timer
+  ansible.builtin.systemd:
+    name: sys-autoupdate.timer
+    daemon_reload: true
+    state: restarted

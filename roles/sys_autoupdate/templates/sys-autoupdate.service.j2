@@ -1,0 +1,8 @@
+[Unit]
+Description=System Automated Update
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart={{ sys_autoupdate_script_path }}

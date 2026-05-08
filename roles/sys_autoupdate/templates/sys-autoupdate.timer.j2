@@ -1,0 +1,10 @@
+[Unit]
+Description=System Automated Update Timer
+
+[Timer]
+OnCalendar=*-*-* {{ sys_autoupdate_update_hour }}:{{ '%02d' | format(sys_autoupdate_update_minute) }}
+RandomizedDelaySec={{ sys_autoupdate_randomized_delay }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target

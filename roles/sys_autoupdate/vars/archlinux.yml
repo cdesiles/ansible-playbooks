@@ -1,0 +1,13 @@
+---
+sys_autoupdate_packages:
+  - pacman-contrib
+  - curl
+
+sys_autoupdate_os_key: archlinux
+
+sys_autoupdate_distro_name: Arch Linux
+
+# Arch Linux news check via RSS feed - rolling release can require manual intervention
+# The script fetches ${news_url}feed/ to get pubDate for each item
+sys_autoupdate_has_news_check: true
+sys_autoupdate_news_url: "https://archlinux.org/news/"
