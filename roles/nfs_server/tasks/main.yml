@@ -28,6 +28,11 @@
     state: started
     enabled: true
 
+- name: Mask nfs-server service to prevent conflicts with nfsv4-server
+  ansible.builtin.systemd:
+    name: nfs-server
+    masked: true
+
 - name: Setup firewall rules for nfs on port
   community.general.ufw:
     rule: allow
