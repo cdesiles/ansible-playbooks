@@ -1,0 +1,91 @@
+---
+- name: "Validate required fields for tunnel {{ _tunnel.interface }}"
+  ansible.builtin.assert:
+    that:
+      - _tunnel.interface is defined
+      - _tunnel.interface | length > 0
+      - _tunnel.address is defined
+      - _tunnel.address | length > 0
+    fail_msg: |
+      Tunnel is missing required fields: 'interface' and 'address' are mandatory.
+      See roles/wireguard/defaults/main.yml for configuration instructions.
+    success_msg: "Tunnel {{ _tunnel.interface }} validation passed"
+
+- name: "Check if private key exists for {{ _tunnel.interface }}"
+  ansible.builtin.stat:
+    path: "{{ wireguard_config_base_path }}/{{ _tunnel.interface }}.privatekey"
+  register: _tunnel_pkey_file
+
+- name: "Generate wireguard keys for {{ _tunnel.interface }} if not present"
+  ansible.builtin.shell: >
+    wg genkey |
+    tee {{ wireguard_config_base_path }}/{{ _tunnel.interface }}.privatekey |
+    wg pubkey > {{ wireguard_config_base_path }}/{{ _tunnel.interface }}.publickey
+  when: not _tunnel_pkey_file.stat.exists
+
+- name: "Retrieve wireguard private key for {{ _tunnel.interface }}"
+  ansible.builtin.slurp:
+    src: "{{ wireguard_config_base_path }}/{{ _tunnel.interface }}.privatekey"
+  register: _tunnel_private_key_b64
+
+- name: "Set wireguard private key fact for {{ _tunnel.interface }}"
+  ansible.builtin.set_fact:
+    _tunnel_private_key: "{{ _tunnel_private_key_b64['content'] | b64decode }}"
+
+- name: "Resolve effective DNS for {{ _tunnel.interface }}"
+  ansible.builtin.set_fact:
+    _tunnel_effective_dns: "{{ (_tunnel.dns | default('')) if (unbound_custom_lan_records is not defined) else '' }}"
+
+- name: "Install wireguard config for {{ _tunnel.interface }}"
+  ansible.builtin.template:
+    src: wireguard.conf.j2
+    dest: "{{ wireguard_config_base_path }}/{{ _tunnel.interface }}.conf"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: "Create systemd override directory for wg-quick@{{ _tunnel.interface }}"
+  ansible.builtin.file:
+    path: "/etc/systemd/system/wg-quick@{{ _tunnel.interface }}.service.d"
+    state: directory
+    mode: "0755"
+
+- name: "Deploy systemd override for network dependency for {{ _tunnel.interface }}"
+  ansible.builtin.template:
+    src: systemd-override.conf.j2
+    dest: "/etc/systemd/system/wg-quick@{{ _tunnel.interface }}.service.d/network-dependency.conf"
+    mode: "0644"
+  notify: Reload systemd
+
+- name: "Enable IP forwarding for {{ _tunnel.interface }}"
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-wireguard.conf
+    content: |
+      net.ipv4.ip_forward = 1
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Apply sysctl
+  when: _tunnel.server_mode | default(false)
+
+- name: "Configure the firewall for {{ _tunnel.interface }}"
+  community.general.ufw:
+    rule: allow
+    port: "{{ _tunnel.port }}"
+    proto: udp
+    direction: in
+    comment: "Wireguard VPN ({{ _tunnel.interface }})"
+  retries: 5
+  delay: 2
+  register: _ufw_result
+  until: _ufw_result is succeeded
+  when:
+    - _tunnel.server_mode | default(false)
+    - _tunnel.port is defined
+
+- name: "Start and enable wg-quick@{{ _tunnel.interface }}"
+  ansible.builtin.service:
+    name: "wg-quick@{{ _tunnel.interface }}"
+    state: started
+    enabled: true
+    daemon_reload: true
