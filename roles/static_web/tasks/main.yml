@@ -54,6 +54,15 @@
   become_user: "{{ nginx_user }}"
   changed_when: true
 
+- name: Provision TLS certificates for static web sites
+  ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"
+  vars:
+    certbot_hostname: "{{ item.key }}"
+  loop: "{{ static_web_sites | dict2items }}"
+  when:
+    - static_web_sites | length > 0
+    - item.value.ssl_enabled | default(true)
+
 - name: Deploy nginx vhost configurations
   ansible.builtin.template:
     src: nginx-vhost.conf.j2
