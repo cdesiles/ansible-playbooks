@@ -26,9 +26,12 @@ spec:
         - name: ntfy-data
           mountPath: /var/lib/ntfy
       livenessProbe:
-        httpGet:
-          path: /v1/health
-          port: 80
+        exec:
+          command:
+            - wget
+            - -q
+            - -O-
+            - http://localhost:80/v1/health
         initialDelaySeconds: 40
         periodSeconds: 30
         timeoutSeconds: 10
