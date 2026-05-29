@@ -1,0 +1,77 @@
+---
+# Provision a Let's Encrypt certificate for a hostname using the webroot method.
+#
+# Required variables:
+#   - certbot_hostname: the domain to provision (e.g. "apk.jokester.fr")
+#   - acme_email: Let's Encrypt account email (typically from host_vars)
+#
+# Usage from a service role:
+#   - name: Provision TLS certificate
+#     ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"
+#     vars:
+#       certbot_hostname: "{{ myservice_nginx_hostname }}"
+#     when: myservice_nginx_enabled
+
+- name: Validate certbot requirements
+  ansible.builtin.assert:
+    that:
+      - certbot_hostname is defined
+      - certbot_hostname | length > 0
+      - acme_email is defined
+      - acme_email | length > 0
+    fail_msg: |
+      certbot_hostname and acme_email are required for certificate provisioning.
+      Set acme_email in host_vars and pass certbot_hostname when including this task file.
+    success_msg: "Certbot requirements validated for {{ certbot_hostname }}"
+
+- name: Check if certificate already exists for {{ certbot_hostname }}
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ certbot_hostname }}/fullchain.pem"
+  register: certbot_cert_file
+
+- name: Provision certificate for {{ certbot_hostname }}
+  when: not certbot_cert_file.stat.exists
+  block:
+    - name: Deploy temporary HTTP-only vhost for ACME challenge
+      ansible.builtin.template:
+        src: "{{ role_path }}/../nginx/templates/vhost-http-acme.conf.j2"
+        dest: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/{{ certbot_hostname | replace('.', '_') }}_acme_temp.conf"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Reload nginx to activate temporary ACME vhost
+      ansible.builtin.systemd:
+        name: nginx
+        state: reloaded
+
+    - name: Request certificate from Let's Encrypt for {{ certbot_hostname }}
+      ansible.builtin.command:
+        cmd: >-
+          certbot certonly
+          --webroot
+          -w /var/www/certbot
+          -d {{ certbot_hostname }}
+          --email {{ acme_email }}
+          --agree-tos
+          --non-interactive
+        creates: "/etc/letsencrypt/live/{{ certbot_hostname }}/fullchain.pem"
+
+    - name: Fix letsencrypt directory permissions for nginx
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: "0755"
+      loop:
+        - /etc/letsencrypt/live
+        - /etc/letsencrypt/archive
+
+  always:
+    - name: Remove temporary ACME vhost
+      ansible.builtin.file:
+        path: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/{{ certbot_hostname | replace('.', '_') }}_acme_temp.conf"
+        state: absent
+
+    - name: Reload nginx after certificate provisioning
+      ansible.builtin.systemd:
+        name: nginx
+        state: reloaded

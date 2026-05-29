@@ -1,0 +1,15 @@
+# Temporary HTTP-only vhost for ACME certificate provisioning
+# Managed by Ansible - automatically removed after certificate issuance
+
+server {
+    listen 80;
+    server_name {{ certbot_hostname }};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 503;
+    }
+}
