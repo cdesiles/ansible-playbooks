@@ -239,7 +239,7 @@ boilerplate.
 
 - name: Set user home directory fact
   ansible.builtin.set_fact:
-      user_home_dir: "{{ getent_passwd[ansible_user][4] }}"
+      user_home_dir: "{{ ansible_facts['getent_passwd'][ansible_user][4] }}"
 
 - name: Create systemd user directory
   ansible.builtin.file:
