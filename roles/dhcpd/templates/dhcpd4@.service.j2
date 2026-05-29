@@ -2,8 +2,8 @@
 
 [Unit]
 Description=IPv4 DHCP server on %I
-After=sys-subsystem-net-devices-%i.device network-online.target
-Wants=network-online.target
+After=sys-subsystem-net-devices-%i.device network-online.target systemd-networkd-wait-online@%i.service
+Wants=network-online.target systemd-networkd-wait-online@%i.service
 BindsTo=sys-subsystem-net-devices-%i.device
 
 [Service]
