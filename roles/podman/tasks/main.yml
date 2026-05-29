@@ -9,7 +9,7 @@
 
 - name: Check if tun module is available
   ansible.builtin.stat:
-    path: "/lib/modules/{{ ansible_kernel }}/modules.builtin"
+    path: "/lib/modules/{{ ansible_facts['kernel'] }}/modules.builtin"
   register: kernel_modules
 
 - name: Load tun kernel module for rootless Podman networking
