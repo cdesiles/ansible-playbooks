@@ -4,25 +4,27 @@
 # This file controls: which hosts are allowed to connect, how clients
 # are authenticated, which PostgreSQL user names they can use, which
 # databases they can access.
+#
+# Authentication policy:
+# - Unix socket: trust (admin access via `become_user: postgres`, e.g. Ansible)
+# - All TCP connections: scram-sha-256 (passwords required, including loopback)
+#   This is required because pasta forwards rootless container traffic via
+#   host loopback, so containers appear as source 127.0.0.1.
 
 # TYPE  DATABASE        USER            ADDRESS                 METHOD
 # "local" is for Unix domain socket connections only
 local   all             all                                     trust
 
-# IPv4 local connections:
+# IPv4 connections (all require password, even loopback):
 {% for source in postgres_firewall_allowed_sources %}
-{% if source.startswith('127.0.0.') %}
-host    all             all             {{ source }}            trust
-{% else %}
 host    all             all             {{ source }}            scram-sha-256
-{% endif %}
 {% endfor %}
 
 # IPv6 local connections:
-host    all             all             ::1/128                 trust
+host    all             all             ::1/128                 scram-sha-256
 
 # Allow replication connections from localhost, by a user with the
 # replication privilege.
 local   replication     all                                     trust
-host    replication     all             127.0.0.1/32            trust
-host    replication     all             ::1/128                 trust
+host    replication     all             127.0.0.1/32            scram-sha-256
+host    replication     all             ::1/128                 scram-sha-256
