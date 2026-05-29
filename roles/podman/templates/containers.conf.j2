@@ -29,5 +29,12 @@ runtime = "{{ podman_runtime }}"
 network_backend = "netavark"
 
 [network]
-# Default rootless network command (pasta for better performance)
+# Default rootless network command (pasta for better performance).
+# Note: default_rootless_network_cmd only accepts the mode name ("pasta" or
+# "slirp4netns"). Extra pasta arguments must be set via pasta_options below;
+# the "pasta:--arg=value" syntax is only valid for the CLI --network= flag.
 default_rootless_network_cmd = "pasta"
+
+# --map-host-loopback exposes the host's loopback to containers via {{ podman_gw_gateway }}.
+# Containers connecting to {{ podman_gw_gateway }} reach host services bound to 127.0.0.1.
+pasta_options = ["--map-host-loopback", "{{ podman_gw_gateway }}"]

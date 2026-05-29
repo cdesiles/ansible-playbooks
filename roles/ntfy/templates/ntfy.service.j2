@@ -5,7 +5,7 @@ Description=Ntfy Notification Service
 Type=oneshot
 RemainAfterExit=true
 WorkingDirectory={{ podman_projects_dir | default('/opt/podman') }}/ntfy
-ExecStart=/usr/bin/podman play kube --replace ntfy.yaml
+ExecStart=/usr/bin/podman play kube --replace --network=pasta:--map-host-loopback={{ podman_gw_gateway }} ntfy.yaml
 ExecStop=/usr/bin/podman play kube --down ntfy.yaml
 Restart=on-failure
 RestartSec=10

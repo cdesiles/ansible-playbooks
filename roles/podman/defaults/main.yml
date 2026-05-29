@@ -18,3 +18,8 @@ podman_log_driver: journald
 # k8s-file driver settings (only used when podman_log_driver: k8s-file)
 podman_log_max_size: 10mb # Max size per log file before rotation
 podman_log_max_files: 5 # Max number of rotated log files to keep
+
+# Host gateway address exposed inside rootless containers (pasta --map-host-loopback)
+# Containers can connect to this address to reach services bound to host loopback.
+# Pasta translates the destination to 127.0.0.1 on the host side.
+podman_gw_gateway: 100.64.0.1

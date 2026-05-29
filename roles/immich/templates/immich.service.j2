@@ -5,7 +5,7 @@ Description=Immich Media Server
 Type=oneshot
 RemainAfterExit=true
 WorkingDirectory={{ podman_projects_dir | default('/opt/podman') }}/immich
-ExecStart=/usr/bin/podman play kube --replace immich.yaml
+ExecStart=/usr/bin/podman play kube --replace --network=pasta:--map-host-loopback={{ podman_gw_gateway }} immich.yaml
 ExecStop=/usr/bin/podman play kube --down immich.yaml
 Restart=on-failure
 RestartSec=10

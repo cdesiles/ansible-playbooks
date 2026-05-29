@@ -57,6 +57,18 @@
     - earthdistance
     - vector
 
+- name: Update PostgreSQL extensions to latest available version
+  community.postgresql.postgresql_query:
+    login_db: "{{ immich_postgres_db_name }}"
+    query: "ALTER EXTENSION {{ item }} UPDATE"
+  become: false
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
+  loop:
+    - cube
+    - earthdistance
+    - vector
+  changed_when: false
+
 - name: Grant schema permissions to Immich user
   community.postgresql.postgresql_privs:
     login_db: "{{ immich_postgres_db_name }}"
@@ -143,6 +155,12 @@
     scope: user
   become: false
   become_user: "{{ ansible_user }}"
+
+- name: Provision TLS certificate for Immich
+  ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"
+  vars:
+    certbot_hostname: "{{ immich_nginx_hostname }}"
+  when: immich_nginx_enabled
 
 - name: Deploy nginx vhost configuration for Immich
   ansible.builtin.template:

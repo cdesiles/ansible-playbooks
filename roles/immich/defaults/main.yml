@@ -9,13 +9,13 @@ immich_upload_location: "{{ podman_projects_dir }}/immich/data/upload"
 immich_postgres_db_name: immich
 immich_postgres_user: immich
 # immich_postgres_password: ""  # Intentionally undefined - role will fail if not set
-# immich_postgres_host: ""  # Must be set in inventory (e.g., podman_gw_gateway)
+# immich_postgres_host: ""  # Must be set in inventory (e.g., "{{ podman_gw_gateway }}" to reach host postgres)
 immich_postgres_port: 5432
 
 # Valkey configuration (REQUIRED password - must be set explicitly)
 immich_valkey_user: immich
 # immich_valkey_password: ""  # Intentionally undefined - role will fail if not set
-# immich_valkey_host: ""  # Must be set in inventory (e.g., podman_gw_gateway)
+# immich_valkey_host: ""  # Must be set in inventory (e.g., "{{ podman_gw_gateway }}" to reach host valkey)
 immich_valkey_port: 6379
 immich_valkey_db: 0 # Dedicated database number for isolation (0-15)
 
