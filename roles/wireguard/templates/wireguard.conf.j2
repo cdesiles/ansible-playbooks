@@ -1,16 +1,25 @@
 [Interface]
-Address = {{ wireguard_address }}
-{% if wireguard_dns %}DNS = {{ wireguard_dns }}
+Address = {{ _tunnel.address }}
+{% if _tunnel_effective_dns %}DNS = {{ _tunnel_effective_dns }}
 {% endif %}
-PrivateKey = {{ wireguard_private_key }}
-{% if wireguard_server_mode %}PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o {{ wireguard_primary_interface }} -j MASQUERADE
-PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o {{ wireguard_primary_interface }} -j MASQUERADE
-ListenPort = {{ wireguard_port }}
+PrivateKey = {{ _tunnel_private_key }}
+{% if _tunnel.server_mode | default(false) %}
+{% if ansible_facts['os_family'] == 'Archlinux' %}
+PostUp = nft add table inet wireguard_%i; nft add chain inet wireguard_%i forward '{ type filter hook forward priority 0; policy accept; }'; nft add rule inet wireguard_%i forward iifname %i accept; nft add chain inet wireguard_%i postrouting '{ type nat hook postrouting priority 100; }'; nft add rule inet wireguard_%i postrouting oifname {{ _tunnel.primary_interface | default(wireguard_primary_interface) }} masquerade
+PostDown = nft delete table inet wireguard_%i
+{% else %}
+PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o {{ _tunnel.primary_interface | default(wireguard_primary_interface) }} -j MASQUERADE
+PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o {{ _tunnel.primary_interface | default(wireguard_primary_interface) }} -j MASQUERADE
+{% endif %}
+ListenPort = {{ _tunnel.port }}
 {% endif %}
 
-{% for peer in wireguard_peers %}# {{ peer.name }}
+{% for peer in _tunnel.peers | default([]) %}# {{ peer.name }}
 [Peer]
 PublicKey = {{ peer.public_key }}
 AllowedIPs = {{ peer.allowed_ips | join(',') }}
-{% if peer.endpoint is defined %}Endpoint = {{ peer.endpoint }}{% endif %}
+{% if peer.endpoint is defined %}Endpoint = {{ peer.endpoint }}
+{% endif %}
+{% if peer.persistent_keepalive is defined %}PersistentKeepalive = {{ peer.persistent_keepalive }}
+{% endif %}
 {% endfor %}

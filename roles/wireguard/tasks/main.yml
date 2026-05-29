@@ -1,15 +1,13 @@
 ---
-- name: Validate required variables are set
+- name: Validate wireguard_tunnels is defined and non-empty
   ansible.builtin.assert:
     that:
-      - wireguard_address is defined
-      - wireguard_address | length > 0
-      - wireguard_dns is defined
-      - wireguard_dns | length > 0
+      - wireguard_tunnels is defined
+      - wireguard_tunnels | length > 0
     fail_msg: |
-      wireguard_address and wireguard_dns are required.
+      wireguard_tunnels must be defined with at least one tunnel.
       See roles/wireguard/defaults/main.yml for configuration instructions.
-    success_msg: "Variable validation passed"
+    success_msg: "wireguard_tunnels validation passed"
 
 - name: Install wireguard
   ansible.builtin.package:
@@ -39,63 +37,8 @@
     mode: "0700"
     recurse: true
 
-- name: Check if private key exists
-  ansible.builtin.stat:
-    path: "{{ wireguard_config_base_path }}/privatekey"
-  register: pkey_file
-
-- name: Generate wireguard keys if not present
-  ansible.builtin.shell: wg genkey | tee {{ wireguard_config_base_path }}/privatekey | wg pubkey > {{ wireguard_config_base_path }}/publickey
-  when: not pkey_file.stat.exists
-
-- name: Retrieve wireguard private key from file
-  ansible.builtin.slurp:
-    src: "{{ wireguard_config_base_path }}/privatekey"
-  register: private_key
-
-- name: Set wireguard private key
-  ansible.builtin.set_fact:
-    wireguard_private_key: "{{ private_key['content'] | b64decode }}"
-
-- name: Disable "dns=" instruction if unbound is used to avoid race conditions at startup
-  ansible.builtin.set_fact:
-    wireguard_dns:
-  when: unbound_custom_lan_records is defined
-
-- name: Install wireguard config
-  ansible.builtin.template:
-    src: wireguard.conf.j2
-    dest: /etc/wireguard/{{ wireguard_interface }}.conf
-
-- name: Create systemd override directory for wg-quick
-  ansible.builtin.file:
-    path: /etc/systemd/system/wg-quick@{{ wireguard_interface }}.service.d
-    state: directory
-    mode: "0755"
-
-- name: Deploy systemd override for network dependency
-  ansible.builtin.template:
-    src: systemd-override.conf.j2
-    dest: /etc/systemd/system/wg-quick@{{ wireguard_interface }}.service.d/network-dependency.conf
-    mode: "0644"
-  notify: Reload systemd
-
-- name: Configure the firewall for wireguard
-  community.general.ufw:
-    rule: allow
-    port: "{{ wireguard_port }}"
-    proto: udp
-    direction: in
-    comment: Wireguard VPN
-  retries: 5
-  delay: 2
-  register: ufw_result
-  until: ufw_result is succeeded
-  when: wireguard_server_mode | default(false)
-
-- name: Start and enable service
-  ansible.builtin.service:
-    name: wg-quick@{{ wireguard_interface }}
-    state: started
-    enabled: true
-    daemon_reload: true
+- name: Configure tunnel
+  ansible.builtin.include_tasks: tunnel.yml
+  loop: "{{ wireguard_tunnels }}"
+  loop_control:
+    loop_var: _tunnel

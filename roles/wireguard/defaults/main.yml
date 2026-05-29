@@ -1,9 +1,17 @@
 ---
 wireguard_primary_interface: "{{ network_interfaces.0.name }}"
-wireguard_port: 51820
-wireguard_interface: wg0
 wireguard_config_base_path: /etc/wireguard
-wireguard_server_mode: true # enables NAT and open port
-# wireguard_address: 192.168.27.1/27  # Intentionally undefined - role will fail if not set
-# wireguard_dns: 192.168.27.1          # Intentionally undefined - role will fail if not set
-wireguard_peers: []
+# wireguard_tunnels:
+#   - interface: wg0          # required: maps to wgN interface name and config filename
+#     address: 10.0.0.1/24   # required: CIDR address for [Interface] Address
+#     port: 51820             # optional: ListenPort (required in server_mode)
+#     dns: 10.0.0.1           # optional: DNS= line; omit to suppress
+#     server_mode: true       # optional (default: false): enables NAT masquerade + UFW rule
+#     primary_interface: eth0 # optional: overrides wireguard_primary_interface for this tunnel
+#     peers:                   # optional: list of [Peer] entries
+#       - name: peer_name               # required: comment label
+#         public_key: ...               # required: peer's public key
+#         allowed_ips: [10.0.0.0/24]    # required: list of CIDRs
+#         endpoint: host:port           # optional: peer's public endpoint
+#         persistent_keepalive: 25      # optional: keepalive interval (seconds)
+wireguard_tunnels: []
