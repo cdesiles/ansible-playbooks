@@ -32,3 +32,41 @@
       ansible.builtin.set_fact:
         network_reload_required: true
       when: netdev_result is changed or network_result is changed
+
+    ## Routing & NAT (when interface has forward + masquerade enabled)
+    - name: Enable IPv4 forwarding
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_forward
+        value: "1"
+        state: present
+        sysctl_set: true
+        reload: true
+      when:
+        - interface.ipv4.forward | default(false)
+        - interface.ipv4.masquerade | default(false)
+
+    - name: Set UFW default forward policy to ACCEPT
+      ansible.builtin.lineinfile:
+        path: /etc/default/ufw
+        regexp: "^DEFAULT_FORWARD_POLICY="
+        line: 'DEFAULT_FORWARD_POLICY="ACCEPT"'
+      when:
+        - interface.ipv4.forward | default(false)
+        - interface.ipv4.masquerade | default(false)
+      notify: Restart ufw (ip-forwarding settings changed)
+
+    - name: Configure NAT masquerade in UFW before.rules for {{ interface.name }}
+      ansible.builtin.blockinfile:
+        path: /etc/ufw/before.rules
+        insertbefore: "^\\*filter"
+        marker: "# {mark} ANSIBLE MANAGED - NAT {{ interface.name }}"
+        block: |
+          *nat
+          :POSTROUTING ACCEPT [0:0]
+          -A POSTROUTING -s {{ interface.ipv4.address | ansible.utils.ipaddr('network/prefix') }} -o {{ interface.ipv4.nat_out_interface }} -j MASQUERADE
+          COMMIT
+      when:
+        - interface.ipv4.forward | default(false)
+        - interface.ipv4.masquerade | default(false)
+        - interface.ipv4.nat_out_interface is defined
+      notify: Restart ufw (ip-forwarding settings changed)

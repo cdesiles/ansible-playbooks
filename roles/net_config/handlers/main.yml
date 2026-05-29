@@ -1,0 +1,23 @@
+---
+# UFW must be fully restarted (disable + enable) — not just reloaded — to pick
+# up changes in /etc/default/ufw (DEFAULT_FORWARD_POLICY) and the *nat block
+# in /etc/ufw/before.rules. See ufw(8) "RULE SYNTAX" → IP forwarding.
+- name: Restart ufw (ip-forwarding settings changed)
+  block:
+    - name: Validate ufw ruleset before restart (dry-run)
+      ansible.builtin.command: ufw --dry-run reload
+      changed_when: false
+
+    - name: Disable ufw
+      ansible.builtin.command: ufw disable
+      changed_when: true
+
+    - name: Enable ufw
+      ansible.builtin.command: ufw --force enable
+      changed_when: true
+
+    - name: Verify ufw is active after restart
+      ansible.builtin.command: ufw status
+      register: ufw_status_after
+      changed_when: false
+      failed_when: "'Status: active' not in ufw_status_after.stdout"

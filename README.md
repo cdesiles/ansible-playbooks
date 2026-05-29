@@ -34,7 +34,23 @@ This is a good playground to learn and I encourage you to adapt these roles to y
 | static-web  | Static website hosting                                   |
 | vpn         | WireGuard server                                         |
 
+## Port Reservation Rules
+
+Reserved ports that **must not** be used as role defaults:
+
+| Port(s) | Protocol | Reserved for |
+| --- | --- | --- |
+| 80 | tcp | Nginx |
+| 443 | tcp | Nginx |
+| 3000-3009 | tcp | Testing |
+| 4430 | tcp | Testing |
+| 8080 | tcp | Testing |
+
+When adding a new role, pick a default port outside these ranges.
+
 ## Requirements
+
+Ansible `>=2.15`
 
 Base tools:
 
@@ -110,3 +126,17 @@ Linting:
 ansible-lint
 npx prettier --write .
 ```
+
+## Q&A
+
+### Immich crash loop: `PostgresError: must be owner of extension vector`
+
+Immich tries to self-update the `pgvector` extension at startup, but its database user is intentionally `NOSUPERUSER`, so the `ALTER EXTENSION vector UPDATE` call fails and the microservices worker exits with code 1.
+
+Fix it on the running host by updating the extension as the `postgres` superuser:
+
+```sh
+sudo -u postgres psql -d immich -c 'ALTER EXTENSION vector UPDATE;'
+```
+
+The Immich role also runs this automatically on subsequent playbook runs, so re-deployments after a pgvector package upgrade do not require manual intervention.
