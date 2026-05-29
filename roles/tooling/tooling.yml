@@ -41,12 +41,6 @@
     state: present
   changed_when: false
 
-- name: Install vi
-  package:
-    name: vi
-    state: present
-  changed_when: false
-
 - name: Install vim
   package:
     name: vim
@@ -56,5 +50,11 @@
 - name: Install nano
   package:
     name: nano
+    state: present
+  changed_when: false
+
+- name: Install netcat
+  package:
+    name: "{{ (ansible_facts['os_family'] == 'Archlinux') | ternary('openbsd-netcat', 'netcat-openbsd') }}"
     state: present
   changed_when: false
