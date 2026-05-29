@@ -25,7 +25,7 @@
       ansible.builtin.command:
         cmd: "paru -S --noconfirm zfs-dkms zfs-utils"
 
-    - name: Restore SUDOERS password prompt after yay
+    - name: Restore SUDOERS password prompt after paru
       no_log: true
       ansible.builtin.lineinfile:
         dest: /etc/sudoers
