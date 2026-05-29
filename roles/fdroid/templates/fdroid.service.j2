@@ -1,0 +1,15 @@
+[Unit]
+Description=F-Droid Repository Server
+
+[Service]
+Type=notify
+NotifyAccess=all
+WorkingDirectory={{ podman_projects_dir | default('/opt/podman') }}/fdroid
+ExecStart=/usr/bin/podman kube play --replace --service-container=true --network=pasta:--map-host-loopback={{ podman_gw_gateway }} fdroid.yaml
+ExecStop=/usr/bin/podman kube down fdroid.yaml
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=180
+
+[Install]
+WantedBy=default.target

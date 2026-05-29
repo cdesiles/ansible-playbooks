@@ -41,7 +41,7 @@ spec:
           readOnly: true
         - name: gitea-data
           mountPath: /data
-      restartPolicy: Always
+      restartPolicy: Never
 
   volumes:
     - name: localtime

@@ -1,0 +1,126 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: qfieldcloud
+  labels:
+    app: qfieldcloud
+spec:
+  containers:
+    - name: app
+      image: {{ qfieldcloud_app_image }}:{{ qfieldcloud_version }}
+      command:
+        - gunicorn
+        - qfieldcloud.wsgi:application
+        - --bind
+        - 0.0.0.0:8000
+        - --timeout
+        - "{{ qfieldcloud_gunicorn_timeout }}"
+        - --max-requests
+        - "{{ qfieldcloud_gunicorn_max_requests }}"
+        - --workers
+        - "{{ qfieldcloud_gunicorn_workers }}"
+        - --threads
+        - "{{ qfieldcloud_gunicorn_threads }}"
+      ports:
+        - containerPort: 8000
+          hostPort: {{ qfieldcloud_app_port }}
+      env:
+        - name: DJANGO_ALLOWED_HOSTS
+          value: "{{ qfieldcloud_hostname }} localhost 127.0.0.1 app"
+        - name: DJANGO_SETTINGS_MODULE
+          value: qfieldcloud.settings
+        - name: SECRET_KEY
+          value: "{{ qfieldcloud_secret_key }}"
+        - name: SALT_KEY
+          value: "{{ qfieldcloud_salt_key }}"
+        - name: DEBUG
+          value: "{{ qfieldcloud_debug }}"
+        - name: ENVIRONMENT
+          value: "{{ qfieldcloud_environment }}"
+        - name: POSTGRES_DB
+          value: "{{ qfieldcloud_postgres_db_name }}"
+        - name: POSTGRES_USER
+          value: "{{ qfieldcloud_postgres_user }}"
+        - name: POSTGRES_PASSWORD
+          value: "{{ qfieldcloud_postgres_password }}"
+        - name: POSTGRES_HOST
+          value: "{{ qfieldcloud_postgres_host }}"
+        - name: POSTGRES_PORT
+          value: "{{ qfieldcloud_postgres_port }}"
+        - name: POSTGRES_SSLMODE
+          value: "{{ qfieldcloud_postgres_sslmode }}"
+        - name: STORAGES
+          value: '{"default":{"BACKEND":"qfieldcloud.filestorage.backend.QfcS3Boto3Storage","OPTIONS":{"access_key":"{{ qfieldcloud_s3_access_key }}","secret_key":"{{ qfieldcloud_s3_secret_key }}","bucket_name":"{{ qfieldcloud_s3_bucket }}","region_name":"{{ qfieldcloud_s3_region }}","endpoint_url":"{{ qfieldcloud_s3_endpoint_url }}"},"QFC_IS_LEGACY":false}}'
+        - name: QFIELDCLOUD_HOST
+          value: "{{ qfieldcloud_hostname }}"
+        - name: QFIELDCLOUD_ADMIN_URI
+          value: "{{ qfieldcloud_admin_uri }}"
+        - name: QFIELDCLOUD_SUBSCRIPTION_MODEL
+          value: "{{ qfieldcloud_subscription_model }}"
+        - name: QFIELDCLOUD_ACCOUNT_ADAPTER
+          value: "{{ qfieldcloud_account_adapter }}"
+        - name: QFIELDCLOUD_PASSWORD_LOGIN_IS_ENABLED
+          value: "{{ qfieldcloud_password_login_enabled }}"
+        - name: QFIELDCLOUD_AUTH_TOKEN_EXPIRATION_HOURS
+          value: "{{ qfieldcloud_auth_token_expiration_hours }}"
+        - name: QFIELDCLOUD_USE_I18N
+          value: "{{ qfieldcloud_use_i18n }}"
+        - name: QFIELDCLOUD_DEFAULT_LANGUAGE
+          value: "{{ qfieldcloud_default_language }}"
+        - name: QFIELDCLOUD_DEFAULT_TIME_ZONE
+          value: "{{ qfieldcloud_default_timezone }}"
+        - name: QFIELDCLOUD_WORKER_QFIELDCLOUD_URL
+          value: http://localhost:8000/api/v1/
+        - name: QFIELDCLOUD_QGIS_IMAGE_NAME
+          value: "{{ qfieldcloud_qgis_image }}:{{ qfieldcloud_version }}"
+        - name: QFIELDCLOUD_DEFAULT_NETWORK
+          value: {{ qfieldcloud_podman_network }}
+        - name: ACCOUNT_EMAIL_VERIFICATION
+          value: "{{ qfieldcloud_account_email_verification }}"
+        - name: SOCIALACCOUNT_PROVIDERS
+          value: "{{ qfieldcloud_socialaccount_providers }}"
+        - name: EMAIL_HOST
+          value: "{{ qfieldcloud_email_host }}"
+        - name: EMAIL_PORT
+          value: "{{ qfieldcloud_email_port }}"
+        - name: EMAIL_USE_TLS
+          value: "{{ qfieldcloud_email_use_tls }}"
+        - name: EMAIL_USE_SSL
+          value: "{{ qfieldcloud_email_use_ssl }}"
+        - name: EMAIL_HOST_USER
+          value: "{{ qfieldcloud_email_host_user }}"
+        - name: EMAIL_HOST_PASSWORD
+          value: "{{ qfieldcloud_email_host_password }}"
+        - name: DEFAULT_FROM_EMAIL
+          value: "{{ qfieldcloud_email_from }}"
+        - name: TMP_DIRECTORY
+          value: /tmp
+        - name: SENTRY_DSN
+          value: "{{ qfieldcloud_sentry_dsn }}"
+        - name: SENTRY_SAMPLE_RATE
+          value: "{{ qfieldcloud_sentry_sample_rate }}"
+        - name: SENTRY_RELEASE
+          value: "{{ qfieldcloud_sentry_release }}"
+        - name: SENTRY_ENVIRONMENT
+          value: "{{ qfieldcloud_environment }}"
+      volumeMounts:
+        - name: staticfiles
+          mountPath: /usr/src/app/staticfiles
+        - name: mediafiles
+          mountPath: /usr/src/app/mediafiles
+      restartPolicy: Never
+
+    - name: memcached
+      image: docker.io/library/memcached:1
+      restartPolicy: Never
+
+  volumes:
+    - name: staticfiles
+      hostPath:
+        path: {{ podman_projects_dir | default('/opt/podman') }}/qfieldcloud/staticfiles
+        type: Directory
+    - name: mediafiles
+      hostPath:
+        path: {{ podman_projects_dir | default('/opt/podman') }}/qfieldcloud/mediafiles
+        type: Directory

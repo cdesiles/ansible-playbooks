@@ -1,0 +1,15 @@
+[Unit]
+Description=UniFi Network Controller
+
+[Service]
+Type=notify
+NotifyAccess=all
+WorkingDirectory={{ podman_projects_dir | default('/opt/podman') }}/unifi
+ExecStart=/usr/bin/podman kube play --replace --service-container=true unifi.yaml
+ExecStop=/usr/bin/podman kube down unifi.yaml
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=180
+
+[Install]
+WantedBy=default.target

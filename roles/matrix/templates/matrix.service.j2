@@ -1,0 +1,17 @@
+[Unit]
+Description=Matrix Synapse + Element Web
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=notify
+NotifyAccess=all
+WorkingDirectory={{ podman_projects_dir | default('/opt/podman') }}/matrix
+ExecStart=/usr/bin/podman kube play --replace --service-container=true matrix.yaml
+ExecStop=/usr/bin/podman kube down matrix.yaml
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=180
+
+[Install]
+WantedBy=default.target

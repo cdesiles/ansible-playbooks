@@ -21,7 +21,7 @@ spec:
           readOnly: true
         - name: uptime-kuma-data
           mountPath: /app/data
-      restartPolicy: Always
+      restartPolicy: Never
 
   volumes:
     - name: localtime

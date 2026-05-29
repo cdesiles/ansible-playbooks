@@ -1,0 +1,15 @@
+[Unit]
+Description=QFieldCloud Application
+
+[Service]
+Type=notify
+NotifyAccess=all
+WorkingDirectory={{ podman_projects_dir | default('/opt/podman') }}/qfieldcloud
+ExecStart=/usr/bin/podman kube play --replace --service-container=true --network {{ qfieldcloud_podman_network }} qfieldcloud.yaml
+ExecStop=/usr/bin/podman kube down qfieldcloud.yaml
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=180
+
+[Install]
+WantedBy=default.target

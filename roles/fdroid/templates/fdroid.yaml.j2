@@ -1,0 +1,53 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fdroid
+  labels:
+    app: fdroid
+spec:
+  containers:
+    - name: server
+      image: {{ fdroid_image }}:{{ fdroid_version }}
+      ports:
+        - containerPort: 80
+          hostPort: {{ fdroid_port }}
+      env:
+        - name: TZ
+          value: "Europe/Paris"
+        - name: FDROID_REPO_URL
+          value: "{{ fdroid_repo_url }}"
+        - name: FDROID_REPO_NAME
+          value: "{{ fdroid_repo_name }}"
+        - name: FDROID_REPO_DESCRIPTION
+          value: "{{ fdroid_repo_description }}"
+        - name: FDROID_REPO_ICON
+          value: "{{ fdroid_repo_icon }}"
+        - name: FDROID_UPDATE_INTERVAL
+          value: "{{ fdroid_update_interval }}"
+      command: ["bash", "-c"]
+      args: ["apache2ctl -D FOREGROUND & fdroid update -c && while true; do sleep {{ fdroid_update_interval }} && fdroid update; done"]
+      volumeMounts:
+        - name: localtime
+          mountPath: /etc/localtime
+          readOnly: true
+        - name: fdroid-data
+          mountPath: /fdroid
+        - name: fdroid-repo
+          mountPath: /var/www/html/repo
+          readOnly: true
+      restartPolicy: Never
+
+  volumes:
+    - name: localtime
+      hostPath:
+        path: /etc/localtime
+        type: File
+    - name: fdroid-data
+      hostPath:
+        path: {{ fdroid_data_dir }}
+        type: Directory
+    - name: fdroid-repo
+      hostPath:
+        path: {{ fdroid_data_dir }}/repo
+        type: Directory

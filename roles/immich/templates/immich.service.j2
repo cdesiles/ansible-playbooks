@@ -2,13 +2,14 @@
 Description=Immich Media Server
 
 [Service]
-Type=oneshot
-RemainAfterExit=true
+Type=notify
+NotifyAccess=all
 WorkingDirectory={{ podman_projects_dir | default('/opt/podman') }}/immich
-ExecStart=/usr/bin/podman play kube --replace --network=pasta:--map-host-loopback={{ podman_gw_gateway }} immich.yaml
-ExecStop=/usr/bin/podman play kube --down immich.yaml
+ExecStart=/usr/bin/podman kube play --replace --service-container=true --network=pasta:--map-host-loopback={{ podman_gw_gateway }} immich.yaml
+ExecStop=/usr/bin/podman kube down immich.yaml
 Restart=on-failure
 RestartSec=10
+TimeoutStartSec=180
 
 [Install]
 WantedBy=default.target

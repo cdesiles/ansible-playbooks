@@ -2,13 +2,14 @@
 Description=Gitea Git Service
 
 [Service]
-Type=oneshot
-RemainAfterExit=true
+Type=notify
+NotifyAccess=all
 WorkingDirectory={{ podman_projects_dir | default('/opt/podman') }}/gitea
-ExecStart=/usr/bin/podman play kube --replace --network=pasta:--map-host-loopback={{ podman_gw_gateway }} gitea.yaml
-ExecStop=/usr/bin/podman play kube --down gitea.yaml
+ExecStart=/usr/bin/podman kube play --replace --service-container=true --network=pasta:--map-host-loopback={{ podman_gw_gateway }} gitea.yaml
+ExecStop=/usr/bin/podman kube down gitea.yaml
 Restart=on-failure
 RestartSec=10
+TimeoutStartSec=180
 
 [Install]
 WantedBy=default.target
