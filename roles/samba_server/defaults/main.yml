@@ -1,0 +1,64 @@
+---
+# Global server identity
+samba_workgroup: "WORKGROUP"
+samba_server_string: "Samba Server"
+samba_netbios_name: "{{ inventory_hostname | upper }}"
+
+# Map unknown users to guest (similar to NFS all_squash).
+# "Never" disables guest fallback, "Bad User" maps unknown users to guest.
+samba_map_to_guest: "Bad User"
+samba_guest_account: "nobody"
+
+# Interfaces to bind samba listeners to.
+# `bind interfaces only` is always enabled. If samba_interfaces is empty,
+# samba binds to no interface and is effectively isolated.
+samba_interfaces: []
+# Example:
+# samba_interfaces:
+#   - lo
+#   - lan0
+#   - 192.168.1.161
+
+# Samba user accounts. The matching system user MUST already exist
+# (created by another role or manually). The role only manages the
+# samba password (smbpasswd) and is idempotent: existing users are
+# not touched. To rotate a password, delete it first with
+# `pdbedit -x <username>` then rerun the playbook.
+samba_users: []
+# Example:
+# samba_users:
+#   - username: alice
+#     password: "secret"
+
+# Shares
+samba_shares: []
+# Example:
+# samba_shares:
+#   - name: photos
+#     path: /mnt/andromeda/family-photos
+#     comment: "Family photos"
+#     browseable: true       # default: true
+#     read_only: false       # default: true
+#     guest_ok: false        # default: false
+#     valid_users: ["alice"] # optional
+#     write_list: ["alice"]  # optional
+#     force_user: alice      # optional
+#     force_group: users     # optional
+#     create_mask: "0664"    # default: 0664
+#     directory_mask: "0775" # default: 0775
+#     manage_directory: false  # default: false (do not create/chown the dir)
+#     extra_options:         # optional, raw smb.conf key/values
+#       "veto files": "/.DS_Store/"
+
+samba_config_file: "/etc/samba/smb.conf"
+
+# smbd defaults to 445 (SMB) and 139 (NetBIOS Session)
+samba_port_smb: 445
+samba_port_netbios: 139
+
+samba_server_firewall_allowed_sources:
+  - 127.0.0.0/8
+
+# OS-dependent service name
+samba_service_name: >-
+  {{ (ansible_facts['os_family'] == 'Archlinux') | ternary('smb', 'smbd') }}

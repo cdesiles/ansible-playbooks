@@ -1,0 +1,87 @@
+---
+- name: Validate samba users have a password set
+  ansible.builtin.assert:
+    that:
+      - item.username is defined and item.username | length > 0
+      - item.password is defined and item.password | length >= 8
+    fail_msg: |
+      Each samba_users entry must define `username` and `password` (>=8 chars).
+      See roles/samba_server/defaults/main.yml for the expected schema.
+  loop: "{{ samba_users }}"
+  loop_control:
+    label: "{{ item.username | default('<unnamed>') }}"
+  no_log: true
+
+- name: Install samba
+  ansible.builtin.package:
+    name: samba
+    state: present
+
+- name: Configure samba
+  ansible.builtin.template:
+    src: smb.conf.j2
+    dest: "{{ samba_config_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "testparm -s %s"
+  notify: Restart samba
+
+- name: Ensure share directories exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.force_user | default('root') }}"
+    group: "{{ item.force_group | default('root') }}"
+    mode: "{{ item.directory_mask | default('0775') }}"
+  loop: "{{ samba_shares }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.manage_directory | default(false)
+
+- name: Verify system users exist for samba accounts
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ item.username }}"
+  loop: "{{ samba_users }}"
+  loop_control:
+    label: "{{ item.username }}"
+
+- name: Check existing samba users
+  ansible.builtin.command: pdbedit -L
+  register: samba_existing_users
+  changed_when: false
+  failed_when: false
+
+- name: Add samba users
+  ansible.builtin.shell: |
+    set -o pipefail
+    (echo "{{ item.password }}"; echo "{{ item.password }}") | smbpasswd -s -a "{{ item.username }}"
+  args:
+    executable: /bin/bash
+  loop: "{{ samba_users }}"
+  loop_control:
+    label: "{{ item.username }}"
+  when: item.username not in (samba_existing_users.stdout | default(''))
+  changed_when: true
+  no_log: true
+
+- name: Systemd service for samba is started and enabled
+  ansible.builtin.systemd:
+    name: "{{ samba_service_name }}"
+    state: started
+    enabled: true
+
+- name: Setup firewall rules for samba
+  community.general.ufw:
+    rule: allow
+    src: "{{ item.0 }}"
+    port: "{{ item.1 }}"
+    proto: tcp
+    direction: in
+    comment: "Samba (SMB)"
+  loop: "{{ samba_server_firewall_allowed_sources | product([samba_port_smb, samba_port_netbios]) | list }}"
+  retries: 5
+  delay: 2
+  register: ufw_result
+  until: ufw_result is succeeded

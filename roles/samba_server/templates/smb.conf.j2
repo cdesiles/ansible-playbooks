@@ -1,0 +1,48 @@
+# {{ ansible_managed }}
+[global]
+   workgroup = {{ samba_workgroup }}
+   server string = {{ samba_server_string }}
+   netbios name = {{ samba_netbios_name }}
+   server role = standalone server
+   security = user
+   passdb backend = tdbsam
+   map to guest = {{ samba_map_to_guest }}
+   guest account = {{ samba_guest_account }}
+   bind interfaces only = yes
+   interfaces = {{ samba_interfaces | join(' ') }}
+   log file = /var/log/samba/log.%m
+   max log size = 1000
+   logging = file
+   disable netbios = no
+   dns proxy = no
+
+{% for share in samba_shares %}
+[{{ share.name }}]
+   path = {{ share.path }}
+{% if share.comment is defined %}
+   comment = {{ share.comment }}
+{% endif %}
+   browseable = {{ share.browseable | default(true) | ternary('yes', 'no') }}
+   read only = {{ share.read_only | default(true) | ternary('yes', 'no') }}
+   guest ok = {{ share.guest_ok | default(false) | ternary('yes', 'no') }}
+{% if share.valid_users is defined %}
+   valid users = {{ share.valid_users | join(' ') }}
+{% endif %}
+{% if share.write_list is defined %}
+   write list = {{ share.write_list | join(' ') }}
+{% endif %}
+{% if share.force_user is defined %}
+   force user = {{ share.force_user }}
+{% endif %}
+{% if share.force_group is defined %}
+   force group = {{ share.force_group }}
+{% endif %}
+   create mask = {{ share.create_mask | default('0664') }}
+   directory mask = {{ share.directory_mask | default('0775') }}
+{% if share.extra_options is defined %}
+{% for k, v in share.extra_options.items() %}
+   {{ k }} = {{ v }}
+{% endfor %}
+{% endif %}
+
+{% endfor %}
