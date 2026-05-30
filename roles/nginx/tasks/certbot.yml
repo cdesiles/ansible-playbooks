@@ -29,6 +29,16 @@
     path: "/etc/letsencrypt/live/{{ certbot_hostname }}/fullchain.pem"
   register: certbot_cert_file
 
+- name: Ensure letsencrypt directories are traversable by nginx
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - /etc/letsencrypt/live
+    - /etc/letsencrypt/archive
+  when: certbot_cert_file.stat.exists
+
 - name: Provision certificate for {{ certbot_hostname }}
   when: not certbot_cert_file.stat.exists
   block:

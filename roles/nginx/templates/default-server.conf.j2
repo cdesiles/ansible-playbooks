@@ -1,0 +1,35 @@
+# Catch-all default_server vhosts
+# Managed by Ansible - DO NOT EDIT MANUALLY
+#
+# Purpose: reject any request whose Host/SNI does not match an explicit
+# server_name. Without this, the first vhost loaded alphabetically would
+# leak its certificate to unrelated SNI requests (e.g. clients doing
+# HTTP/2 connection coalescing or hitting the IP directly).
+#
+# `return 444` closes the connection without sending an HTTP response.
+
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+
+    # Keep ACME HTTP-01 challenges working for any hostname
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 444;
+    }
+}
+
+server {
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+    server_name _;
+
+    ssl_certificate {{ nginx_default_ssl_cert }};
+    ssl_certificate_key {{ nginx_default_ssl_key }};
+
+    return 444;
+}

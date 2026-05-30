@@ -17,6 +17,12 @@ nginx_client_max_body_size: 100M
 # SSL configuration (volontarily omit TLSv1.2 here)
 nginx_ssl_protocols: TLSv1.3
 
+# Catch-all default_server (rejects unknown SNI / Host with 444).
+# Prevents leaking the first-loaded vhost's cert to unrelated requests.
+nginx_default_server_enabled: true
+nginx_default_ssl_cert: /etc/nginx/ssl/default.crt
+nginx_default_ssl_key: /etc/nginx/ssl/default.key
+
 # Logging configuration
 # Backend: 'file' (traditional /var/log/nginx/*.log) or 'journald' (systemd journal)
 nginx_log_backend: journald

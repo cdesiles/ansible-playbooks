@@ -78,6 +78,49 @@
     group: root
     mode: "0755"
 
+- name: Configure catch-all default_server
+  when: nginx_default_server_enabled
+  block:
+    - name: Ensure nginx ssl directory exists
+      ansible.builtin.file:
+        path: "{{ nginx_default_ssl_cert | dirname }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Generate self-signed cert for default_server
+      ansible.builtin.command:
+        cmd: >-
+          openssl req -x509 -nodes -newkey rsa:2048
+          -keyout {{ nginx_default_ssl_key }}
+          -out {{ nginx_default_ssl_cert }}
+          -days 3650 -subj "/CN=default"
+        creates: "{{ nginx_default_ssl_cert }}"
+
+    - name: Restrict permissions on default_server key
+      ansible.builtin.file:
+        path: "{{ nginx_default_ssl_key }}"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Deploy default_server vhost
+      ansible.builtin.template:
+        src: default-server.conf.j2
+        dest: "{{ nginx_conf_dir }}/00-default.conf"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Reload nginx
+
+- name: Remove default_server vhost when disabled
+  ansible.builtin.file:
+    path: "{{ nginx_conf_dir }}/00-default.conf"
+    state: absent
+  when: not nginx_default_server_enabled
+  notify: Reload nginx
+
 - name: Ensure Certbot webroot directory exists
   ansible.builtin.file:
     path: /var/www/certbot

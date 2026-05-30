@@ -3,6 +3,7 @@
 
 server {
     listen 80;
+    listen [::]:80;
     server_name {{ certbot_hostname }};
 
     location /.well-known/acme-challenge/ {

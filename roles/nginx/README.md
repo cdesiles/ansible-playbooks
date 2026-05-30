@@ -11,6 +11,22 @@ Installs and configures Nginx as a reverse proxy for web applications with modul
 - SSL/TLS configuration
 - **Native ACME/Let's Encrypt support** (Nginx 1.25.0+)
 - **Transparent proxy forwarding** (HTTP/HTTPS to other hosts)
+- **Catch-all `default_server`** that rejects unknown SNI/Host with `444`
+
+## Catch-all default_server
+
+A `00-default.conf` vhost is deployed and marked `default_server` on both
+ports 80 and 443. It uses a self-signed cert (`/etc/nginx/ssl/default.crt`)
+and returns `444` (close connection) for any request whose SNI/Host does
+not match an explicit vhost. ACME HTTP-01 challenges (`/.well-known/acme-challenge/`)
+are still answered on port 80 so Certbot keeps working for new hostnames.
+
+Without this, clients hitting the server IP directly (or doing HTTP/2
+connection coalescing across vhosts sharing the same IP) would receive the
+certificate of the first vhost loaded alphabetically, leaking that
+hostname and breaking TLS verification on other vhosts.
+
+Disable with `nginx_default_server_enabled: false`.
 
 ## Service Integration Pattern
 
