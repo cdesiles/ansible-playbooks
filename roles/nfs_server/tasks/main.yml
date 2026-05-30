@@ -1,7 +1,7 @@
 ---
 - name: Install nfs-server
   ansible.builtin.package:
-    name: "{{ (ansible_facts['os_family'] == 'Archlinux') | ternary('nfs-utils', 'nfs-kernel-server') }}"
+    name: "{{ nfs_package_name }}"
     state: present
 
 - name: Configure nfs configuration

@@ -1,0 +1,6 @@
+---
+# OS-dependent package names
+tooling_dig_package: >-
+  {{ (ansible_facts['os_family'] == 'Archlinux') | ternary('bind', 'dnsutils') }}
+tooling_netcat_package: >-
+  {{ (ansible_facts['os_family'] == 'Archlinux') | ternary('openbsd-netcat', 'netcat-openbsd') }}

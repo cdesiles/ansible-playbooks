@@ -16,3 +16,7 @@ nfs_port: 2049
 
 nfs_server_firewall_allowed_sources:
   - 127.0.0.0/8
+
+# OS-dependent package name
+nfs_package_name: >-
+  {{ (ansible_facts['os_family'] == 'Archlinux') | ternary('nfs-utils', 'nfs-kernel-server') }}

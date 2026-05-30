@@ -1,0 +1,15 @@
+---
+- name: Install command-line tooling
+  ansible.builtin.package:
+    name:
+      - usbutils
+      - htop
+      - bottom
+      - wget
+      - ethtool
+      - iperf3
+      - vim
+      - nano
+      - "{{ tooling_dig_package }}"
+      - "{{ tooling_netcat_package }}"
+    state: present

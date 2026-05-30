@@ -11,7 +11,7 @@
 
 - name: Install wireguard
   ansible.builtin.package:
-    name: "{{ (ansible_facts['os_family'] == 'Archlinux') | ternary('wireguard-tools', 'wireguard') }}"
+    name: "{{ wireguard_package_name }}"
     state: present
 
 # Use systemd-resolved for DNS management (modern approach on all distributions)
