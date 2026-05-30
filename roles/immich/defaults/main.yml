@@ -5,6 +5,15 @@ immich_version: release
 # Storage location (@see https://docs.immich.app/install/environment-variables/)
 immich_upload_location: "{{ podman_projects_dir }}/immich/data/upload"
 
+# External libraries (read-only host paths exposed to the server container)
+# Use the in-container `mount_path` when registering the library in the Immich UI.
+# Example:
+#   immich_external_libraries:
+#     - name: clement-photos
+#       host_path: /mnt/andromeda/clement-photos
+#       mount_path: /mnt/external/clement-photos
+immich_external_libraries: []
+
 # PostgreSQL configuration (REQUIRED password - must be set explicitly)
 immich_postgres_db_name: immich
 immich_postgres_user: immich

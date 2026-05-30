@@ -13,6 +13,13 @@ Both passwords must be set in your inventory (min 12 characters):
 - `immich_postgres_password` - PostgreSQL database password
 - `immich_valkey_password` - Valkey/Redis password
 
+## External Libraries
+
+Mount host paths read-only into the server container via `immich_external_libraries`,
+then add the in-container `mount_path` in the Immich UI
+(Administration → External Libraries). The `{{ ansible_user }}` running the rootless
+pod must have read access on the host path.
+
 ## Troubleshooting
 
 ### Valkey ACL Issues

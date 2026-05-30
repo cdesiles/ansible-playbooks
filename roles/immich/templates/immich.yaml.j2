@@ -45,6 +45,11 @@ spec:
           readOnly: true
         - name: immich-data
           mountPath: /data
+{% for lib in immich_external_libraries %}
+        - name: ext-{{ lib.name }}
+          mountPath: {{ lib.mount_path }}
+          readOnly: true
+{% endfor %}
       livenessProbe:
         httpGet:
           path: /api/server/ping
@@ -83,6 +88,12 @@ spec:
       hostPath:
         path: {{ immich_upload_location }}
         type: Directory
+{% for lib in immich_external_libraries %}
+    - name: ext-{{ lib.name }}
+      hostPath:
+        path: {{ lib.host_path }}
+        type: Directory
+{% endfor %}
     - name: model-cache
       persistentVolumeClaim:
         claimName: immich-model-cache
