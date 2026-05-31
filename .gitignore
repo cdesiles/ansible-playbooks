@@ -1,8 +1,4 @@
-inventory/*
-inventory_data/
-playbook.yml
-playbooks/*
-!playbooks/example.yml
-!playbooks/bootstrap.yml
-TODO.md
-.claude
+/inventory
+/inventory_data
+/playbooks
+/roadmap
