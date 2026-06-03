@@ -1,0 +1,15 @@
+[Unit]
+Description=Metabase BI Server
+
+[Service]
+Type=notify
+NotifyAccess=all
+WorkingDirectory={{ podman_projects_dir }}/metabase
+ExecStart=/usr/bin/podman kube play --replace --service-container=true --network=pasta:--map-host-loopback={{ podman_gw_gateway }} metabase.yaml
+ExecStop=/usr/bin/podman kube down metabase.yaml
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=180
+
+[Install]
+WantedBy=default.target

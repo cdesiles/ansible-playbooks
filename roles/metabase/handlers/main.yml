@@ -1,0 +1,20 @@
+---
+- name: Reload systemd user
+  ansible.builtin.systemd:
+    daemon_reload: true
+    scope: user
+  become: false
+  become_user: "{{ ansible_user }}"
+
+- name: Restart Metabase
+  ansible.builtin.systemd:
+    name: metabase.service
+    state: restarted
+    scope: user
+  become: false
+  become_user: "{{ ansible_user }}"
+
+- name: Reload nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: reloaded

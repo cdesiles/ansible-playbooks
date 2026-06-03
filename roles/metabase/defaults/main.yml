@@ -1,0 +1,16 @@
+---
+metabase_version: latest
+metabase_image: metabase/metabase
+
+metabase_port: 3000
+
+metabase_postgres_db_name: metabase
+metabase_postgres_user: metabase
+# metabase_postgres_password: ""  # Intentionally undefined - role will fail if not set
+# metabase_postgres_host: ""      # Must be set in inventory (e.g. "{{ podman_gw_gateway }}")
+metabase_postgres_port: 5432
+
+metabase_timezone: UTC
+
+metabase_nginx_enabled: false
+metabase_nginx_hostname: metabase.nas.local

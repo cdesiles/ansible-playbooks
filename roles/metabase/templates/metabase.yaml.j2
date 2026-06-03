@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: metabase
+spec:
+  containers:
+    - name: server
+      image: {{ metabase_image }}:{{ metabase_version }}
+      ports:
+        - containerPort: 3000
+          hostPort: {{ metabase_port }}
+      env:
+        - name: MB_DB_TYPE
+          value: postgres
+        - name: MB_DB_DBNAME
+          value: "{{ metabase_postgres_db_name }}"
+        - name: MB_DB_PORT
+          value: "{{ metabase_postgres_port }}"
+        - name: MB_DB_USER
+          value: "{{ metabase_postgres_user }}"
+        - name: MB_DB_PASS
+          value: "{{ metabase_postgres_password }}"
+        - name: MB_DB_HOST
+          value: "{{ metabase_postgres_host }}"
+        - name: JAVA_TIMEZONE
+          value: "{{ metabase_timezone }}"
+      volumeMounts:
+        - name: localtime
+          mountPath: /etc/localtime
+          readOnly: true
+      livenessProbe:
+        httpGet:
+          path: /api/health
+          port: 3000
+        initialDelaySeconds: 90
+        periodSeconds: 30
+        timeoutSeconds: 10
+        failureThreshold: 3
+      restartPolicy: Never
+  volumes:
+    - name: localtime
+      hostPath: { path: /etc/localtime, type: File }
