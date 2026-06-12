@@ -1,0 +1,27 @@
+---
+# System user to run syncthing as
+syncthing_user: syncthing
+syncthing_group: syncthing
+syncthing_home: /var/lib/syncthing
+
+# Config directory (syncthing reads and writes this at runtime)
+syncthing_config_dir: "{{ syncthing_home }}/.config/syncthing"
+
+# GUI credentials (REQUIRED - must be set explicitly)
+# syncthing_gui_user: ""      # Intentionally undefined - role will fail if not set
+# syncthing_gui_password: ""  # Intentionally undefined - role will fail if not set
+
+# GUI listen address and port
+syncthing_gui_bind: "0.0.0.0"
+syncthing_gui_port: 8384
+
+# Sync protocol port (TCP)
+syncthing_port: 22000
+
+# Package and service names
+syncthing_package: syncthing
+syncthing_service: "syncthing@{{ syncthing_user }}"
+
+# Firewall rules - list of allowed source ranges for GUI and sync ports
+syncthing_allowed_networks:
+  - { src: "127.0.0.1/8", comment: "Localhost" }

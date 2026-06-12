@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Managed by Ansible - initial bootstrap only, DO NOT EDIT MANUALLY -->
+<!-- Syncthing will manage this file after first start -->
+<configuration version="37">
+    <gui enabled="true" tls="false" debugging="false">
+        <address>{{ syncthing_gui_bind }}:{{ syncthing_gui_port }}</address>
+        <user>{{ syncthing_gui_user }}</user>
+        <!-- Plaintext password; syncthing will bcrypt-hash it on first start -->
+        <password>{{ syncthing_gui_password }}</password>
+        <theme>default</theme>
+        <insecureSkipHostcheck>false</insecureSkipHostcheck>
+    </gui>
+    <options>
+        <startBrowser>false</startBrowser>
+        <crashReportingEnabled>false</crashReportingEnabled>
+        <!-- Opt out of anonymous usage reporting -->
+        <urAccepted>-1</urAccepted>
+        <!-- Disable automatic upgrades (managed by package manager) -->
+        <autoUpgradeIntervalH>0</autoUpgradeIntervalH>
+    </options>
+</configuration>

@@ -1,0 +1,81 @@
+---
+- name: Validate required variables are set
+  ansible.builtin.assert:
+    that:
+      - syncthing_gui_user is defined
+      - syncthing_gui_user | length >= 1
+      - syncthing_gui_password is defined
+      - syncthing_gui_password | length >= 12
+    fail_msg: |
+      syncthing_gui_user and syncthing_gui_password are required.
+      syncthing_gui_password must be at least 12 characters.
+      See roles/syncthing/defaults/main.yml for configuration instructions.
+
+- name: Install syncthing
+  ansible.builtin.package:
+    name: "{{ syncthing_package }}"
+    state: present
+
+- name: Create syncthing system group
+  ansible.builtin.group:
+    name: "{{ syncthing_group }}"
+    system: true
+    state: present
+
+- name: Create syncthing system user
+  ansible.builtin.user:
+    name: "{{ syncthing_user }}"
+    group: "{{ syncthing_group }}"
+    home: "{{ syncthing_home }}"
+    shell: /sbin/nologin
+    system: true
+    create_home: true
+    state: present
+
+- name: Create syncthing config directory
+  ansible.builtin.file:
+    path: "{{ syncthing_config_dir }}"
+    state: directory
+    owner: "{{ syncthing_user }}"
+    group: "{{ syncthing_group }}"
+    mode: "0700"
+
+- name: Check if syncthing config already exists
+  ansible.builtin.stat:
+    path: "{{ syncthing_config_dir }}/config.xml"
+  register: syncthing_config_stat
+
+- name: Deploy initial syncthing config (skipped if already exists)
+  ansible.builtin.template:
+    src: config.xml.j2
+    dest: "{{ syncthing_config_dir }}/config.xml"
+    owner: "{{ syncthing_user }}"
+    group: "{{ syncthing_group }}"
+    mode: "0600"
+  when: not syncthing_config_stat.stat.exists
+  notify: Restart syncthing
+
+- name: Allow syncthing GUI and sync traffic through firewall
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.1.port }}"
+    proto: tcp
+    from: "{{ item.0.src }}"
+    direction: in
+    comment: "{{ item.0.comment }}"
+  loop: "{{ syncthing_allowed_networks | product(syncthing_ufw_ports) | list }}"
+  vars:
+    syncthing_ufw_ports:
+      - { port: "{{ syncthing_gui_port }}" }
+      - { port: "{{ syncthing_port }}" }
+  when: syncthing_allowed_networks | length > 0
+  retries: 5
+  delay: 2
+  register: ufw_result
+  until: ufw_result is succeeded
+
+- name: Enable and start syncthing service
+  ansible.builtin.systemd:
+    name: "{{ syncthing_service }}"
+    enabled: true
+    state: started
