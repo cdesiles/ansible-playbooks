@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# Managed by Ansible - DO NOT EDIT MANUALLY
+#
+# Wrapper invoked by upsmon as NOTIFYCMD.
+# upsmon passes the rendered NOTIFYMSG as $1 and sets NOTIFYTYPE in the env.
+# See: https://networkupstools.org/docs/man/upsmon.conf.html
+set -euo pipefail
+
+NTFY_SERVER="{{ nut_ntfy_server }}"
+NTFY_TOPIC="{{ nut_ntfy_topic }}"
+{% if nut_ntfy_token is defined %}
+NTFY_TOKEN="{{ nut_ntfy_token }}"
+{% else %}
+NTFY_TOKEN=""
+{% endif %}
+
+MESSAGE="${1:-UPS event}"
+EVENT="${NOTIFYTYPE:-UNKNOWN}"
+HOST="$(uname -n)"
+
+case "$EVENT" in
+  ONBATT)
+    TITLE="UPS on battery — $HOST"
+    PRIORITY="urgent"
+    TAGS="warning,electric_plug"
+    ;;
+  LOWBATT)
+    TITLE="UPS low battery — $HOST"
+    PRIORITY="urgent"
+    TAGS="rotating_light,battery"
+    ;;
+  FSD|SHUTDOWN)
+    TITLE="UPS forced shutdown — $HOST"
+    PRIORITY="max"
+    TAGS="skull"
+    ;;
+  ONLINE)
+    TITLE="UPS back on line power — $HOST"
+    PRIORITY="default"
+    TAGS="white_check_mark,zap"
+    ;;
+  COMMBAD|NOCOMM)
+    TITLE="UPS communication lost — $HOST"
+    PRIORITY="high"
+    TAGS="warning,satellite"
+    ;;
+  COMMOK)
+    TITLE="UPS communication restored — $HOST"
+    PRIORITY="default"
+    TAGS="white_check_mark"
+    ;;
+  REPLBATT)
+    TITLE="UPS battery needs replacement — $HOST"
+    PRIORITY="high"
+    TAGS="battery,wrench"
+    ;;
+  *)
+    TITLE="UPS event ($EVENT) — $HOST"
+    PRIORITY="default"
+    TAGS="information_source"
+    ;;
+esac
+
+auth_args=()
+if [[ -n "$NTFY_TOKEN" ]]; then
+  auth_args=(-H "Authorization: Bearer $NTFY_TOKEN")
+fi
+
+# --max-time is important: upsmon will hang on poweroff if curl blocks.
+curl -fsS --max-time 10 \
+  "${auth_args[@]}" \
+  -H "Title: $TITLE" \
+  -H "Priority: $PRIORITY" \
+  -H "Tags: $TAGS" \
+  -d "$MESSAGE" \
+  "${NTFY_SERVER%/}/${NTFY_TOPIC}" >/dev/null || \
+  logger -t ups-notify "Failed to publish ntfy notification for $EVENT"

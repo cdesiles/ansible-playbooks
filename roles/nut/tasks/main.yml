@@ -1,0 +1,97 @@
+---
+- name: Validate required configuration
+  ansible.builtin.assert:
+    that:
+      - nut_monitor_password is defined
+      - nut_monitor_password | length >= 12
+      - nut_ntfy_topic is defined
+      - nut_ntfy_topic | length > 0
+    fail_msg: |
+      nut_monitor_password (>=12 chars) and nut_ntfy_topic are required.
+      See roles/nut/defaults/main.yml for configuration.
+
+- name: Load OS-specific variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - debian.yml
+
+- name: Install NUT
+  ansible.builtin.package:
+    name: "{{ nut_package }}"
+    state: present
+
+- name: Ensure NUT config directory exists
+  ansible.builtin.file:
+    path: "{{ nut_config_dir }}"
+    state: directory
+    owner: root
+    group: "{{ nut_group }}"
+    mode: "0750"
+
+- name: Set NUT to standalone mode
+  ansible.builtin.copy:
+    dest: "{{ nut_config_dir }}/nut.conf"
+    content: |
+      # Managed by Ansible - DO NOT EDIT MANUALLY
+      MODE=standalone
+    owner: root
+    group: "{{ nut_group }}"
+    mode: "0640"
+  notify:
+    - Restart NUT driver enumerator
+    - Restart NUT server
+    - Restart NUT monitor
+
+- name: Deploy ups.conf
+  ansible.builtin.template:
+    src: ups.conf.j2
+    dest: "{{ nut_config_dir }}/ups.conf"
+    owner: root
+    group: "{{ nut_group }}"
+    mode: "0640"
+  notify:
+    - Restart NUT driver enumerator
+    - Restart NUT server
+
+- name: Deploy upsd.conf
+  ansible.builtin.template:
+    src: upsd.conf.j2
+    dest: "{{ nut_config_dir }}/upsd.conf"
+    owner: root
+    group: "{{ nut_group }}"
+    mode: "0640"
+  notify: Restart NUT server
+
+- name: Deploy upsd.users
+  ansible.builtin.template:
+    src: upsd.users.j2
+    dest: "{{ nut_config_dir }}/upsd.users"
+    owner: root
+    group: "{{ nut_group }}"
+    mode: "0640"
+  notify: Restart NUT server
+
+- name: Deploy ntfy NOTIFYCMD script
+  ansible.builtin.template:
+    src: ups-notify.sh.j2
+    dest: "{{ nut_notify_script_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy upsmon.conf
+  ansible.builtin.template:
+    src: upsmon.conf.j2
+    dest: "{{ nut_config_dir }}/upsmon.conf"
+    owner: root
+    group: "{{ nut_group }}"
+    mode: "0640"
+  notify: Restart NUT monitor
+
+- name: Enable and start NUT services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop: "{{ nut_services }}"

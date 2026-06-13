@@ -1,0 +1,37 @@
+# Managed by Ansible - DO NOT EDIT MANUALLY
+# See: https://networkupstools.org/docs/man/upsmon.conf.html
+
+MONITOR {{ nut_ups_name }}@localhost {{ nut_upsmon_minsupplies }} {{ nut_monitor_user }} {{ nut_monitor_password }} master
+
+MINSUPPLIES {{ nut_upsmon_minsupplies }}
+SHUTDOWNCMD "{{ nut_upsmon_shutdown_cmd }}"
+NOTIFYCMD "{{ nut_notify_script_path }}"
+
+POLLFREQ {{ nut_upsmon_pollfreq }}
+POLLFREQALERT {{ nut_upsmon_pollfreqalert }}
+DEADTIME {{ nut_upsmon_deadtime }}
+HOSTSYNC {{ nut_upsmon_hostsync }}
+FINALDELAY {{ nut_upsmon_finaldelay }}
+
+# Default notification messages (overridable per event).
+NOTIFYMSG ONLINE   "UPS %s is back on line power"
+NOTIFYMSG ONBATT   "UPS %s is on battery (mains lost)"
+NOTIFYMSG LOWBATT  "UPS %s battery is low — shutdown imminent"
+NOTIFYMSG FSD      "UPS %s forced shutdown in progress"
+NOTIFYMSG COMMOK   "Communications with UPS %s restored"
+NOTIFYMSG COMMBAD  "Communications with UPS %s lost"
+NOTIFYMSG SHUTDOWN "System is shutting down due to UPS %s"
+NOTIFYMSG REPLBATT "UPS %s battery needs replacement"
+NOTIFYMSG NOCOMM   "UPS %s is unavailable"
+
+# Route events through SYSLOG and the NOTIFYCMD wrapper. NUT also supports
+# WALL (broadcast to logged-in users) but it's noisy and not useful here.
+NOTIFYFLAG ONLINE   SYSLOG+EXEC
+NOTIFYFLAG ONBATT   SYSLOG+EXEC
+NOTIFYFLAG LOWBATT  SYSLOG+EXEC
+NOTIFYFLAG FSD      SYSLOG+EXEC
+NOTIFYFLAG COMMOK   SYSLOG+EXEC
+NOTIFYFLAG COMMBAD  SYSLOG+EXEC
+NOTIFYFLAG SHUTDOWN SYSLOG+EXEC
+NOTIFYFLAG REPLBATT SYSLOG+EXEC
+NOTIFYFLAG NOCOMM   SYSLOG+EXEC

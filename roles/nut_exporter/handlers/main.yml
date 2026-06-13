@@ -1,0 +1,9 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart nut_exporter
+  ansible.builtin.systemd:
+    name: "{{ nut_exporter_service }}"
+    state: restarted

@@ -1,0 +1,63 @@
+---
+# NUT (Network UPS Tools) configuration
+# See: https://networkupstools.org/docs/man/upsmon.conf.html
+
+# UPS definition
+# --------------
+# Logical name of the UPS as referenced everywhere (ups.conf section, upsmon
+# MONITOR line, nut_exporter ?ups= query parameter).
+nut_ups_name: eaton
+
+# Human-readable description (shown in upsc output).
+nut_ups_description: "EATON Ellipse 1600"
+
+# Driver to use. usbhid-ups covers all USB HID-compliant UPSes (EATON, APC,
+# CyberPower, etc.). See: https://networkupstools.org/stable-hcl.html
+nut_ups_driver: usbhid-ups
+
+# USB vendorid filter (EATON = 0463). Helps disambiguate if multiple USB HID
+# devices are present. Leave empty to auto-detect.
+nut_ups_vendorid: "0463"
+
+# Driver polling interval in seconds. Some Eaton/MGE units lock up if polled too
+# aggressively (the default is 2). 10-15s gives the microcontroller breathing room.
+nut_ups_pollinterval: 15
+# Number of connection attempts before the driver gives up. If the USB chip
+# freezes, the driver will try to reopen the port up to this many times.
+nut_ups_maxretry: 3
+
+# upsd server
+# -----------
+# Bind addresses for upsd. Keep localhost-only unless you want to monitor from
+# other hosts (in which case add the wireguard IP and adjust firewall).
+nut_upsd_listen:
+  - { addr: "127.0.0.1", port: 3493 }
+
+# Local monitor user used by upsmon and nut_exporter. Password must be set.
+nut_monitor_user: monitor
+# nut_monitor_password: ""  # Intentionally undefined - role will fail if not set
+
+# upsmon (shutdown manager + NOTIFYCMD dispatcher)
+# ------------------------------------------------
+# Battery charge percentage below which an early shutdown is triggered, even if
+# the UPS has not yet asserted LOWBATT. Set to 0 to rely solely on LOWBATT.
+nut_upsmon_minsupplies: 1
+nut_upsmon_pollfreq: 5         # seconds between polls when on line power
+nut_upsmon_pollfreqalert: 5    # seconds between polls when on battery
+nut_upsmon_deadtime: 15        # seconds before declaring a UPS dead
+nut_upsmon_hostsync: 15        # seconds to wait for slaves before shutting down
+nut_upsmon_finaldelay: 5       # seconds between SHUTDOWN notification and poweroff
+
+# Command run on the host once the master decides it is time to power off.
+# systemctl poweroff is sufficient for a single-host standalone setup.
+nut_upsmon_shutdown_cmd: "/usr/bin/systemctl poweroff"
+
+# ntfy notifications
+# ------------------
+# Topic to publish UPS events to. Should be a dedicated topic for power events.
+# nut_ntfy_topic: ""  # Intentionally undefined - role will fail if not set
+nut_ntfy_server: https://ntfy.jokester.fr
+# nut_ntfy_token: ""  # Intentionally undefined - unauthenticated if not set
+
+# Path of the deployed NOTIFYCMD wrapper.
+nut_notify_script_path: /usr/local/bin/ups-notify

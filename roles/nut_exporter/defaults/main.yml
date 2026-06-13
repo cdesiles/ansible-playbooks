@@ -1,0 +1,13 @@
+---
+# Prometheus NUT exporter configuration
+
+# Address the exporter listens on.
+nut_exporter_listen_address: "127.0.0.1:9199"
+
+# upsd server to connect to (kept local — exporter sits next to upsd).
+nut_exporter_nut_server: "127.0.0.1:3493"
+
+# Credentials used to log into upsd. These should match the upsd user defined
+# by the nut role (nut_monitor_user / nut_monitor_password).
+nut_exporter_nut_user: "{{ nut_monitor_user | default('monitor') }}"
+# nut_exporter_nut_password: ""  # Inherits nut_monitor_password by default

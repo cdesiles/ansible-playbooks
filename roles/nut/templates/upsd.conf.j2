@@ -1,0 +1,6 @@
+# Managed by Ansible - DO NOT EDIT MANUALLY
+# See: https://networkupstools.org/docs/man/upsd.conf.html
+
+{% for listen in nut_upsd_listen %}
+LISTEN {{ listen.addr }} {{ listen.port }}
+{% endfor %}

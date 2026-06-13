@@ -1,0 +1,10 @@
+# Managed by Ansible - DO NOT EDIT MANUALLY
+# Override for prometheus-nut-exporter to inject listen address and upsd
+# credentials. The exporter reads NUT_EXPORTER_* env vars at startup.
+
+[Service]
+Environment="HTTP_LISTEN_ADDRESS={{ nut_exporter_listen_address }}"
+Environment="NUT_EXPORTER_SERVER={{ nut_exporter_nut_server.split(':')[0] }}"
+Environment="NUT_EXPORTER_PORT={{ nut_exporter_nut_server.split(':')[1] }}"
+Environment="NUT_EXPORTER_USERNAME={{ nut_exporter_nut_user }}"
+Environment="NUT_EXPORTER_PASSWORD={{ nut_exporter_nut_password }}"

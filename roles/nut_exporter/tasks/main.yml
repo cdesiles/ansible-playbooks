@@ -1,0 +1,46 @@
+---
+- name: Validate required configuration
+  ansible.builtin.assert:
+    that:
+      - nut_exporter_nut_password is defined
+      - nut_exporter_nut_password | length >= 12
+    fail_msg: |
+      nut_exporter_nut_password (>=12 chars) is required.
+      Usually set to the same value as nut_monitor_password.
+
+- name: Load OS-specific variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_facts['os_family'] }}.yml"
+
+- name: Install prometheus-nut-exporter (AUR via paru)
+  ansible.builtin.command: "paru -S --noconfirm --needed {{ nut_exporter_package }}"
+  register: nut_exporter_install
+  changed_when: "'there is nothing to do' not in nut_exporter_install.stdout | lower"
+  when: ansible_facts['os_family'] == 'Archlinux'
+
+- name: Ensure systemd override directory exists
+  ansible.builtin.file:
+    path: "{{ nut_exporter_override_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy systemd override (listen address + upsd credentials)
+  ansible.builtin.template:
+    src: override.conf.j2
+    dest: "{{ nut_exporter_override_dir }}/override.conf"
+    owner: root
+    group: root
+    mode: "0640"
+  notify:
+    - Reload systemd
+    - Restart nut_exporter
+
+- name: Enable and start nut_exporter
+  ansible.builtin.systemd:
+    name: "{{ nut_exporter_service }}"
+    enabled: true
+    state: started
+    daemon_reload: true

@@ -1,0 +1,6 @@
+---
+nut_exporter_package: prometheus-nut-exporter
+nut_exporter_service: prometheus-nut-exporter.service
+nut_exporter_user: nut-exporter
+nut_exporter_group: nut-exporter
+nut_exporter_override_dir: /etc/systemd/system/prometheus-nut-exporter.service.d
