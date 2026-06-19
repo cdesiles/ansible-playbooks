@@ -77,7 +77,8 @@ If you have a password on your ssh key `--ask-pass` is recommended, `--ask-becom
 ```sh
 ansible-playbook -i inventory/hosts.yml playbook.yml \
 --ask-pass \
---ask-become-pass
+--ask-become-pass \
+--ask-vault-pass
 ```
 
 You can also call you ssh agent to unlock your key prior to simplify your calls:
