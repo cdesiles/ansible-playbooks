@@ -3,13 +3,33 @@
 - name: Managing filesystems, volumes, snapshots
   community.general.zfs:
     name: "{{ item.name }}"
-    state: "{{  item.state }}"
+    state: "{{ item.state }}"
     extra_zfs_properties: "{{ item.extra_zfs_properties | default(omit) }}"
     origin: "{{ item.origin | default(omit) }}"
   with_items: "{{ zfs_datasets }}"
 
-- name: Set dataset ownership
-  ansible.builtin.include_tasks: "./dataset-ownership.yml"
+- name: Set dataset mountpoint ownership
+  ansible.builtin.file:
+    path: "{{ item.extra_zfs_properties.mountpoint }}"
+    owner: "{{ item.user | default(ansible_user) }}"
+    group: "{{ item.group | default(ansible_user) }}"
+    state: directory
+    recurse: false
   loop: "{{ zfs_datasets }}"
-  loop_control:
-    loop_var: dataset
+  when:
+    - item.state | default('present') == 'present'
+    - item.extra_zfs_properties.mountpoint is defined
+    - item.extra_zfs_properties.mountpoint not in ['none', 'legacy']
+
+- name: Remove leftover empty mountpoint for absent datasets
+  ansible.builtin.command: "rmdir {{ item.extra_zfs_properties.mountpoint }}"
+  register: rmdir_result
+  failed_when:
+    - rmdir_result.rc != 0
+    - "'No such file or directory' not in rmdir_result.stderr"
+    - "'Directory not empty' not in rmdir_result.stderr"
+  changed_when: rmdir_result.rc == 0
+  loop: "{{ zfs_datasets }}"
+  when:
+    - item.state | default('present') == 'absent'
+    - item.extra_zfs_properties.mountpoint is defined
