@@ -1,0 +1,179 @@
+---
+- name: Validate required passwords are set
+  ansible.builtin.assert:
+    that:
+      - fdroid_keystore_password is defined
+      - fdroid_keystore_password | length >= 12
+    fail_msg: |
+      fdroid_keystore_password is required (min 12 chars).
+      See roles/fdroid/defaults/main.yml for configuration instructions.
+    success_msg: "Password validation passed"
+
+- name: Create fdroid project directory
+  ansible.builtin.file:
+    path: "{{ podman_projects_dir | default('/opt/podman') }}/fdroid"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Create fdroid data directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  loop:
+    - "{{ fdroid_data_dir }}"
+    - "{{ fdroid_data_dir }}/repo"
+    - "{{ fdroid_data_dir }}/metadata"
+
+- name: Create fdroid repo icons directory
+  ansible.builtin.file:
+    path: "{{ fdroid_data_dir }}/repo/icons"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Download fdroid repository icon
+  ansible.builtin.get_url:
+    url: "{{ fdroid_repo_icon_url }}"
+    dest: "{{ fdroid_data_dir }}/repo/icons/{{ fdroid_repo_icon }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Deploy fdroid repository configuration
+  ansible.builtin.template:
+    src: config.yml.j2
+    dest: "{{ fdroid_data_dir }}/config.yml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+  notify: Restart fdroid
+
+- name: Pull fdroid container image
+  ansible.builtin.command: "podman pull {{ fdroid_image }}:{{ fdroid_version }}"
+  changed_when: pull_result.stdout is search('Writing manifest')
+  register: pull_result
+  become: false
+  become_user: "{{ ansible_user }}"
+
+- name: Deploy Kubernetes YAML for fdroid
+  ansible.builtin.template:
+    src: fdroid.yaml.j2
+    dest: "{{ podman_projects_dir | default('/opt/podman') }}/fdroid/fdroid.yaml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  notify: Restart fdroid
+
+- name: Get home directory for {{ ansible_user }}
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ ansible_user }}"
+
+- name: Set user home directory fact
+  ansible.builtin.set_fact:
+    user_home_dir: "{{ ansible_facts['getent_passwd'][ansible_user][4] }}"
+
+- name: Create systemd user directory for fdroid
+  ansible.builtin.file:
+    path: "{{ user_home_dir }}/.config/systemd/user"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Create systemd service for fdroid (user scope)
+  ansible.builtin.template:
+    src: fdroid.service.j2
+    dest: "{{ user_home_dir }}/.config/systemd/user/fdroid.service"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  notify: Reload systemd user
+
+- name: Check if lingering is enabled for {{ ansible_user }}
+  ansible.builtin.stat:
+    path: "/var/lib/systemd/linger/{{ ansible_user }}"
+  register: linger_file
+
+- name: Enable lingering for user {{ ansible_user }}
+  ansible.builtin.command: "loginctl enable-linger {{ ansible_user }}"
+  changed_when: true
+  when:
+    - ansible_user != 'root'
+    - not linger_file.stat.exists
+
+- name: Check if keystore already exists
+  ansible.builtin.stat:
+    path: "{{ fdroid_data_dir }}/keystore.p12"
+  register: fdroid_keystore
+
+- name: Initialize fdroid repository (generate keystore and first index)
+  ansible.builtin.command:
+    argv:
+      - podman
+      - run
+      - --rm
+      - -v
+      - "{{ fdroid_data_dir }}:/fdroid"
+      - -e
+      - "FDROID_REPO_URL={{ fdroid_repo_url }}"
+      - -e
+      - "FDROID_REPO_NAME={{ fdroid_repo_name }}"
+      - -e
+      - "FDROID_REPO_DESCRIPTION={{ fdroid_repo_description }}"
+      - -e
+      - "FDROID_REPO_ICON={{ fdroid_repo_icon }}"
+      - "{{ fdroid_image }}:{{ fdroid_version }}"
+      - "fdroid update -c --create-key"
+  when: not fdroid_keystore.stat.exists
+  register: fdroid_init
+  changed_when: fdroid_init.rc == 0
+  become: false
+  become_user: "{{ ansible_user }}"
+
+- name: Flush handlers before starting fdroid
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start fdroid service (user scope)
+  ansible.builtin.systemd:
+    name: fdroid.service
+    enabled: true
+    state: started
+    scope: user
+  become: false
+  become_user: "{{ ansible_user }}"
+
+- name: Wait for fdroid to be ready
+  ansible.builtin.wait_for:
+    port: "{{ fdroid_port }}"
+    host: 127.0.0.1
+    timeout: 60
+
+- name: Provision TLS certificate for fdroid
+  ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"
+  vars:
+    certbot_hostname: "{{ fdroid_nginx_hostname }}"
+  when: fdroid_nginx_enabled
+
+- name: Deploy nginx vhost configuration for fdroid
+  ansible.builtin.template:
+    src: nginx-vhost.conf.j2
+    dest: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/fdroid.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  when: fdroid_nginx_enabled
+  notify: Reload nginx
+
+- name: Remove nginx vhost configuration for fdroid
+  ansible.builtin.file:
+    path: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/fdroid.conf"
+    state: absent
+  when: not fdroid_nginx_enabled
+  notify: Reload nginx

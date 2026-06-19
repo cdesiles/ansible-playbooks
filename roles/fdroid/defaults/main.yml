@@ -1,0 +1,29 @@
+---
+# F-Droid repository version (austozi/fdroidserver image tag)
+fdroid_version: "26.2.1"
+
+# Container image
+fdroid_image: austozi/fdroidserver
+
+# Host port mapping
+fdroid_port: 8070
+
+# Data directory (keystore, config, metadata, repo APKs)
+fdroid_data_dir: "{{ podman_projects_dir }}/fdroid/data"
+
+# Repository metadata
+fdroid_repo_url: "https://apk.mysite.fr/repo"
+fdroid_repo_name: "F-Droid Repository"
+fdroid_repo_description: "Custom APK repository"
+fdroid_repo_icon: "fdroid.svg"
+fdroid_repo_icon_url: "https://f-droid.org/assets/fdroid-logo-text_S0MUfk_FsnAYL7n2MQye-34IoSNm6QM6xYjDnMqkufo=.svg"
+
+# How often the container re-runs 'fdroid update' to re-sign the index
+fdroid_update_interval: "24h"
+
+# Keystore password for signing the repository index
+# fdroid_keystore_password: ""  # Intentionally undefined - role will fail if not set
+
+# Nginx reverse proxy configuration
+fdroid_nginx_enabled: false
+fdroid_nginx_hostname: apk.nas.local

@@ -1,0 +1,14 @@
+# F-Droid repository configuration
+# Managed by Ansible - DO NOT EDIT MANUALLY
+
+repo_url: "{{ fdroid_repo_url }}"
+repo_name: "{{ fdroid_repo_name }}"
+repo_description: "{{ fdroid_repo_description }}"
+repo_icon: "{{ fdroid_repo_icon }}"
+
+# Keystore configuration (auto-generated on first 'fdroid update -c --create-key')
+repo_keyalias: fdroid-repo-key
+keystore: keystore.p12
+keystorepass: "{{ fdroid_keystore_password }}"
+keypass: "{{ fdroid_keystore_password }}"
+keydname: "CN={{ fdroid_nginx_hostname }}"
