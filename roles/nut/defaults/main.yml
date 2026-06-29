@@ -61,3 +61,8 @@ nut_ntfy_server: https://ntfy.jokester.fr
 
 # Path of the deployed NOTIFYCMD wrapper.
 nut_notify_script_path: /usr/local/bin/ups-notify
+
+# Where ups-notify records the epoch timestamp of the last ONBATT event, so the
+# ONLINE notification can report total outage duration. Lives under /run so it
+# is cleared on reboot (stale outage state is meaningless after a reboot).
+nut_outage_state_file: /run/ups-notify-outage

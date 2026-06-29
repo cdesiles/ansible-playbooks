@@ -14,15 +14,34 @@ NTFY_TOKEN="{{ nut_ntfy_token }}"
 NTFY_TOKEN=""
 {% endif %}
 
+UPS_NAME="{{ nut_ups_name }}"
+OUTAGE_STATE_FILE="{{ nut_outage_state_file }}"
+
 MESSAGE="${1:-UPS event}"
 EVENT="${NOTIFYTYPE:-UNKNOWN}"
 HOST="$(uname -n)"
 
+# Current battery charge (%) as reported by the UPS. Empty if unavailable.
+battery_charge() {
+  upsc "${UPS_NAME}@localhost" battery.charge 2>/dev/null | head -n1
+}
+
+# Format a duration in whole seconds as HH:mm:ss.
+format_duration() {
+  local total="$1"
+  printf '%02d:%02d:%02d' $((total / 3600)) $(((total % 3600) / 60)) $((total % 60))
+}
+
 case "$EVENT" in
   ONBATT)
+    # Record when line power was lost so ONLINE can report outage duration.
+    date +%s > "$OUTAGE_STATE_FILE" 2>/dev/null || \
+      logger -t ups-notify "Failed to write outage state file $OUTAGE_STATE_FILE"
     TITLE="UPS on battery — $HOST"
     PRIORITY="urgent"
     TAGS="warning,electric_plug"
+    charge="$(battery_charge)"
+    [[ -n "$charge" ]] && MESSAGE="$MESSAGE (battery ${charge}%)"
     ;;
   LOWBATT)
     TITLE="UPS low battery — $HOST"
@@ -38,6 +57,17 @@ case "$EVENT" in
     TITLE="UPS back on line power — $HOST"
     PRIORITY="default"
     TAGS="white_check_mark,zap"
+    charge="$(battery_charge)"
+    [[ -n "$charge" ]] && MESSAGE="$MESSAGE (battery ${charge}%)"
+    if [[ -r "$OUTAGE_STATE_FILE" ]]; then
+      start="$(cat "$OUTAGE_STATE_FILE" 2>/dev/null)"
+      if [[ "$start" =~ ^[0-9]+$ ]]; then
+        elapsed=$(( $(date +%s) - start ))
+        (( elapsed < 0 )) && elapsed=0
+        MESSAGE="$MESSAGE — outage lasted $(format_duration "$elapsed")"
+      fi
+      rm -f "$OUTAGE_STATE_FILE" 2>/dev/null || true
+    fi
     ;;
   COMMBAD|NOCOMM)
     TITLE="UPS communication lost — $HOST"
