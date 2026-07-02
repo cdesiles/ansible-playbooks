@@ -1,0 +1,56 @@
+# UniFi Controller vhost with Let's Encrypt (Certbot)
+# Managed by Ansible - DO NOT EDIT MANUALLY
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ unifi_nginx_hostname }};
+
+    # Certbot webroot for ACME challenges
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # Redirect to HTTPS
+    location / {
+        return 301 https://$server_name$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name {{ unifi_nginx_hostname }};
+
+    # Let's Encrypt certificates (managed by Certbot)
+    ssl_certificate /etc/letsencrypt/live/{{ unifi_nginx_hostname }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ unifi_nginx_hostname }}/privkey.pem;
+
+    # SSL configuration
+    ssl_protocols {{ nginx_ssl_protocols | default('TLSv1.3') }};
+    ssl_prefer_server_ciphers on;
+
+{% if nginx_log_backend | default('journald') == 'journald' %}
+    access_log syslog:server=unix:/dev/log,nohostname,tag=nginx_unifi;
+    error_log syslog:server=unix:/dev/log,nohostname,tag=nginx_unifi;
+{% else %}
+    access_log /var/log/nginx/{{ unifi_nginx_hostname }}_access.log main;
+    error_log /var/log/nginx/{{ unifi_nginx_hostname }}_error.log;
+{% endif %}
+
+    location / {
+        proxy_pass https://{{ unifi_bind_address }}:{{ unifi_port_https }};
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket support
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+    }
+}

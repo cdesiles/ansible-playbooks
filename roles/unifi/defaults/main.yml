@@ -1,0 +1,24 @@
+---
+# UniFi Controller version to deploy
+unifi_version: "latest"
+
+# Container image
+unifi_image: docker.io/jacobalberty/unifi
+
+# Storage location for persistent data (MongoDB, config, backups)
+unifi_data_dir: "{{ podman_projects_dir }}/unifi/data"
+
+# Network binding — REQUIRED, must be set in inventory
+# IP address of the LAN interface for AP communication (inform, STUN, discovery).
+# APs must be able to reach this address.
+# unifi_bind_address: ""
+
+# Firewall — sources allowed to reach UniFi ports
+unifi_firewall_allowed_sources:
+  - 192.168.0.0/16
+
+# Timezone
+unifi_timezone: UTC
+
+# JVM configuration
+unifi_jvm_max_heap_size: 1024M

@@ -1,0 +1,19 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Reload systemd user
+  ansible.builtin.systemd:
+    daemon_reload: true
+    scope: user
+  become: false
+  become_user: "{{ ansible_user }}"
+
+- name: Restart unifi
+  ansible.builtin.systemd:
+    name: unifi.service
+    state: restarted
+    scope: user
+  become: false
+  become_user: "{{ ansible_user }}"
