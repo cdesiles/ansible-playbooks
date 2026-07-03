@@ -101,7 +101,7 @@
     dest: "{{ podman_projects_dir | default('/opt/podman') }}/gitea/gitea.yaml"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-    mode: "0644"
+    mode: "0600"
   notify: Restart gitea
 
 - name: Get home directory for {{ ansible_user }}
