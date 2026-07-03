@@ -54,12 +54,21 @@
     mode: "0600"
   notify: Restart fdroid
 
-- name: Pull fdroid container image
-  ansible.builtin.command: "podman pull {{ fdroid_image }}:{{ fdroid_version }}"
-  changed_when: pull_result.stdout is search('Writing manifest')
-  register: pull_result
+- name: Get current fdroid image ID
+  ansible.builtin.command: "podman image inspect --format {% raw %}{{.Id}}{% endraw %} {{ fdroid_image }}:{{ fdroid_version }}"
+  register: fdroid_image_id_before
+  failed_when: false # image may not exist yet on first deploy
+  changed_when: false
   become: false
   become_user: "{{ ansible_user }}"
+
+- name: Pull fdroid container image
+  ansible.builtin.command: "podman pull --quiet {{ fdroid_image }}:{{ fdroid_version }}"
+  register: pull_result
+  changed_when: pull_result.stdout != fdroid_image_id_before.stdout
+  become: false
+  become_user: "{{ ansible_user }}"
+  notify: Restart fdroid
 
 - name: Deploy Kubernetes YAML for fdroid
   ansible.builtin.template:

@@ -37,12 +37,21 @@
     mode: "0644"
   notify: Restart ntfy
 
-- name: Pull ntfy container image
-  ansible.builtin.command: "podman pull {{ ntfy_image }}:{{ ntfy_version }}"
-  changed_when: pull_result.stdout is search('Writing manifest')
-  register: pull_result
+- name: Get current ntfy image ID
+  ansible.builtin.command: "podman image inspect --format {% raw %}{{.Id}}{% endraw %} {{ ntfy_image }}:{{ ntfy_version }}"
+  register: ntfy_image_id_before
+  failed_when: false # image may not exist yet on first deploy
+  changed_when: false
   become: false
   become_user: "{{ ansible_user }}"
+
+- name: Pull ntfy container image
+  ansible.builtin.command: "podman pull --quiet {{ ntfy_image }}:{{ ntfy_version }}"
+  register: pull_result
+  changed_when: pull_result.stdout != ntfy_image_id_before.stdout
+  become: false
+  become_user: "{{ ansible_user }}"
+  notify: Restart ntfy
 
 - name: Deploy Kubernetes YAML for ntfy
   ansible.builtin.template:
