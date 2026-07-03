@@ -159,13 +159,17 @@ roles/myservice/
 ### 2. Meta Dependencies
 
 ```yaml
-dependencies:
-    - role: podman # If using containers
-    - role: postgres # If needs database
-    - role: redis # If needs cache
+dependencies: []
 ```
 
-**Important:** Only include dependencies that are **always** required. Optional dependencies (like nginx for reverse proxy) should be added explicitly in playbooks, not in `meta/main.yml`.
+**Do NOT declare shared services (podman, postgres, valkey, nginx) as meta dependencies.** They are deployed once via playbook role ordering and would otherwise re-run on every service deploy. Instead:
+
+- Playbooks list shared services before service roles, tagged `infra`
+- Every role entry in a playbook carries tags: a group tag (`system`, `net`, `infra`, `monitoring`, `services`) plus its own name
+- Targeted deploys use `--tags <role>`; fresh installs run the full playbook (or `--tags infra` first)
+- Service roles fail fast when a shared service is missing (password asserts, postgresql tasks)
+
+Document prerequisites in the role README instead of `meta/main.yml`.
 
 ### 3. Rootless Podman and User Systemd Services
 

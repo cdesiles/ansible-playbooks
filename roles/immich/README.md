@@ -2,6 +2,10 @@
 
 This Ansible role deploys [Immich](https://immich.app/) - a high performance self-hosted photo and video management solution - using Podman with k8s files.
 
+## Prerequisites
+
+The `podman`, `postgres`, `valkey`, and `nginx` roles must have been applied to the host first (they are shared services, intentionally not declared in `meta/main.yml` to keep immich deploys fast). Order them before `immich` in the playbook for fresh installs.
+
 ## Role Variables
 
 See `defaults/main.yml` for all available variables and their default values.

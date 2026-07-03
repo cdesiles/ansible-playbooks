@@ -1,6 +1,7 @@
 ---
-dependencies:
-  - role: podman
-  - role: postgres
-  - role: valkey
-  - role: nginx
+# No meta dependencies: podman, postgres, valkey, and nginx are shared
+# services deployed once via the playbook (see playbooks/andromeda.yml
+# role ordering). Declaring them here would re-run them on every immich
+# deploy. The role fails fast if they are missing (password asserts,
+# postgresql_* tasks).
+dependencies: []

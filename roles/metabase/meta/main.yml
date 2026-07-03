@@ -1,4 +1,5 @@
 ---
-dependencies:
-  - role: podman
-  - role: postgres
+# No meta dependencies: shared services (podman, postgres) are deployed once via
+# playbook role ordering (tagged 'infra'), not re-run on every deploy of
+# this role. See playbooks/*.yml.
+dependencies: []

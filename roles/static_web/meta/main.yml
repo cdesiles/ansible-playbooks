@@ -1,3 +1,5 @@
 ---
-dependencies:
-  - role: nginx
+# No meta dependencies: shared services (nginx) are deployed once via
+# playbook role ordering (tagged 'infra'), not re-run on every deploy of
+# this role. See playbooks/*.yml.
+dependencies: []
