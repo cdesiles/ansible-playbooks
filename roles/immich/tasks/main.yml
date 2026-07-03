@@ -98,15 +98,28 @@
   loop:
     - "{{ immich_upload_location }}"
 
-- name: Pull Immich container images
-  ansible.builtin.command: "podman pull {{ item }}"
+# yamllint disable-line - the format template must not be expanded by Jinja
+- name: Get current Immich image IDs
+  ansible.builtin.command: "podman image inspect --format {% raw %}{{.Id}}{% endraw %} {{ item }}"
   loop:
     - "{{ immich_server_image }}:{{ immich_version }}"
     - "{{ immich_ml_image }}:{{ immich_version }}"
-  changed_when: pull_result.stdout is search('Writing manifest')
-  register: pull_result
+  register: immich_image_ids_before
+  failed_when: false # image may not exist yet on first deploy
+  changed_when: false
   become: false
   become_user: "{{ ansible_user }}"
+
+- name: Pull Immich container images
+  ansible.builtin.command: "podman pull --quiet {{ item.item }}"
+  loop: "{{ immich_image_ids_before.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  register: pull_result
+  changed_when: pull_result.stdout != item.stdout
+  become: false
+  become_user: "{{ ansible_user }}"
+  notify: Restart Immich
 
 - name: Deploy Kubernetes YAML for Immich
   ansible.builtin.template:
