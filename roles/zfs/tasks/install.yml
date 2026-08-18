@@ -5,6 +5,8 @@
   changed_when: false
   failed_when: false
 
+# The restore lives in `always` so it runs even when paru fails. Otherwise a
+# failed build leaves the host with passwordless root for the whole wheel group.
 - name: Install zfs
   when: zfs_dkms_installed.stderr | length > 0
   block:
@@ -24,7 +26,8 @@
       become: false
       ansible.builtin.command:
         cmd: "paru -S --noconfirm zfs-dkms zfs-utils"
-
+      changed_when: true
+  always:
     - name: Restore SUDOERS password prompt after paru
       no_log: true
       ansible.builtin.lineinfile:
@@ -65,7 +68,8 @@
       become: false
       ansible.builtin.command:
         cmd: "paru -S --noconfirm zrepl"
-
+      changed_when: true
+  always:
     - name: Restore SUDOERS password prompt after paru
       no_log: true
       ansible.builtin.lineinfile:
