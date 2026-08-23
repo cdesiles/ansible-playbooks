@@ -1,3 +1,8 @@
+# {{ ansible_managed }}
+# Login banner - shown once per interactive login shell (before .zshrc / prompt)
+
+if [[ -o interactive ]]; then
+  cat <<'ANSIBLE_BANNER_END'
 {% if ansible_host == 'andromeda' %}
 *******************************************
  Beep beep-wooOOoo! Brrrp! Zzt zzt-whirl!
@@ -67,3 +72,5 @@ JEDI LOST - UNKNOWN STAR SYSTEM
 {% if ansible_hostname is defined %}
 {{ group_names | first }}: {{ ansible_hostname }}
 {% endif %}
+ANSIBLE_BANNER_END
+fi

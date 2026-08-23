@@ -63,14 +63,6 @@
         mode: "0600"
       loop: "{{ ssh_users.split() }}"
 
-- name: Create an SSH banner
-  ansible.builtin.template:
-    src: templates/sshd_banner.j2
-    dest: "{{ sshd_banner }}"
-    owner: root
-    group: root
-    mode: "0644"
-
 - name: Remove motd on Debian
   ansible.builtin.file:
     path: /etc/motd

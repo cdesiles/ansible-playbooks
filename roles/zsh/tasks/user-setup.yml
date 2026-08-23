@@ -7,6 +7,14 @@
     group: "{{ zsh_user }}"
     mode: "0600"
 
+- name: Setup .zprofile (login banner)
+  ansible.builtin.template:
+    src: zprofile.j2
+    dest: "{{ zsh_home }}/.zprofile"
+    owner: "{{ zsh_user }}"
+    group: "{{ zsh_user }}"
+    mode: "0600"
+
 - name: Setup zsh base config
   ansible.builtin.template:
     src: main.zshrc.j2
