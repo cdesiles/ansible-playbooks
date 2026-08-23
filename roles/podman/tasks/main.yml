@@ -36,6 +36,20 @@
       After reboot, rootless Podman containers will have better network performance.
   when: not kernel_modules.stat.exists or (tun_loaded is defined and tun_loaded is failed)
 
+- name: Ensure newuidmap has setuid file capability
+  community.general.capabilities:
+    path: /usr/bin/newuidmap
+    capability: cap_setuid+ep
+    state: present
+  when: ansible_facts['os_family'] == 'Archlinux'
+
+- name: Ensure newgidmap has setgid file capability
+  community.general.capabilities:
+    path: /usr/bin/newgidmap
+    capability: cap_setgid+ep
+    state: present
+  when: ansible_facts['os_family'] == 'Archlinux'
+
 - name: Enable Podman service
   ansible.builtin.systemd:
     name: podman.service
