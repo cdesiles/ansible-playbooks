@@ -83,6 +83,24 @@
     - _tunnel.server_mode | default(false)
     - _tunnel.port is defined
 
+- name: "Allow forwarding for {{ _tunnel.interface }}"
+  community.general.ufw:
+    rule: allow
+    route: true
+    interface_in: "{{ item.in }}"
+    interface_out: "{{ item.out }}"
+    comment: "Wireguard VPN forwarding ({{ _tunnel.interface }})"
+  retries: 5
+  delay: 2
+  register: _ufw_result
+  until: _ufw_result is succeeded
+  loop:
+    - in: "{{ _tunnel.interface }}"
+      out: "{{ _tunnel.primary_interface | default(wireguard_primary_interface) }}"
+    - in: "{{ _tunnel.primary_interface | default(wireguard_primary_interface) }}"
+      out: "{{ _tunnel.interface }}"
+  when: _tunnel.server_mode | default(false)
+
 - name: "Start and enable wg-quick@{{ _tunnel.interface }}"
   ansible.builtin.service:
     name: "wg-quick@{{ _tunnel.interface }}"
