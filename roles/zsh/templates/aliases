@@ -6,4 +6,5 @@ alias sd="systemctl"
 alias jd="journalctl -xe"
 alias docker="echo 'use podman instead'"
 alias docker-compose="echo 'use podman-compose instead'"
+alias dc="echo 'use podman-compose instead'"
 alias w='cd $HOME/workspace'
