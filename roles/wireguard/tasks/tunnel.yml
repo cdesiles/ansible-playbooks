@@ -43,6 +43,7 @@
     owner: root
     group: root
     mode: "0600"
+  notify: Reload wireguard tunnel
 
 - name: "Create systemd override directory for wg-quick@{{ _tunnel.interface }}"
   ansible.builtin.file:

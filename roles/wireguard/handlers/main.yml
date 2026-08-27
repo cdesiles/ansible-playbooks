@@ -6,3 +6,12 @@
 - name: Apply sysctl
   ansible.builtin.command: sysctl --system
   changed_when: true
+
+- name: Reload wireguard tunnel
+  ansible.builtin.shell: |
+    set -o pipefail
+    wg-quick strip "{{ item.interface }}" | wg syncconf "{{ item.interface }}"
+  args:
+    executable: /bin/bash
+  loop: "{{ wireguard_tunnels }}"
+  changed_when: true
