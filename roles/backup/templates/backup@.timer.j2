@@ -1,0 +1,13 @@
+[Unit]
+Description=Backup timer for job %i
+
+[Timer]
+OnCalendar={{ backup_schedule }}
+RandomizedDelaySec={{ backup_randomized_delay }}
+# Run on next boot if the machine was off when the timer was due. Without this
+# a box that is down every Sunday would never back up.
+Persistent=true
+Unit=backup@%i.service
+
+[Install]
+WantedBy=timers.target

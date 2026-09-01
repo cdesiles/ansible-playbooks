@@ -1,0 +1,449 @@
+#!/usr/bin/env bash
+#
+# Managed by Ansible (roles/backup). Do not edit on the host.
+#
+# Runs one backup job:
+#   1. produce consistent database dumps into the job staging dir
+#   2. for each repository the job targets:
+#        prepare (mount a removable device if needed)
+#        restic backup / forget --prune / check
+#        release (unmount)
+#   3. report - one failing destination does not abort the others
+#
+# -E propagates the ERR trap into functions, so a failure during the dump
+# phase still sends the failure notification.
+#
+# NOTE ON ERROR HANDLING: run_repository() is invoked as `run_repository X ||
+# rc=$?`. POSIX shells disable errexit for the whole call tree of a command on
+# the left of `||`, so `set -e` does NOT apply inside it. Every fallible
+# command below that point therefore carries an explicit `|| return`. Do not
+# "simplify" those away.
+#
+set -Eeuo pipefail
+
+JOB="${1:-}"
+if [[ -z "$JOB" ]]; then
+    echo "usage: $(basename "$0") <job-name>" >&2
+    exit 2
+fi
+
+CONFIG_DIR="{{ backup_config_dir }}"
+DUMPS_ROOT="{{ backup_dumps_dir }}"
+CACHE_DIR="{{ backup_cache_dir }}"
+LOCK_DIR="/run/backup"
+
+HOSTNAME_SHORT="{{ ansible_facts['hostname'] }}"
+
+# Exit code meaning "destination unavailable, nothing was attempted".
+# Distinct from a real failure so an unplugged disk does not raise an alarm.
+EXIT_SKIP=75
+
+DUMPS="$DUMPS_ROOT/$JOB"
+
+# Notification channel of the repository currently being processed. Defaults
+# here keep the ERR trap safe under `set -u` before any repository is sourced.
+NTFY_ENABLED=false
+NTFY_SERVER=""
+NTFY_TOPIC=""
+NTFY_TOKEN=""
+NTFY_ON_SUCCESS=false
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$JOB] $*"
+}
+
+notify() {
+    local title="$1" message="$2" tags="$3" priority="${4:-default}"
+
+    [[ "$NTFY_ENABLED" == "true" ]] || return 0
+    [[ -n "$NTFY_TOPIC" ]] || return 0
+
+    local auth_args=()
+    if [[ -n "$NTFY_TOKEN" ]]; then
+        auth_args=(-H "Authorization: Bearer $NTFY_TOKEN")
+    fi
+
+    curl -s --max-time 15 \
+        "${auth_args[@]}" \
+        -H "Title: $title" \
+        -H "Tags: $tags" \
+        -H "Priority: $priority" \
+        -d "$message" \
+        "$NTFY_SERVER/$NTFY_TOPIC" >/dev/null \
+        || log "WARNING: failed to send notification"
+}
+
+# Only the run that created the staging directory may remove it. Without this
+# flag, a second invocation bailing out on the job lock would delete the dumps
+# of the run that is still using them.
+OWNS_DUMPS=false
+
+cleanup() {
+    [[ "$OWNS_DUMPS" == "true" ]] || return 0
+    # Dumps are plaintext copies of live databases: never leave them behind.
+    rm -rf -- "$DUMPS"
+}
+
+on_error() {
+    local line="$1"
+    log "ERROR: aborted at line $line"
+    notify \
+        "$HOSTNAME_SHORT: Backup FAILED ($JOB)" \
+        "Job '$JOB' aborted at line $line before reaching any destination. Check: journalctl -u backup@$JOB.service" \
+        "x" \
+        "urgent"
+}
+
+trap 'on_error $LINENO' ERR
+trap cleanup EXIT
+
+# ---------------------------------------------------------------------------
+# Job configuration
+# ---------------------------------------------------------------------------
+
+JOB_CONF="$CONFIG_DIR/jobs/$JOB.conf"
+if [[ ! -f "$JOB_CONF" ]]; then
+    log "ERROR: no such job, $JOB_CONF is missing"
+    exit 1
+fi
+# shellcheck source=/dev/null
+source "$JOB_CONF"
+
+if [[ -z "${JOB_REPOSITORIES[*]:-}" ]]; then
+    log "ERROR: job targets no repositories"
+    exit 1
+fi
+
+# Job-level failures (a database dump) happen before any repository runs, so
+# there is no current destination to source. Alert the first repository's
+# channel: order the job's repositories with the primary channel first.
+load_job_notify() {
+    local env_file="$CONFIG_DIR/repos/${JOB_REPOSITORIES[0]}.env"
+    if [[ -f "$env_file" ]]; then
+        # shellcheck source=/dev/null
+        source "$env_file"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Dump phase - runs once, feeds every destination
+# ---------------------------------------------------------------------------
+
+dump_sqlite() {
+    local src dest
+    for src in ${JOB_SQLITE[@]+"${JOB_SQLITE[@]}"}; do
+        if [[ ! -f "$src" ]]; then
+            log "ERROR: sqlite source $src does not exist"
+            return 1
+        fi
+        # Mirror the source path inside the staging dir so a restore is
+        # self-describing and two databases with the same basename cannot
+        # collide.
+        dest="$DUMPS/sqlite$src"
+        mkdir -p "$(dirname "$dest")"
+        log "Dumping sqlite $src"
+        # .backup uses SQLite's online backup API: a consistent copy with the
+        # service still running. Copying the file instead would capture a torn
+        # state, because recent writes live in the -wal sidecar.
+        sqlite3 "$src" ".backup '$dest'"
+    done
+}
+
+dump_postgres() {
+    local -a databases=()
+    local db
+
+    [[ -n "${JOB_POSTGRES[*]:-}" ]] || return 0
+
+    mkdir -p "$DUMPS/postgres"
+
+    if [[ "${JOB_POSTGRES[0]}" == "all" ]]; then
+        log "Enumerating PostgreSQL databases"
+        mapfile -t databases < <(
+            runuser -u postgres -- psql -tAc \
+                "SELECT datname FROM pg_database WHERE datallowconn AND NOT datistemplate ORDER BY datname"
+        )
+    else
+        databases=("${JOB_POSTGRES[@]}")
+    fi
+
+    # Roles, grants and tablespaces live outside any single database. Without
+    # them a restored dump has no owners to grant privileges to.
+    log "Dumping PostgreSQL globals"
+    runuser -u postgres -- pg_dumpall --globals-only > "$DUMPS/postgres/globals.sql"
+
+    for db in ${databases[@]+"${databases[@]}"}; do
+        log "Dumping PostgreSQL database $db"
+        # Redirection is performed by root, so the postgres user does not need
+        # write access to the staging directory.
+        runuser -u postgres -- pg_dump --format=custom "$db" > "$DUMPS/postgres/$db.dump"
+    done
+}
+
+stage_dumps() {
+    rm -rf -- "$DUMPS"
+    mkdir -p "$DUMPS"
+    chmod 0700 "$DUMPS"
+    OWNS_DUMPS=true
+
+    dump_sqlite
+    dump_postgres
+
+    if [[ -n "${JOB_COMMAND:-}" ]]; then
+        log "Running job command hook"
+        # DUMPS is exported so the hook can write its own dumps into it.
+        DUMPS="$DUMPS" bash -Eeuo pipefail -c "$JOB_COMMAND"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Destination handling
+# ---------------------------------------------------------------------------
+
+WE_MOUNTED=false
+
+dest_prepare() {
+    WE_MOUNTED=false
+
+    # A repository with a mountpoint is a removable device: mount it if the
+    # disk is attached. The restic URL itself tells us the rest - an absolute
+    # path is a local directory, a scheme URL (s3:, sftp:, rest:) needs no
+    # local preparation at all.
+    if [[ -n "${REPO_MOUNTPOINT:-}" ]]; then
+        local dev="/dev/disk/by-uuid/$REPO_DEVICE_UUID"
+        if [[ ! -e "$dev" ]]; then
+            log "Device $REPO_DEVICE_UUID is not attached, skipping this destination"
+            return "$EXIT_SKIP"
+        fi
+        if mountpoint -q "$REPO_MOUNTPOINT"; then
+            log "Device already mounted at $REPO_MOUNTPOINT"
+        else
+            mkdir -p "$REPO_MOUNTPOINT" || return 1
+            log "Mounting $dev at $REPO_MOUNTPOINT"
+            local -a mount_args=()
+            if [[ -n "${REPO_FSTYPE:-}" ]]; then
+                mount_args+=(-t "$REPO_FSTYPE")
+            fi
+            mount "${mount_args[@]+"${mount_args[@]}"}" "$dev" "$REPO_MOUNTPOINT" || return 1
+            WE_MOUNTED=true
+        fi
+        mkdir -p "$RESTIC_REPOSITORY" || return 1
+        return 0
+    fi
+
+    if [[ "$RESTIC_REPOSITORY" == /* ]]; then
+        mkdir -p "$RESTIC_REPOSITORY" || return 1
+    fi
+    return 0
+}
+
+dest_release() {
+    [[ "$WE_MOUNTED" == "true" ]] || return 0
+    # Flush before unmounting so the disk is safe to physically remove the
+    # moment the run finishes.
+    sync
+    log "Unmounting $REPO_MOUNTPOINT"
+    umount "$REPO_MOUNTPOINT" || log "WARNING: failed to unmount $REPO_MOUNTPOINT"
+    WE_MOUNTED=false
+}
+
+# ---------------------------------------------------------------------------
+# restic operations
+# ---------------------------------------------------------------------------
+
+repo_backup() {
+    local -a paths=() excludes=() sibling
+
+    paths=(${JOB_PATHS[@]+"${JOB_PATHS[@]}"})
+
+    # Include the staging dir only when something was actually dumped into it,
+    # otherwise restic would record an empty directory on every run.
+    if find "$DUMPS" -mindepth 1 -print -quit 2>/dev/null | grep -q .; then
+        paths+=("$DUMPS")
+    fi
+
+    if [[ -z "${paths[*]:-}" ]]; then
+        log "ERROR: nothing to back up"
+        return 1
+    fi
+
+    for pattern in ${JOB_EXCLUDES[@]+"${JOB_EXCLUDES[@]}"}; do
+        excludes+=(--exclude "$pattern")
+    done
+
+    # restic's own cache must never end up inside a snapshot.
+    excludes+=(--exclude "$CACHE_DIR")
+
+    # A job whose paths cover /var would otherwise recurse into the staging
+    # directories of every other job. Exclude the siblings, keep our own.
+    for sibling in "$DUMPS_ROOT"/*; do
+        [[ -e "$sibling" ]] || continue
+        [[ "$sibling" != "$DUMPS" ]] || continue
+        excludes+=(--exclude "$sibling")
+    done
+
+    log "Backing up to repository '$REPO_NAME'"
+    # --group-by tags makes restic pick the previous snapshot of this same job
+    # as the parent, which is what keeps the scan incremental.
+    restic backup \
+        --tag "$JOB" \
+        --group-by tags \
+        --exclude-caches \
+        "${excludes[@]}" \
+        ${REPO_OPTIONS[@]+"${REPO_OPTIONS[@]}"} \
+        "${paths[@]}" || return 1
+}
+
+repo_forget() {
+    log "Applying retention policy on '$REPO_NAME'"
+    # --tag scopes the policy to this job. Without it, a job running weekly
+    # would prune the snapshots of a job running daily into the same repo.
+    restic forget \
+        --tag "$JOB" \
+        --group-by tag \
+        "${REPO_RETENTION[@]}" \
+        --prune \
+        ${REPO_OPTIONS[@]+"${REPO_OPTIONS[@]}"} || return 1
+}
+
+repo_check() {
+    local -a check_args=()
+
+    if [[ -n "${REPO_READ_DATA_SUBSET:-}" ]]; then
+        # Re-hashes a fraction of the pack files. Over enough runs the whole
+        # repository gets verified without paying for a full read every time.
+        check_args+=(--read-data-subset="$REPO_READ_DATA_SUBSET")
+    fi
+
+    log "Verifying repository '$REPO_NAME'"
+    restic check \
+        "${check_args[@]+"${check_args[@]}"}" \
+        ${REPO_OPTIONS[@]+"${REPO_OPTIONS[@]}"} || return 1
+}
+
+repo_work() {
+    if ! restic cat config >/dev/null 2>&1; then
+        log "Initialising repository '$REPO_NAME'"
+        restic init || return 1
+    fi
+
+    repo_backup || return 1
+    repo_forget || return 1
+    repo_check || return 1
+}
+
+run_repository() {
+    local repo="$1"
+    local rc=0
+
+    # Clear structural variables left by the previous repository in the loop,
+    # so a missing key in one config cannot be silently satisfied by another's
+    # value. The repository's env vars are cleared by the env file itself.
+    unset REPO_NAME REPO_DEVICE_UUID REPO_MOUNTPOINT REPO_FSTYPE
+    unset REPO_OPTIONS REPO_RETENTION REPO_READ_DATA_SUBSET
+
+    local repo_env="$CONFIG_DIR/repos/$repo.env"
+    if [[ ! -f "$repo_env" ]]; then
+        log "ERROR: no configuration for repository '$repo'"
+        return 1
+    fi
+    # shellcheck source=/dev/null
+    source "$repo_env" || return 1
+
+    dest_prepare || return $?
+
+    # Serialise access per repository: two jobs sharing a destination queue
+    # instead of colliding, while jobs on different destinations run freely.
+    exec 9>"$LOCK_DIR/repo-$repo.lock" || return 1
+    if ! flock -w 3600 9; then
+        log "ERROR: timed out waiting for the lock on '$repo'"
+        dest_release
+        exec 9>&-
+        return 1
+    fi
+
+    repo_work || rc=$?
+
+    dest_release
+    exec 9>&-
+    return "$rc"
+}
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+main() {
+    local -a succeeded=() skipped=() failed=()
+    local repo rc n_failed=0
+
+    export RESTIC_CACHE_DIR="$CACHE_DIR"
+    mkdir -p "$CACHE_DIR"
+    chmod 0700 "$CACHE_DIR"
+    mkdir -p "$LOCK_DIR"
+
+    # Two runs of the same job would fight over the same staging directory,
+    # each wiping the other's half-written dumps. systemd already refuses to
+    # start a second instance of the same unit, but nothing stops someone
+    # running the script by hand while the timer fires.
+    exec 8>"$LOCK_DIR/job-$JOB.lock"
+    if ! flock -n 8; then
+        log "Another run of job '$JOB' is in progress, exiting"
+        exit 0
+    fi
+
+    # Give the ERR trap a channel for dump-phase failures.
+    load_job_notify
+
+    log "=== Starting backup job '$JOB' ==="
+    stage_dumps
+
+    # From here on failures are collected rather than fatal: a broken
+    # destination must not stop the others from receiving the backup.
+    trap - ERR
+
+    for repo in "${JOB_REPOSITORIES[@]}"; do
+        rc=0
+        run_repository "$repo" || rc=$?
+        case "$rc" in
+            0)
+                succeeded+=("$repo")
+                [[ "$NTFY_ON_SUCCESS" == "true" ]] && notify \
+                    "$HOSTNAME_SHORT: Backup OK ($JOB / $repo)" \
+                    "Repository '$repo' backed up and verified." \
+                    "white_check_mark" "low"
+                ;;
+            "$EXIT_SKIP")
+                skipped+=("$repo")
+                notify \
+                    "$HOSTNAME_SHORT: Backup skipped ($JOB / $repo)" \
+                    "Repository '$repo' skipped (device not attached)." \
+                    "warning" "default"
+                ;;
+            *)
+                failed+=("$repo")
+                n_failed=$((n_failed + 1))
+                log "ERROR: repository '$repo' failed with exit code $rc"
+                notify \
+                    "$HOSTNAME_SHORT: Backup FAILED ($JOB / $repo)" \
+                    "Repository '$repo' failed (exit $rc). Check: journalctl -u backup@$JOB.service" \
+                    "x" "urgent"
+                ;;
+        esac
+    done
+
+    local summary="ok: ${succeeded[*]:-none}"
+    summary+=$'\n'"skipped: ${skipped[*]:-none}"
+    summary+=$'\n'"failed: ${failed[*]:-none}"
+    log "=== Backup job '$JOB' complete ==="
+    log "$summary"
+
+    # Notifications are per-repository above; the exit code still tells systemd
+    # whether any destination failed.
+    if [[ "$n_failed" -gt 0 ]]; then
+        return 1
+    fi
+    return 0
+}
+
+main "$@"

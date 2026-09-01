@@ -1,0 +1,15 @@
+---
+backup_packages:
+  - restic
+  - util-linux # mountpoint, runuser, flock
+  - curl
+
+# Only installed when a job declares a `sqlite` source.
+backup_sqlite_packages:
+  - sqlite3
+
+# Only installed when a job declares a `postgres` source. On a host that also
+# runs the postgres role this is already present; the package is listed so the
+# role works on a host that only dumps a remote database.
+backup_postgres_packages:
+  - postgresql-client

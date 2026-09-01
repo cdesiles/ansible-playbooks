@@ -1,0 +1,53 @@
+---
+# Included per repository with `repo` set to the repository dict.
+
+- name: Deploy repository environment for {{ repo.name }}
+  ansible.builtin.template:
+    src: repo.env.j2
+    dest: "{{ backup_config_dir }}/repos/{{ repo.name }}.env"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Create local repository directory for {{ repo.name }}
+  ansible.builtin.file:
+    path: "{{ repo.repository }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: backup_repo_is_local | bool
+
+- name: Create device mountpoint for {{ repo.name }}
+  ansible.builtin.file:
+    path: "{{ repo.mountpoint }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: backup_repo_is_device | bool
+
+# Device repositories are initialised lazily by the backup script the first
+# time the disk is actually attached. Everything else is initialised here so
+# that bad credentials or an unreachable endpoint fail at deploy time rather
+# than at 03:00 on a Sunday.
+- name: Check initialisation state of repository {{ repo.name }}
+  ansible.builtin.command:
+    cmd: restic cat config
+  environment: "{{ backup_repo_environment }}"
+  register: backup_repo_state
+  failed_when: false
+  changed_when: false
+  no_log: true
+  when: not backup_repo_is_device | bool
+
+- name: Initialise repository {{ repo.name }}
+  ansible.builtin.command:
+    cmd: restic init
+  environment: "{{ backup_repo_environment }}"
+  when:
+    - not backup_repo_is_device | bool
+    - backup_repo_state.rc | default(1) != 0
+  changed_when: true
+  no_log: true

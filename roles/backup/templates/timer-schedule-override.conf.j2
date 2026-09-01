@@ -1,0 +1,6 @@
+# Managed by Ansible (roles/backup). Per-job schedule override for {{ job.name }}.
+[Timer]
+# Reset the inherited value first: OnCalendar is additive, so without an empty
+# assignment the job would fire on both the default and the override schedule.
+OnCalendar=
+OnCalendar={{ job.schedule }}

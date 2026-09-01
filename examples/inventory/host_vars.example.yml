@@ -177,3 +177,71 @@ valkey_acl_users:
 # --------------------
 immich_postgres_password: "{{ vault_immich_postgres_password }}"
 immich_valkey_password: "{{ vault_immich_valkey_password }}"
+
+# Backup configuration
+# --------------------
+# restic: encrypted, deduplicated, incremental. See roles/backup/README.md.
+
+# Destinations. `repository` is RESTIC_REPOSITORY verbatim. Retention lives
+# here: a large local disk can afford more history than metered object storage.
+# Each destination can carry its own `notify` channel for fine-tuned alerts.
+backup_repositories:
+  - name: offsite
+    # Two hosts must never share a repository - keep the paths distinct.
+    repository: "s3:https://s3.fr1.next.ink/lisez-next/{{ inventory_hostname }}"
+    password: "{{ vault_backup_offsite_password }}"
+    env:
+      AWS_ACCESS_KEY_ID: "{{ vault_backup_s3_access_key }}"
+      AWS_SECRET_ACCESS_KEY: "{{ vault_backup_s3_secret_key }}"
+      AWS_DEFAULT_REGION: fr1
+    retention:
+      keep_weekly: 4
+    # Re-hash 5% of the pack files on each run, so the whole repository gets
+    # verified over time without a full read every week.
+    read_data_subset: "5%"
+    notify:
+      server: https://ntfy.example.org
+      topic: sys-alerts
+      token: "{{ vault_backup_ntfy_token }}"
+
+  # Removable disk. Skipped without error when it is not plugged in - alert at
+  # low priority rather than urgent, so a disk in a drawer is a reminder, not
+  # an alarm.
+  # - name: usb
+  #   repository: /mnt/backup-usb/restic
+  #   uuid: 1234-5678-90ab        # blkid; never /dev/sdX, it renumbers
+  #   mountpoint: /mnt/backup-usb
+  #   fstype: ext4
+  #   password: "{{ vault_backup_usb_password }}"
+  #   retention:
+  #     keep_weekly: 12
+  #   notify:
+  #     topic: backups-reminders
+
+  # Always-present filesystem, e.g. a ZFS dataset.
+  # - name: nas
+  #   repository: /mnt/andromeda/backups/restic
+  #   password: "{{ vault_backup_nas_password }}"
+  #   retention:
+  #     keep_daily: 7
+  #     keep_weekly: 4
+
+# Sources. Dumps are produced once and pushed to every listed repository.
+backup_jobs:
+  # WHAT gets backed up is declared by the service role (ntfy_backup_paths /
+  # ntfy_backup_exclude / ntfy_backup_sqlite in roles/ntfy/defaults/main.yml);
+  # only WHERE (repositories, retention, schedule) is decided here. The ntfy
+  # role knows its storage layout - cache.db is ephemeral and skipped, user.db
+  # is dumped with sqlite3 .backup rather than copied (torn -wal risk).
+  - name: ntfy
+    repositories: [offsite]
+    paths: "{{ ntfy_backup_paths }}"
+    exclude: "{{ ntfy_backup_exclude }}"
+    sqlite: "{{ ntfy_backup_sqlite }}"
+
+  # Databases only, no files. pg_dumpall --globals-only is always included.
+  # - name: databases
+  #   repositories: [offsite, nas]
+  #   postgres: all
+  #   command: |
+  #     valkey-cli --rdb "$DUMPS/valkey.rdb"

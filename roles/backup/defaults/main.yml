@@ -1,0 +1,154 @@
+---
+# ---------------------------------------------------------------------------
+# Layout
+# ---------------------------------------------------------------------------
+backup_config_dir: /etc/backup
+backup_script_path: /usr/local/bin/backup
+
+# Scratch space for database dumps. Wiped before and after every run so
+# plaintext dumps never linger on disk.
+backup_dumps_dir: /var/lib/backup/dumps
+
+# restic keeps a local metadata cache. Pinned to a predictable path so it can
+# be excluded from snapshots rather than silently backing itself up.
+backup_cache_dir: /var/cache/restic
+
+# ---------------------------------------------------------------------------
+# Schedule (systemd OnCalendar syntax) - per-job `schedule` overrides this
+# ---------------------------------------------------------------------------
+backup_schedule: "Sun *-*-* 03:00:00"
+backup_randomized_delay: 30m
+
+# Hard cap on a single job run, all destinations included.
+backup_timeout: 4h
+
+# ---------------------------------------------------------------------------
+# Repositories (destinations)
+# ---------------------------------------------------------------------------
+# A repository is where bytes land: a restic repository URL, its passphrase,
+# and a retention policy. Jobs reference repositories by name, many-to-many.
+#
+# The configuration maps 1:1 onto restic's own concepts. `repository` is
+# RESTIC_REPOSITORY verbatim, `env` is exported into the environment, `password`
+# is RESTIC_PASSWORD. There is no translation layer to drift from what restic
+# actually runs.
+#
+# Common keys:
+#   name       (required) identifier referenced by jobs
+#   repository (required) RESTIC_REPOSITORY, verbatim. Any backend restic
+#                         supports works:
+#                           s3:https://s3.fr1.next.ink/lisez-next/omega
+#                           sftp:backup@host:/srv/restic-repo
+#                           rest:https://host:8000/
+#                           /local/path                 (absolute = local)
+#   password   (required) repository encryption passphrase, min 12 chars.
+#                         This is the ONLY secret protecting the data. Losing
+#                         it means losing every snapshot - there is no recovery.
+#   env        (optional) mapping of extra environment variables, exported as
+#                         written. Backend credentials go here:
+#                           AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY for s3,
+#                           B2_ACCOUNT_ID / B2_ACCOUNT_KEY for Backblaze, ...
+#                         Values must be strings. One repository must not rely
+#                         on ambient credentials (AWS_PROFILE, default chain)
+#                         when another sets explicit keys - env vars are
+#                         per-repository and cleared between runs.
+#   retention  (required) at least one keep_* key. Maps 1:1 onto restic
+#                         `forget`: keep_last, keep_hourly, keep_daily,
+#                         keep_weekly, keep_monthly, keep_yearly.
+#   read_data_subset  (optional) e.g. "5%" or "1/12". Makes `restic check`
+#                         also re-hash that fraction of the pack files, so the
+#                         whole repository gets verified over time without
+#                         paying for a full read on every run.
+#   options    (optional) extra restic flags, e.g. ["-o", "s3.list-objects-v1=true"]
+#
+#   notify     (optional) ntfy notification channel for THIS repository. Each
+#                         destination can alert differently: offsite failure is
+#                         urgent, a missing USB disk is a low-priority reminder.
+#                         Keys:
+#                           topic   (required) ntfy topic
+#                           server  (optional) default https://ntfy.sh
+#                           token   (optional) bearer token for restricted topics
+#                           notify_success  (optional, default false) also alert
+#                                           on success - off by default because
+#                                           routine chatter trains you to ignore
+#                                           the failure alerts
+#                         Absent = this repository does not send notifications.
+#                         A job-level failure (database dump) alerts the first
+#                         repository's channel.
+#
+# Removable-device repositories add:
+#   uuid       (required) filesystem UUID, resolved via /dev/disk/by-uuid.
+#                         Never use /dev/sdX - it renumbers between boots.
+#   mountpoint (required) mounted on demand, unmounted after the run
+#   fstype     (optional) passed to mount(8) when set
+#
+# A device repository is any repository that declares `mountpoint`. Its
+# `repository` path must live below the mountpoint. A device that is not
+# plugged in is skipped, not failed - alerting every week about a disk that
+# lives in a drawer trains you to ignore alerts.
+#
+# Example:
+# backup_repositories:
+#   - name: offsite
+#     repository: "s3:https://s3.fr1.next.ink/lisez-next/{{ inventory_hostname }}"
+#     password: "{{ vault_backup_offsite_password }}"
+#     env:
+#       AWS_ACCESS_KEY_ID: "{{ vault_backup_s3_access_key }}"
+#       AWS_SECRET_ACCESS_KEY: "{{ vault_backup_s3_secret_key }}"
+#       AWS_DEFAULT_REGION: fr1
+#     retention:
+#       keep_weekly: 4
+#     read_data_subset: "5%"
+#     notify:
+#       server: https://ntfy.jokester.fr
+#       topic: sys-updates
+#       token: "{{ sys_autoupdate_ntfy_token }}"
+backup_repositories: []
+
+# ---------------------------------------------------------------------------
+# Jobs (sources)
+# ---------------------------------------------------------------------------
+# Each job gets its own systemd timer and its own restic tag. Retention is
+# applied per tag, so jobs never delete each other's snapshots.
+#
+# Keys:
+#   name          (required) identifier, used for the unit name and restic tag
+#   repositories  (required) list of repository names to push to. Dumps are
+#                            produced once and pushed to each in turn; one
+#                            failing destination does not abort the others.
+#   schedule      (optional) OnCalendar override for this job
+#   paths         (optional) files and directories to snapshot
+#   exclude       (optional) restic --exclude patterns
+#   sqlite        (optional) SQLite files. Dumped with the online backup API
+#                            into the staging dir - see below.
+#   postgres      (optional) list of database names, or the string "all".
+#                            Dumped with pg_dump -Fc, plus pg_dumpall
+#                            --globals-only for roles and grants.
+#   command       (optional) escape hatch. Shell snippet run with $DUMPS
+#                            pointing at this job's staging dir.
+#
+# A job needs at least one of paths / sqlite / postgres / command.
+#
+# Why databases are dumped instead of copied: a live SQLite file keeps recent
+# writes in a -wal sidecar and PostgreSQL keeps them in its own WAL. Copying
+# the file gives a torn snapshot that restores cleanly and is silently
+# inconsistent. Dumps land under the staging dir mirroring their source path:
+#   sqlite   /opt/podman/ntfy/data/user.db
+#            -> <dumps>/<job>/sqlite/opt/podman/ntfy/data/user.db
+#   postgres -> <dumps>/<job>/postgres/<db>.dump  and  postgres/globals.sql
+#
+# Example:
+# backup_jobs:
+#   - name: ntfy
+#     repositories: [offsite]
+#     paths:
+#       - "{{ podman_projects_dir | default('/opt/podman') }}/ntfy"
+#     exclude:
+#       # Ephemeral message cache: churns every run for no restore value.
+#       # attachments/ lives under cache/, hence the narrow glob.
+#       - "{{ podman_projects_dir | default('/opt/podman') }}/ntfy/cache/cache.db*"
+#       # Excluded from the live tree because it is dumped consistently below.
+#       - "{{ podman_projects_dir | default('/opt/podman') }}/ntfy/data/user.db*"
+#     sqlite:
+#       - "{{ podman_projects_dir | default('/opt/podman') }}/ntfy/data/user.db"
+backup_jobs: []

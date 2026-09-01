@@ -6,6 +6,22 @@ ntfy_version: latest
 ntfy_data_dir: "{{ podman_projects_dir }}/ntfy/data"
 ntfy_cache_dir: "{{ podman_projects_dir }}/ntfy/cache"
 
+# Backup manifest - consumed by roles/backup via inventory `backup_jobs`.
+# The ntfy role owns WHAT gets backed up: it knows its storage layout. The
+# operator owns WHERE (repositories, retention, schedule) in the inventory.
+#   - cache.db is the ephemeral message cache: excluded, churns every run for
+#     no restore value. attachments/ lives under cache/, hence the narrow glob.
+#   - user.db holds users, tokens and ACLs: excluded from the live tree and
+#     dumped with sqlite3 .backup instead, because copying a live SQLite file
+#     yields a torn snapshot (recent writes sit in the -wal sidecar).
+ntfy_backup_paths:
+  - "{{ ntfy_data_dir | dirname }}" # project root: data/, cache/, server.yml, ntfy.yaml
+ntfy_backup_exclude:
+  - "{{ ntfy_cache_dir }}/cache.db*"
+  - "{{ ntfy_data_dir }}/user.db*"
+ntfy_backup_sqlite:
+  - "{{ ntfy_data_dir }}/user.db"
+
 # Authentication configuration (REQUIRED - must be set explicitly)
 # Ntfy admin user for managing topics and access control
 ntfy_admin_user: admin

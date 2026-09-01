@@ -1,0 +1,21 @@
+[Unit]
+Description=Backup job %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart={{ backup_script_path }} %i
+
+# Creates /run/backup for the per-repository lock files, and removes it on
+# stop. /run is a tmpfs, so the directory cannot simply be created once.
+RuntimeDirectory=backup
+RuntimeDirectoryMode=0700
+
+# Backups are I/O heavy and never urgent: stay out of the way of live services.
+Nice=10
+IOSchedulingClass=idle
+
+# A hung run holds the repository lock and blocks every other job against the
+# same destination, so it must be killed rather than left to hang forever.
+TimeoutStartSec={{ backup_timeout }}

@@ -6,6 +6,19 @@ uptime_kuma_version: "2"
 # NFS is NOT supported - will cause SQLite corruption
 uptime_kuma_data_dir: "{{ podman_projects_dir }}/uptime-kuma/data"
 
+# Backup manifest - consumed by roles/backup via inventory `backup_jobs`.
+# The uptime_kuma role owns WHAT gets backed up: kuma.db holds every monitor,
+# notification channel and status page, and is a live SQLite file - so it is
+# excluded from the live tree and dumped with sqlite3 .backup instead (copying
+# a live SQLite file yields a torn snapshot, recent writes sit in the -wal
+# sidecar). The rest of the data dir is archived as-is.
+uptime_kuma_backup_paths:
+  - "{{ uptime_kuma_data_dir }}"
+uptime_kuma_backup_exclude:
+  - "{{ uptime_kuma_data_dir }}/kuma.db*"
+uptime_kuma_backup_sqlite:
+  - "{{ uptime_kuma_data_dir }}/kuma.db"
+
 # Network configuration
 uptime_kuma_port: 3300
 

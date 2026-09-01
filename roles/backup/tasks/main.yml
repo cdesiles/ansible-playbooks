@@ -1,0 +1,147 @@
+---
+- name: Validate backup configuration
+  ansible.builtin.import_tasks: validate.yml
+
+- name: Load OS-specific variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - debian.yml
+
+- name: Install backup packages
+  ansible.builtin.package:
+    name: "{{ backup_packages }}"
+    state: present
+
+- name: Install sqlite tooling
+  ansible.builtin.package:
+    name: "{{ backup_sqlite_packages }}"
+    state: present
+  when: backup_jobs | selectattr('sqlite', 'defined') | list | length > 0
+
+- name: Install PostgreSQL client tooling
+  ansible.builtin.package:
+    name: "{{ backup_postgres_packages }}"
+    state: present
+  when: backup_jobs | selectattr('postgres', 'defined') | list | length > 0
+
+- name: Create backup configuration directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  loop:
+    - "{{ backup_config_dir }}"
+    - "{{ backup_config_dir }}/repos"
+    - "{{ backup_config_dir }}/jobs"
+    - "{{ backup_dumps_dir }}"
+    - "{{ backup_cache_dir }}"
+
+- name: Deploy backup script
+  ansible.builtin.template:
+    src: backup.sh.j2
+    dest: "{{ backup_script_path }}"
+    owner: root
+    group: root
+    mode: "0700"
+  no_log: true
+
+- name: Configure repositories
+  ansible.builtin.include_tasks: repository.yml
+  loop: "{{ backup_repositories }}"
+  loop_control:
+    loop_var: repo
+    label: "{{ repo.name }}"
+
+- name: Configure jobs
+  ansible.builtin.include_tasks: job.yml
+  loop: "{{ backup_jobs }}"
+  loop_control:
+    loop_var: job
+    label: "{{ job.name }}"
+
+- name: Find existing repository configurations
+  ansible.builtin.find:
+    paths: "{{ backup_config_dir }}/repos"
+    patterns: "*.env"
+  register: backup_existing_repos
+
+- name: Remove orphaned repository configurations
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ backup_existing_repos.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  when: (item.path | basename | splitext | first)
+    not in (backup_repositories | map(attribute='name') | list)
+
+- name: Find existing job configurations
+  ansible.builtin.find:
+    paths: "{{ backup_config_dir }}/jobs"
+    patterns: "*.conf"
+  register: backup_existing_jobs
+
+- name: Remove orphaned job configurations
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ backup_existing_jobs.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  when: (item.path | basename | splitext | first)
+    not in (backup_jobs | map(attribute='name') | list)
+
+- name: Deploy systemd service template
+  ansible.builtin.template:
+    src: backup@.service.j2
+    dest: /etc/systemd/system/backup@.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Deploy systemd timer template
+  ansible.builtin.template:
+    src: backup@.timer.j2
+    dest: /etc/systemd/system/backup@.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Flush handlers before enabling timers
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start backup timers
+  ansible.builtin.systemd:
+    name: "backup@{{ item.name }}.timer"
+    enabled: true
+    state: started
+  loop: "{{ backup_jobs }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# Failure alerts are the only thing standing between a broken timer and a
+# backup you believe exists. ntfy runs with auth-default-access deny-all, so a
+# token without write access to the topic would fail silently at 03:00. Prove
+# each configured channel works now instead.
+- name: Send a test notification
+  ansible.builtin.uri:
+    url: "{{ item.notify.server | default('https://ntfy.sh') }}/{{ item.notify.topic }}"
+    method: POST
+    body: "Backup role deployed on {{ inventory_hostname }}. Repository '{{ item.name }}' alerts are configured and reachable."
+    headers: >-
+      {{
+        {'Title': inventory_hostname ~ ': Backup notifications configured',
+         'Tags': 'floppy_disk',
+         'Priority': 'low'}
+        | combine({'Authorization': 'Bearer ' ~ item.notify.token} if item.notify.token is defined else {})
+      }}
+    status_code: 200
+  loop: "{{ backup_repositories | selectattr('notify', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: false

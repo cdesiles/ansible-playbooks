@@ -1,0 +1,146 @@
+---
+- name: Validate repository names are unique
+  ansible.builtin.assert:
+    that:
+      - backup_repositories | map(attribute='name') | list | length
+        == backup_repositories | map(attribute='name') | unique | list | length
+    fail_msg: "backup_repositories contains duplicate names"
+    success_msg: "Repository names are unique"
+
+- name: Validate repository common keys
+  ansible.builtin.assert:
+    that:
+      - item.name is defined
+      - item.name | length > 0
+      - item.repository is defined
+      - item.repository | length > 0
+      - item.password is defined
+      - item.password | length >= 12
+      - item.retention is defined
+      - item.retention | length > 0
+    fail_msg: |
+      Repository '{{ item.name | default('<unnamed>') }}' is invalid.
+      Required: name, repository (a restic repository URL, verbatim),
+      password (min 12 chars), retention (at least one keep_* key).
+      A repository with an empty retention policy would make `restic forget`
+      fail at 03:00 rather than here.
+      See roles/backup/defaults/main.yml for configuration instructions.
+    quiet: true
+  loop: "{{ backup_repositories }}"
+  loop_control:
+    label: "{{ item.name | default('<unnamed>') }}"
+  no_log: true
+
+- name: Validate retention keys are recognised
+  ansible.builtin.assert:
+    that:
+      - item.retention.keys() | list | difference(backup_retention_keys) | length == 0
+    fail_msg: >-
+      Repository '{{ item.name }}' has unknown retention key(s):
+      {{ item.retention.keys() | list | difference(backup_retention_keys) | join(', ') }}.
+      Allowed: {{ backup_retention_keys | join(', ') }}.
+      An unrecognised key would be silently dropped and the repository would
+      grow without bound.
+    quiet: true
+  loop: "{{ backup_repositories }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Validate repository environment is a mapping of strings
+  ansible.builtin.assert:
+    that:
+      - item.env.values() | reject('string') | list | length == 0
+    fail_msg: >-
+      Repository '{{ item.name }}' has a non-string env value.
+      Environment values are exported verbatim and must be strings.
+    quiet: true
+  loop: "{{ backup_repositories | selectattr('env', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Validate device repositories
+  ansible.builtin.assert:
+    that:
+      - item.uuid is defined
+      - item.uuid | length > 0
+      - item.mountpoint is defined
+      - item.mountpoint is match('^/')
+      - item.repository is match('^' ~ item.mountpoint)
+    fail_msg: |
+      Device repository '{{ item.name }}' (declares mountpoint) requires uuid,
+      mountpoint, and a repository path below the mountpoint.
+      Identify the disk by filesystem UUID (blkid), never by /dev/sdX - kernel
+      device names are not stable across boots and would eventually point the
+      backup at the wrong disk.
+    quiet: true
+  loop: "{{ backup_repositories | selectattr('mountpoint', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Validate no orphaned device keys
+  ansible.builtin.assert:
+    that:
+      - item.mountpoint is defined
+    fail_msg: >-
+      Repository '{{ item.name }}' declares 'uuid' but no 'mountpoint'.
+      A removable device is recognised by its mountpoint; without one the
+      repository is treated as a plain path and the disk is never mounted.
+    quiet: true
+  loop: "{{ backup_repositories | selectattr('uuid', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Validate job names are unique
+  ansible.builtin.assert:
+    that:
+      - backup_jobs | map(attribute='name') | list | length
+        == backup_jobs | map(attribute='name') | unique | list | length
+    fail_msg: "backup_jobs contains duplicate names"
+    success_msg: "Job names are unique"
+
+- name: Validate job definitions
+  ansible.builtin.assert:
+    that:
+      - item.name is defined
+      - item.name | length > 0
+      - item.name is match('^[A-Za-z0-9_.-]+$')
+      - item.repositories is defined
+      - item.repositories | length > 0
+      - (item.paths | default([]) | length > 0)
+        or (item.sqlite | default([]) | length > 0)
+        or (item.postgres | default([]) | length > 0)
+        or (item.command | default('') | length > 0)
+    fail_msg: |
+      Job '{{ item.name | default('<unnamed>') }}' is invalid.
+      Required: name (systemd instance-safe characters only), a non-empty
+      repositories list, and at least one source among paths, sqlite,
+      postgres, command.
+    quiet: true
+  loop: "{{ backup_jobs }}"
+  loop_control:
+    label: "{{ item.name | default('<unnamed>') }}"
+
+- name: Validate job repository references resolve
+  ansible.builtin.assert:
+    that:
+      - item.1 in (backup_repositories | map(attribute='name') | list)
+    fail_msg: |
+      Job '{{ item.0.name }}' references unknown repository '{{ item.1 }}'.
+      Known repositories: {{ backup_repositories | map(attribute='name') | join(', ') | default('none', true) }}
+    quiet: true
+  loop: "{{ backup_jobs | subelements('repositories') }}"
+  loop_control:
+    label: "{{ item.0.name }} -> {{ item.1 }}"
+
+- name: Validate repository notification configuration
+  ansible.builtin.assert:
+    that:
+      - item.notify.topic is defined
+      - item.notify.topic | length > 0
+    fail_msg: >-
+      Repository '{{ item.name }}' declares `notify` but no `topic`.
+      A notification channel needs at least a topic to send to.
+    quiet: true
+  loop: "{{ backup_repositories | selectattr('notify', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"

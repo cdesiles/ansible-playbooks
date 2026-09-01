@@ -1,0 +1,51 @@
+---
+# Retention keys accepted in a repository's `retention` mapping. Each maps to
+# the restic `forget` flag of the same name with dashes.
+backup_retention_keys:
+  - keep_last
+  - keep_hourly
+  - keep_daily
+  - keep_weekly
+  - keep_monthly
+  - keep_yearly
+
+# Environment variables a repository's `env` mapping is allowed to set, and
+# which the generated env file clears between repositories. These are the
+# credential/connection variables restic and its backends read; anything a
+# previously-processed repository exported must not leak into the next one.
+backup_env_keys:
+  - RESTIC_REPOSITORY
+  - RESTIC_PASSWORD
+  - RESTIC_PASSWORD_FILE
+  - RESTIC_PASSWORD_COMMAND
+  - RESTIC_CACHE_DIR
+  - RESTIC_REST_USERNAME
+  - RESTIC_REST_PASSWORD
+  - AWS_ACCESS_KEY_ID
+  - AWS_SECRET_ACCESS_KEY
+  - AWS_SESSION_TOKEN
+  - AWS_DEFAULT_REGION
+  - AWS_PROFILE
+  - B2_ACCOUNT_ID
+  - B2_ACCOUNT_KEY
+
+# Derived values. Lazily evaluated and only valid inside a loop that defines
+# `repo`, i.e. tasks/repository.yml.
+
+# RESTIC_REPOSITORY is written verbatim; the environment for the deploy-time
+# init tasks is the same `env` mapping the backup script will use, so the two
+# can never drift apart.
+backup_repo_environment: >-
+  {{
+    {
+      'RESTIC_REPOSITORY': repo.repository,
+      'RESTIC_PASSWORD': repo.password,
+      'RESTIC_CACHE_DIR': backup_cache_dir,
+    }
+    | combine(repo.env | default({}))
+  }}
+
+# A device repository is recognised by the presence of a mountpoint, not a
+# `type` field. A path-style repository without one is a plain local directory.
+backup_repo_is_device: "{{ repo.mountpoint is defined }}"
+backup_repo_is_local: "{{ repo.mountpoint is not defined and repo.repository is match('^/') }}"

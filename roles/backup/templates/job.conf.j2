@@ -1,0 +1,45 @@
+# Managed by Ansible (roles/backup). Do not edit on the host.
+# Job definition sourced by {{ backup_script_path }}.
+
+JOB_REPOSITORIES=(
+{% for name in job.repositories %}
+    {{ name | quote }}
+{% endfor %}
+)
+
+JOB_PATHS=(
+{% for path in job.paths | default([]) %}
+    {{ path | quote }}
+{% endfor %}
+)
+
+JOB_EXCLUDES=(
+{% for pattern in job.exclude | default([]) %}
+    {{ pattern | quote }}
+{% endfor %}
+)
+
+JOB_SQLITE=(
+{% for path in job.sqlite | default([]) %}
+    {{ path | quote }}
+{% endfor %}
+)
+
+JOB_POSTGRES=(
+{% if job.postgres is defined %}
+{% if job.postgres is string %}
+    {{ job.postgres | quote }}
+{% else %}
+{% for database in job.postgres %}
+    {{ database | quote }}
+{% endfor %}
+{% endif %}
+{% endif %}
+)
+
+{% if job.command is defined and job.command | length > 0 %}
+# Runs after the declarative dumps, with $DUMPS pointing at the staging dir.
+JOB_COMMAND={{ job.command | trim | quote }}
+{% else %}
+JOB_COMMAND=""
+{% endif %}
