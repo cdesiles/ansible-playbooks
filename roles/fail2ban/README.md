@@ -10,7 +10,7 @@ Bans brute-force sources via UFW. Reads logs from the systemd journal (`backend 
 ## Notes
 
 - Logs to the journal (`logtarget = STDOUT` in `fail2ban.local`) — see `journalctl -u fail2ban`.
-- The systemd unit is hardened (`ProtectSystem=strict`); the drop-in lives at `/etc/systemd/system/fail2ban.service.d/override.conf` and is fully managed by the role.
+- The systemd unit is hardened (`ProtectSystem=full`); the drop-in lives at `/etc/systemd/system/fail2ban.service.d/override.conf` and is fully managed by the role.
 - Firewall/banaction is UFW on every host; jails ban via `ufw prepend reject`.
 
 ## Variables
