@@ -1,8 +1,7 @@
 [DEFAULT]
 bantime    = 1d
-banaction  = {{fail2ban_firewall}}
+banaction  = {{fail2ban_firewall}}[blocktype={{fail2ban_blocktype}}]
 allowipv6  = true
 ignoreip   = 127.0.0.1/8
 backend    = {{fail2ban_backend}}
-blocktype  = {{fail2ban_blocktype}}
 ignoreself = true
