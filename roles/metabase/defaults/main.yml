@@ -2,7 +2,9 @@
 metabase_version: latest
 metabase_image: metabase/metabase
 
-metabase_port: 3000
+# Host port (Metabase listens on 3000 inside the container; 3000 is reserved
+# for dev/testing on the host, following gitea 3100 / grafana 3200 / uptime-kuma 3300)
+metabase_port: 3400
 
 metabase_postgres_db_name: metabase
 metabase_postgres_user: metabase
