@@ -13,6 +13,13 @@
     mode: "0700"
     recurse: true
 
+- name: Deploy fail2ban main config override (log to journald)
+  ansible.builtin.template:
+    src: fail2ban.local.j2
+    dest: /etc/fail2ban/fail2ban.local
+    mode: "0600"
+  notify: Restart fail2ban
+
 - name: Install Fail2ban Config
   block:
     - name: General configuration
@@ -31,10 +38,6 @@
 
 - name: Service hardening (read-only root rights)
   block:
-    - name: Check if hardening configuration is already applied
-      ansible.builtin.stat:
-        path: /etc/systemd/system/fail2ban.service.d/override.conf
-      register: override_conf
     - name: Create configuration directory
       ansible.builtin.file:
         path: /etc/systemd/system/fail2ban.service.d
@@ -42,15 +45,15 @@
         owner: root
         group: root
         mode: "0700"
+
     - name: Apply hardening configuration
       ansible.builtin.template:
         src: hardened.fail2ban.conf.j2
         dest: /etc/systemd/system/fail2ban.service.d/override.conf
-      when: not override_conf.stat.exists
-    - name: Reload systemd
-      ansible.builtin.systemd:
-        daemon_reload: true
-      when: not override_conf.stat.exists
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart fail2ban
 
 - name: Enable UFW
   community.general.ufw:
