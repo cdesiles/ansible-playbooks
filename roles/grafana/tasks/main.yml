@@ -1,0 +1,242 @@
+---
+# Grafana installation and configuration
+
+- name: Validate required passwords are set
+  ansible.builtin.assert:
+    that:
+      - grafana_postgres_password is defined
+      - grafana_postgres_password | length >= 12
+      - grafana_admin_password is defined
+      - grafana_admin_password | length >= 12
+      - grafana_secret_key is defined
+      - grafana_secret_key | length >= 16
+    fail_msg: |
+      grafana_postgres_password, grafana_admin_password, and grafana_secret_key are required.
+      See roles/grafana/defaults/main.yml for configuration instructions.
+    success_msg: "Password validation passed"
+
+- name: Load OS-specific variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - "debian.yml"
+
+# Debian/Ubuntu installation
+- name: Ensure apt keyrings directory exists (Debian/Ubuntu)
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Install Grafana APT key (Debian/Ubuntu)
+  ansible.builtin.get_url:
+    url: "{{ grafana_apt_key_url }}"
+    dest: /etc/apt/keyrings/grafana.asc
+    mode: "0644"
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Add Grafana APT repository (Debian/Ubuntu)
+  ansible.builtin.deb822_repository:
+    name: grafana
+    types: [deb]
+    uris: "{{ grafana_apt_repo_uri }}"
+    suites: "{{ grafana_apt_repo_suite }}"
+    components: [main]
+    signed_by: /etc/apt/keyrings/grafana.asc
+    state: present
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Install Grafana package (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name: "{{ grafana_package }}={{ grafana_version }}"
+    state: present
+    update_cache: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+# Arch Linux installation
+- name: Install Grafana package (Arch Linux)
+  community.general.pacman:
+    name: "{{ grafana_package }}"
+    state: present
+  when: ansible_facts['os_family'] == 'Archlinux'
+
+# Database setup
+- name: Create PostgreSQL database
+  community.postgresql.postgresql_db:
+    name: "{{ grafana_postgres_db_name }}"
+    state: present
+  become: true
+  become_user: "{{ postgres_admin_user }}"
+
+- name: Create PostgreSQL user
+  community.postgresql.postgresql_user:
+    name: "{{ grafana_postgres_user }}"
+    password: "{{ grafana_postgres_password }}"
+    state: present
+  become: true
+  become_user: "{{ postgres_admin_user }}"
+
+- name: Grant database privileges
+  community.postgresql.postgresql_privs:
+    login_db: "{{ grafana_postgres_db_name }}"
+    roles: "{{ grafana_postgres_user }}"
+    type: database
+    privs: ALL
+    state: present
+  become: true
+  become_user: "{{ postgres_admin_user }}"
+
+- name: Grant schema privileges
+  community.postgresql.postgresql_privs:
+    login_db: "{{ grafana_postgres_db_name }}"
+    roles: "{{ grafana_postgres_user }}"
+    type: schema
+    objs: public
+    privs: CREATE,USAGE
+    state: present
+  become: true
+  become_user: "{{ postgres_admin_user }}"
+
+- name: Ensure minimal privileges
+  community.postgresql.postgresql_user:
+    name: "{{ grafana_postgres_user }}"
+    role_attr_flags: NOSUPERUSER,NOCREATEDB,NOCREATEROLE
+    state: present
+  become: true
+  become_user: "{{ postgres_admin_user }}"
+
+# Grafana configuration
+- name: Configure Grafana
+  community.general.ini_file:
+    path: "{{ grafana_config_path }}"
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0640"
+    owner: root
+    group: "{{ grafana_group }}"
+  loop:
+    - section: "server"
+      option: "http_port"
+      value: "{{ grafana_http_port }}"
+    - section: "server"
+      option: "domain"
+      value: "{{ grafana_domain }}"
+    - section: "server"
+      option: "root_url"
+      value: "{{ grafana_root_url }}"
+    - section: "database"
+      option: "type"
+      value: "{{ grafana_postgres_type }}"
+    - section: "database"
+      option: "host"
+      value: "{{ grafana_postgres_host }}:{{ grafana_postgres_port }}"
+    - section: "database"
+      option: "name"
+      value: "{{ grafana_postgres_db_name }}"
+    - section: "database"
+      option: "user"
+      value: "{{ grafana_postgres_user }}"
+    - section: "database"
+      option: "password"
+      value: "{{ grafana_postgres_password }}"
+    - section: "database"
+      option: "ssl_mode"
+      value: "{{ grafana_postgres_ssl_mode }}"
+    - section: "security"
+      option: "admin_user"
+      value: "{{ grafana_admin_user }}"
+    - section: "security"
+      option: "admin_password"
+      value: "{{ grafana_admin_password }}"
+    - section: "security"
+      option: "secret_key"
+      value: "{{ grafana_secret_key }}"
+    - section: "analytics"
+      option: "reporting_enabled"
+      value: "{{ grafana_reporting_enabled }}"
+    - section: "analytics"
+      option: "check_for_updates"
+      value: "{{ grafana_check_for_updates }}"
+  notify: Restart grafana
+
+# Provisioning (datasources + dashboards as code)
+- name: Ensure Grafana provisioning directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: "0755"
+  loop:
+    - "{{ grafana_provisioning_path }}/datasources"
+    - "{{ grafana_provisioning_path }}/dashboards"
+
+- name: Deploy Prometheus datasource provisioning
+  ansible.builtin.copy:
+    src: prometheus-datasource.yaml
+    dest: "{{ grafana_provisioning_path }}/datasources/prometheus.yaml"
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: "0644"
+  notify: Restart grafana
+
+- name: Deploy dashboard provider provisioning
+  ansible.builtin.template:
+    src: dashboards-provider.yaml.j2
+    dest: "{{ grafana_provisioning_path }}/dashboards/dashboards.yaml"
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: "0644"
+  notify: Restart grafana
+
+- name: Deploy node_exporter dashboard
+  ansible.builtin.copy:
+    src: node-exporter-dashboard.json
+    dest: "{{ grafana_provisioning_path }}/dashboards/node-exporter.json"
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: "0644"
+  notify: Restart grafana
+
+- name: Deploy NUT dashboard
+  ansible.builtin.copy:
+    src: nut-status-dashboard.json
+    dest: "{{ grafana_provisioning_path }}/dashboards/nut-status.json"
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: "0644"
+  notify: Restart grafana
+
+# Service management
+- name: Enable and start Grafana service
+  ansible.builtin.systemd:
+    name: "{{ grafana_service }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+
+# Nginx integration
+- name: Provision TLS certificate for Grafana
+  ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"
+  vars:
+    certbot_hostname: "{{ grafana_nginx_hostname }}"
+  when: grafana_nginx_enabled
+
+- name: Deploy nginx vhost
+  ansible.builtin.template:
+    src: nginx-vhost.conf.j2
+    dest: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/grafana.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  when: grafana_nginx_enabled
+  notify: Reload nginx
+
+- name: Remove nginx vhost when disabled
+  ansible.builtin.file:
+    path: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/grafana.conf"
+    state: absent
+  when: not grafana_nginx_enabled
+  notify: Reload nginx

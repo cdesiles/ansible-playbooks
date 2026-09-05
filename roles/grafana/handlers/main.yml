@@ -1,0 +1,12 @@
+---
+# Grafana handlers
+
+- name: Restart grafana
+  ansible.builtin.systemd:
+    name: "{{ grafana_service }}"
+    state: restarted
+
+- name: Reload nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: reloaded

@@ -1,0 +1,9 @@
+---
+prometheus_package: prometheus
+prometheus_user: prometheus
+prometheus_group: prometheus
+prometheus_service: prometheus
+prometheus_config_dir: /etc/prometheus
+prometheus_data_dir: /var/lib/prometheus
+prometheus_args_file: /etc/default/prometheus
+prometheus_args_var: ARGS

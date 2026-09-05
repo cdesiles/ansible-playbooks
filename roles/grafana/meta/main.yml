@@ -1,0 +1,5 @@
+---
+# No meta dependencies: shared services (postgres) are deployed once via
+# playbook role ordering (tagged 'infra'), not re-run on every deploy of
+# this role. See playbooks/*.yml.
+dependencies: []

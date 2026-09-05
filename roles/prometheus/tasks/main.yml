@@ -1,0 +1,78 @@
+---
+- name: Load OS-specific variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+      - "{{ ansible_facts['os_family'] }}.yml"
+      - "debian.yml"
+
+- name: Install Prometheus
+  ansible.builtin.package:
+      name: "{{ prometheus_package }}"
+      state: present
+
+- name: Create Prometheus configuration directory
+  ansible.builtin.file:
+      path: "{{ prometheus_config_dir }}"
+      state: directory
+      owner: "{{ prometheus_user }}"
+      group: "{{ prometheus_group }}"
+      mode: "0755"
+
+- name: Create Prometheus data directory
+  ansible.builtin.file:
+      path: "{{ prometheus_data_dir }}"
+      state: directory
+      owner: "{{ prometheus_user }}"
+      group: "{{ prometheus_group }}"
+      mode: "0750"
+
+- name: Create Prometheus rules directory
+  ansible.builtin.file:
+      path: "{{ prometheus_config_dir }}/rules"
+      state: directory
+      owner: "{{ prometheus_user }}"
+      group: "{{ prometheus_group }}"
+      mode: "0755"
+  when: prometheus_rule_files | length > 0
+
+- name: Deploy Prometheus configuration
+  ansible.builtin.template:
+      src: prometheus.yml.j2
+      dest: "{{ prometheus_config_dir }}/prometheus.yml"
+      owner: "{{ prometheus_user }}"
+      group: "{{ prometheus_group }}"
+      mode: "0644"
+      validate: "promtool check config %s"
+  notify: Restart Prometheus
+
+- name: Deploy Prometheus environment file
+  ansible.builtin.template:
+      src: prometheus-env.conf.j2
+      dest: "{{ prometheus_args_file }}"
+      owner: root
+      group: root
+      mode: "0644"
+  notify: Restart Prometheus
+
+- name: Enable and start Prometheus service
+  ansible.builtin.systemd:
+      name: "{{ prometheus_service }}"
+      enabled: true
+      state: started
+
+- name: Deploy Nginx vhost configuration
+  ansible.builtin.template:
+      src: nginx-vhost.conf.j2
+      dest: "{{ nginx_conf_dir }}/prometheus.conf"
+      owner: root
+      group: root
+      mode: "0644"
+  when: prometheus_nginx_enabled
+  notify: Reload Nginx
+
+- name: Remove Nginx vhost configuration
+  ansible.builtin.file:
+      path: "{{ nginx_conf_dir }}/prometheus.conf"
+      state: absent
+  when: not prometheus_nginx_enabled
+  notify: Reload Nginx

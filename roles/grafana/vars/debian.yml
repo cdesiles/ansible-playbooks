@@ -1,0 +1,13 @@
+---
+# Debian/Ubuntu specific variables for Grafana
+
+grafana_package: grafana
+grafana_service: grafana-server
+grafana_user: grafana
+grafana_group: grafana
+grafana_config_path: /etc/grafana/grafana.ini
+grafana_data_path: /var/lib/grafana
+grafana_provisioning_path: /etc/grafana/provisioning
+grafana_apt_key_url: https://apt.grafana.com/gpg.key
+grafana_apt_repo_uri: https://apt.grafana.com
+grafana_apt_repo_suite: stable

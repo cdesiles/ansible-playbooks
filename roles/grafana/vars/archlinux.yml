@@ -1,0 +1,10 @@
+---
+# Arch Linux specific variables for Grafana
+
+grafana_package: grafana
+grafana_service: grafana
+grafana_user: grafana
+grafana_group: grafana
+grafana_config_path: /etc/grafana.ini
+grafana_data_path: /var/lib/grafana
+grafana_provisioning_path: /var/lib/grafana/conf/provisioning

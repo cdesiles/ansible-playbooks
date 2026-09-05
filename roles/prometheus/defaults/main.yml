@@ -1,0 +1,49 @@
+---
+# Prometheus configuration
+# See: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+
+# Scrape interval
+prometheus_scrape_interval: 15s
+prometheus_evaluation_interval: 15s
+
+# Retention settings
+prometheus_retention_time: 15d
+prometheus_retention_size: 0
+
+# Web interface settings
+prometheus_web_listen_address: "127.0.0.1:9090"
+prometheus_web_external_url: ""
+
+# Storage settings (uses prometheus_data_dir from vars/)
+prometheus_storage_tsdb_path: "{{ prometheus_data_dir }}"
+
+# Scrape targets configuration
+# Example:
+# prometheus_scrape_configs:
+#   - job_name: 'prometheus'
+#     static_configs:
+#       - targets: ['localhost:9090']
+#   - job_name: 'node_exporter'
+#     static_configs:
+#       - targets: ['localhost:9100']
+prometheus_scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+# Alertmanager configuration (optional)
+# prometheus_alertmanager_configs:
+#   - static_configs:
+#       - targets: ['localhost:9093']
+prometheus_alertmanager_configs: []
+
+# Rule files (optional)
+# prometheus_rule_files:
+#   - '/etc/prometheus/rules/*.yml'
+prometheus_rule_files: []
+
+# Nginx reverse proxy (optional)
+prometheus_nginx_enabled: false
+prometheus_nginx_server_name: prometheus.example.com
+prometheus_nginx_ssl_certificate: /etc/letsencrypt/live/prometheus.example.com/fullchain.pem
+prometheus_nginx_ssl_certificate_key: /etc/letsencrypt/live/prometheus.example.com/privkey.pem

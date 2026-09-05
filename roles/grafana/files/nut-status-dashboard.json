@@ -1,0 +1,102 @@
+{
+  "title": "UPS - NUT Status",
+  "uid": "nut-status",
+  "tags": ["nut", "ups", "power"],
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-24h", "to": "now" },
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "label": "UPS",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": { "query": "label_values(network_ups_tools_device_info, instance)", "refId": "A" },
+        "refresh": 2,
+        "multi": false,
+        "includeAll": false,
+        "sort": 1,
+        "current": { "selected": false, "text": "", "value": "" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Battery Charge",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "orange", "value": 25 }, { "color": "green", "value": 50 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
+      "targets": [ { "refId": "A", "expr": "network_ups_tools_battery_charge{instance=\"$instance\"}" } ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "UPS Load",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 70 }, { "color": "red", "value": 85 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
+      "targets": [ { "refId": "A", "expr": "network_ups_tools_ups_load{instance=\"$instance\"}" } ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "On Battery",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "none", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }, "mappings": [ { "type": "value", "options": { "0": { "text": "No", "color": "green" }, "1": { "text": "YES", "color": "red" } } } ] }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
+      "targets": [ { "refId": "A", "expr": "network_ups_tools_ups_status{instance=\"$instance\", flag=\"OB\"}" } ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Low Battery",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "none", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }, "mappings": [ { "type": "value", "options": { "0": { "text": "No", "color": "green" }, "1": { "text": "YES", "color": "red" } } } ] }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
+      "targets": [ { "refId": "A", "expr": "network_ups_tools_ups_status{instance=\"$instance\", flag=\"LB\"}" } ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Battery Charge",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 20, "lineWidth": 1, "drawStyle": "line", "showPoints": "never" } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "network_ups_tools_battery_charge{instance=\"$instance\"}", "legendFormat": "charge" } ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "UPS Load",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 20, "lineWidth": 1, "drawStyle": "line", "showPoints": "never" } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "network_ups_tools_ups_load{instance=\"$instance\"}", "legendFormat": "load" } ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Status Flags",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "none", "min": 0, "max": 1, "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 0, "lineWidth": 1, "drawStyle": "line", "showPoints": "never", "staircase": true } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "network_ups_tools_ups_status{instance=\"$instance\", flag=\"OL\"}", "legendFormat": "On line" },
+        { "refId": "B", "expr": "network_ups_tools_ups_status{instance=\"$instance\", flag=\"OB\"}", "legendFormat": "On battery" },
+        { "refId": "C", "expr": "network_ups_tools_ups_status{instance=\"$instance\", flag=\"LB\"}", "legendFormat": "Low battery" },
+        { "refId": "D", "expr": "network_ups_tools_ups_status{instance=\"$instance\", flag=\"CHRG\"}", "legendFormat": "Charging" }
+      ]
+    }
+  ]
+}

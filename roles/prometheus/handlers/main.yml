@@ -1,0 +1,10 @@
+---
+- name: Restart Prometheus
+  ansible.builtin.systemd:
+      name: "{{ prometheus_service }}"
+      state: restarted
+
+- name: Reload Nginx
+  ansible.builtin.systemd:
+      name: nginx
+      state: reloaded

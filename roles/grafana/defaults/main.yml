@@ -1,0 +1,33 @@
+---
+# Grafana version
+grafana_version: "stable"
+
+# Network configuration
+grafana_http_port: 3200
+grafana_domain: grafana.nas.local
+grafana_root_url: "https://{{ grafana_domain }}"
+
+# PostgreSQL Database configuration
+# The user and database will be created by this role.
+# REQUIRED: The password must be set in your inventory (e.g., in inventory/host_vars/your_host.yml).
+grafana_postgres_type: postgres
+grafana_postgres_host: 127.0.0.1
+grafana_postgres_port: 5432
+grafana_postgres_db_name: grafana
+grafana_postgres_user: grafana
+# grafana_postgres_password: ""  # Intentionally undefined - role will fail if not set
+grafana_postgres_ssl_mode: "prefer" # 'disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full'
+
+# Security
+# REQUIRED: These values must be set in your inventory.
+grafana_admin_user: admin
+# grafana_admin_password: ""  # Intentionally undefined - role will fail if not set
+# grafana_secret_key: ""      # Intentionally undefined - role will fail if not set
+
+# Analytics
+grafana_reporting_enabled: false
+grafana_check_for_updates: false
+
+# Nginx reverse proxy
+grafana_nginx_enabled: true
+grafana_nginx_hostname: "{{ grafana_domain }}"

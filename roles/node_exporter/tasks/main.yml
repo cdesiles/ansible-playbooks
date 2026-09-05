@@ -1,0 +1,27 @@
+---
+- name: Load OS-specific variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - "debian.yml"
+
+- name: Install node_exporter
+  ansible.builtin.package:
+    name: "{{ node_exporter_package }}"
+    state: present
+
+- name: Deploy node_exporter configuration
+  ansible.builtin.template:
+    src: env.conf.j2
+    dest: "{{ node_exporter_args_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart node_exporter
+
+- name: Enable and start node_exporter
+  ansible.builtin.systemd:
+    name: "{{ node_exporter_service }}"
+    enabled: true
+    state: started
+    daemon_reload: true

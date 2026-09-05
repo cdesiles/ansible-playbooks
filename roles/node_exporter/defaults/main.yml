@@ -1,0 +1,6 @@
+---
+# Prometheus node_exporter configuration
+
+# Address the exporter listens on. Keep localhost-only — Prometheus scrapes it
+# locally on the same host; no need to expose on the network.
+node_exporter_listen_address: "127.0.0.1:9100"

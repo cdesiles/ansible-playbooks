@@ -1,0 +1,60 @@
+# Prometheus configuration file
+# Managed by Ansible - DO NOT EDIT MANUALLY
+
+global:
+  scrape_interval: {{ prometheus_scrape_interval }}
+  evaluation_interval: {{ prometheus_evaluation_interval }}
+{% if prometheus_web_external_url %}
+  external_labels:
+    monitor: '{{ prometheus_web_external_url }}'
+{% endif %}
+
+{% if prometheus_alertmanager_configs | length > 0 %}
+alerting:
+  alertmanagers:
+{% for alertmanager in prometheus_alertmanager_configs %}
+    - {{ alertmanager | to_nice_yaml(indent=2) | indent(6) }}
+{% endfor %}
+{% endif %}
+
+{% if prometheus_rule_files | length > 0 %}
+rule_files:
+{% for rule_file in prometheus_rule_files %}
+  - {{ rule_file }}
+{% endfor %}
+{% endif %}
+
+scrape_configs:
+{% for scrape_config in prometheus_scrape_configs %}
+  - job_name: '{{ scrape_config.job_name }}'
+{% if scrape_config.scrape_interval is defined %}
+    scrape_interval: {{ scrape_config.scrape_interval }}
+{% endif %}
+{% if scrape_config.scrape_timeout is defined %}
+    scrape_timeout: {{ scrape_config.scrape_timeout }}
+{% endif %}
+{% if scrape_config.metrics_path is defined %}
+    metrics_path: {{ scrape_config.metrics_path }}
+{% endif %}
+{% if scrape_config.static_configs is defined %}
+    static_configs:
+{% for static_config in scrape_config.static_configs %}
+      - targets:
+{% for target in static_config.targets %}
+          - {{ target }}
+{% endfor %}
+{% if static_config.labels is defined %}
+        labels:
+{% for label_key, label_value in static_config.labels.items() %}
+          {{ label_key }}: {{ label_value }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% if scrape_config.relabel_configs is defined %}
+    relabel_configs:
+{% for relabel_config in scrape_config.relabel_configs %}
+      - {{ relabel_config | to_nice_yaml(indent=2) | indent(8) }}
+{% endfor %}
+{% endif %}
+{% endfor %}
