@@ -5,7 +5,7 @@
 # UPS definition
 # --------------
 # Logical name of the UPS as referenced everywhere (ups.conf section, upsmon
-# MONITOR line, nut_exporter ?ups= query parameter).
+# MONITOR line, exporter ?ups= query parameter).
 nut_ups_name: eaton
 
 # Human-readable description (shown in upsc output).
@@ -33,7 +33,7 @@ nut_ups_maxretry: 3
 nut_upsd_listen:
   - { addr: "127.0.0.1", port: 3493 }
 
-# Local monitor user used by upsmon and nut_exporter. Password must be set.
+# Local monitor user used by upsmon and the Prometheus exporter. Password must be set.
 nut_monitor_user: monitor
 # nut_monitor_password: ""  # Intentionally undefined - role will fail if not set
 
@@ -66,3 +66,10 @@ nut_notify_script_path: /usr/local/bin/ups-notify
 # ONLINE notification can report total outage duration. Lives under /run so it
 # is cleared on reboot (stale outage state is meaningless after a reboot).
 nut_outage_state_file: /run/ups-notify-outage
+
+# Prometheus exporter (optional)
+# ------------------------------
+nut_prometheus_exporter_enabled: false
+nut_prometheus_exporter_listen_address: "127.0.0.1:9199"
+nut_prometheus_exporter_nut_server: "127.0.0.1:3493"
+nut_prometheus_exporter_nut_user: "{{ nut_monitor_user }}"

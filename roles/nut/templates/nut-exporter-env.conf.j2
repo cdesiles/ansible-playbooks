@@ -1,0 +1,5 @@
+# Managed by Ansible - DO NOT EDIT MANUALLY
+# EnvironmentFile for prometheus-nut-exporter (read by the systemd unit via
+# $NUT_EXPORTER_ARGS). The password has no flag, so it is passed as an env var.
+NUT_EXPORTER_ARGS="--web.listen-address={{ nut_prometheus_exporter_listen_address }} --nut.server={{ nut_prometheus_exporter_nut_server.split(':')[0] }} --nut.serverport={{ nut_prometheus_exporter_nut_server.split(':')[1] }} --nut.username={{ nut_prometheus_exporter_nut_user }}"
+NUT_EXPORTER_PASSWORD="{{ nut_monitor_password }}"

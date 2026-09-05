@@ -82,7 +82,28 @@ journalctl -u nut-monitor -u nut-server -u 'nut-driver@*' -f
 - udev rules shipped by the `nut` package grant USB device access to the `nut`
   group only.
 
-## Companion role
+## Prometheus exporter
 
-See [`nut_exporter`](../nut_exporter/README.md) to expose Prometheus metrics
-based on the same upsd instance.
+Optionally exposes UPS metrics for Prometheus via `prometheus-nut-exporter`
+(AUR, Arch-only). Enable it:
+
+```yaml
+nut_prometheus_exporter_enabled: true
+```
+
+The exporter reuses `nut_monitor_password`, binds to
+`{{ nut_prometheus_exporter_listen_address }}` (default `127.0.0.1:9199`) and
+serves UPS metrics on `/ups_metrics`. Pair it with a Prometheus scrape job:
+
+```yaml
+prometheus_scrape_configs:
+  - job_name: 'nut'
+    metrics_path: /ups_metrics
+    static_configs:
+      - targets: ['127.0.0.1:9199']
+```
+
+```bash
+systemctl status prometheus-nut-exporter
+curl -s 'http://127.0.0.1:9199/ups_metrics' | head
+```

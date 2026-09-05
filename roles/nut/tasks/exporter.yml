@@ -1,0 +1,32 @@
+---
+# Prometheus NUT exporter (optional, gated by nut_prometheus_exporter_enabled).
+# Installs prometheus-nut-exporter (AUR) and points it at the local upsd via
+# the unit's EnvironmentFile (/etc/conf.d/prometheus-nut-exporter).
+
+- name: Install prometheus-nut-exporter (AUR via paru)
+  ansible.builtin.command: "paru -S --noconfirm --needed {{ nut_prometheus_exporter_package }}"
+  register: _nut_prometheus_exporter_install
+  changed_when: "'there is nothing to do' not in _nut_prometheus_exporter_install.stdout | lower"
+  when: ansible_facts['os_family'] == 'Archlinux'
+
+- name: Remove legacy exporter systemd override
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ nut_prometheus_exporter_service }}.service.d"
+    state: absent
+  notify: Reload systemd
+
+- name: Deploy exporter environment file
+  ansible.builtin.template:
+    src: nut-exporter-env.conf.j2
+    dest: "{{ nut_prometheus_exporter_env_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart NUT exporter
+
+- name: Enable and start exporter
+  ansible.builtin.systemd:
+    name: "{{ nut_prometheus_exporter_service }}"
+    enabled: true
+    state: started
+    daemon_reload: true

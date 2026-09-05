@@ -13,3 +13,12 @@
   ansible.builtin.systemd:
     name: nut-monitor.service
     state: restarted
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart NUT exporter
+  ansible.builtin.systemd:
+    name: "{{ nut_prometheus_exporter_service }}"
+    state: restarted

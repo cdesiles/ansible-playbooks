@@ -7,3 +7,8 @@ nut_services:
   - nut-driver-enumerator.service
   - nut-server.service
   - nut-monitor.service
+
+# Prometheus exporter (AUR)
+nut_prometheus_exporter_package: prometheus-nut-exporter
+nut_prometheus_exporter_service: prometheus-nut-exporter
+nut_prometheus_exporter_env_file: /etc/conf.d/prometheus-nut-exporter
