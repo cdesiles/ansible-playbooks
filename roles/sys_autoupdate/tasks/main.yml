@@ -19,6 +19,26 @@
     name: "{{ sys_autoupdate_packages }}"
     state: present
 
+- name: Reconcile apt package holds (Debian/Ubuntu)
+  when: ansible_facts['os_family'] == 'Debian'
+  block:
+    - name: Get currently held apt packages
+      ansible.builtin.command: apt-mark showhold
+      register: sys_autoupdate_current_holds
+      changed_when: false
+
+    - name: Hold packages listed in sys_autoupdate_ignore_packages
+      ansible.builtin.dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      loop: "{{ sys_autoupdate_ignore_packages }}"
+      when: item not in sys_autoupdate_current_holds.stdout_lines
+
+  # NOTE: holds set manually (outside this role) or in previous runs are not
+  # automatically released when removed from sys_autoupdate_ignore_packages.
+  # This is intentional: avoids accidentally unholding operator-pinned packages.
+  # To release a hold, run: sudo apt-mark unhold <package>
+
 - name: Deploy autoupdate script
   ansible.builtin.template:
     src: sys-autoupdate.sh.j2

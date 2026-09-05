@@ -13,6 +13,7 @@ PODMAN_PROJECTS_DIR="{{ sys_autoupdate_podman_projects_dir }}"
 PODMAN_USER="{{ ansible_user }}"
 PODMAN_PRUNE_UNTIL="{{ sys_autoupdate_podman_prune_until }}"
 
+HOSTNAME="{{ ansible_facts['hostname'] }}"
 DISTRO_NAME="{{ sys_autoupdate_distro_name }}"
 OS_KEY="{{ sys_autoupdate_os_key }}"
 ALLOW_DOWNGRADE="{{ sys_autoupdate_allow_downgrade | lower }}"
@@ -20,6 +21,8 @@ HAS_NEWS_CHECK="{{ sys_autoupdate_has_news_check | lower }}"
 CHECK_NEWS="{{ sys_autoupdate_check_news | lower }}"
 NEWS_HOURS="{{ sys_autoupdate_news_hours }}"
 NEWS_URL="{{ sys_autoupdate_news_url }}"
+IGNORE_PACKAGES="{{ sys_autoupdate_ignore_packages | join(',') }}"
+REBOOT_NOTIFY_WEEKDAY="{{ sys_autoupdate_reboot_notify_weekday }}"
 
 {% raw %}
 log() {
@@ -53,10 +56,20 @@ check_pending_updates() {
         archlinux)
             # checkupdates (pacman-contrib) exits 2 when no updates are pending;
             # swallow non-zero so set -e doesn't abort the script.
-            checkupdates 2>/dev/null || true
+            # Honor ignored packages by filtering them out of the pending list.
+            local raw
+            raw=$(checkupdates 2>/dev/null || true)
+            if [[ -n "$IGNORE_PACKAGES" && -n "$raw" ]]; then
+                local ignore_regex
+                ignore_regex="^($(echo "$IGNORE_PACKAGES" | tr ',' '|')) "
+                echo "$raw" | grep -Ev "$ignore_regex" || true
+            else
+                echo "$raw"
+            fi
             ;;
         debian)
             apt-get update -qq >/dev/null 2>&1
+            # Held packages are automatically excluded from dist-upgrade simulation.
             apt-get -s dist-upgrade 2>/dev/null | grep '^Inst ' || true
             ;;
         *)
@@ -69,13 +82,18 @@ check_pending_updates() {
 apply_upgrade() {
     case "$OS_KEY" in
         archlinux)
+            local -a pacman_args=(-Syu --noconfirm)
             if [[ "$ALLOW_DOWNGRADE" == "true" ]]; then
-                pacman -Syu --noconfirm --allow-downgrade
-            else
-                pacman -Syu --noconfirm
+                pacman_args+=(--allow-downgrade)
             fi
+            if [[ -n "$IGNORE_PACKAGES" ]]; then
+                pacman_args+=(--ignore="$IGNORE_PACKAGES")
+            fi
+            pacman "${pacman_args[@]}"
             ;;
         debian)
+            # Holds are reconciled by Ansible (apt-mark hold/unhold) before each
+            # run. dist-upgrade automatically skips held packages.
             local -a apt_args=(dist-upgrade -y)
             if [[ "$ALLOW_DOWNGRADE" == "true" ]]; then
                 apt_args+=(--allow-downgrades)
@@ -137,7 +155,7 @@ check_distro_news() {
         log "Recent $DISTRO_NAME news detected (${#recent_titles[@]} items within ${hours}h):"
         log "$news_list"
         send_notification \
-            "$(hostname): Manual Intervention Required" \
+            "$HOSTNAME: Manual Intervention Required" \
             "Recent $DISTRO_NAME news (last ${hours}h). Review before updating.\n\n${news_list}\n\n$NEWS_URL" \
             "warning" \
             "high"
@@ -165,18 +183,57 @@ update_system() {
     if apply_upgrade 2>&1; then
         log "System updates completed successfully ($update_count packages)"
         send_notification \
-            "$(hostname): System Update Success" \
+            "$HOSTNAME: System Update Success" \
             "$update_count packages updated" \
             "white_check_mark" \
             "default"
     else
         log "ERROR: System update failed"
         send_notification \
-            "$(hostname): System Update FAILED" \
+            "$HOSTNAME: System Update FAILED" \
             "Update failed. Check: journalctl -u sys-autoupdate.service" \
             "x" \
             "urgent"
         return 1
+    fi
+}
+
+# Detect drift between the running kernel and the newest installed one.
+# Fires a notification when a reboot is pending, so a long-lived host isn't
+# silently left on a stale kernel.
+check_kernel_reboot() {
+    # Only notify once a week (1=Mon .. 7=Sun) to avoid daily nagging.
+    if [[ "$(date +%u)" != "$REBOOT_NOTIFY_WEEKDAY" ]]; then
+        return 0
+    fi
+
+    local detail=""
+
+    case "$OS_KEY" in
+        archlinux)
+            local running latest
+            running=$(uname -r)
+            latest=$(ls /usr/lib/modules/ 2>/dev/null | sort -V | tail -1 || echo "")
+            if [[ -n "$latest" && "$running" != "$latest" ]]; then
+                detail="Running kernel $running is older than installed $latest."
+            fi
+            ;;
+        debian)
+            if [[ -f /var/run/reboot-required ]]; then
+                detail=$(cat /var/run/reboot-required)
+            fi
+            ;;
+    esac
+
+    if [[ -n "$detail" ]]; then
+        log "Kernel drift detected: $detail"
+        send_notification \
+            "$HOSTNAME: Reboot Required" \
+            "${detail}\n\nA reboot is needed to load the new kernel." \
+            "arrows_counterclockwise" \
+            "high"
+    else
+        log "Running kernel is up to date (no reboot pending)"
     fi
 }
 
@@ -223,7 +280,7 @@ update_podman_images() {
             local pull_tail
             pull_tail=$(echo "$pull_output" | tail -n 5)
             send_notification \
-                "$(hostname): Podman Pull Failed ($project_name)" \
+                "$HOSTNAME: Podman Pull Failed ($project_name)" \
                 "Failed to pull images.\n\nLast output:\n$pull_tail\n\nFull log: journalctl -u sys-autoupdate.service" \
                 "x" \
                 "high"
@@ -260,7 +317,7 @@ update_podman_images() {
             up_tail=$(echo "$up_output" | tail -n 5)
 
             send_notification \
-                "$(hostname): Podman Restart FAILED ($project_name)" \
+                "$HOSTNAME: Podman Restart FAILED ($project_name)" \
                 "up -d exit=$up_status, $running_count container(s) running.\n\nLast output:\n$up_tail\n\nFull log: journalctl -u sys-autoupdate.service" \
                 "x" \
                 "urgent"
@@ -283,7 +340,7 @@ update_podman_images() {
         service_list=$(printf '%s, ' "${updated_services[@]}")
         service_list="${service_list%, }"
         send_notification \
-            "$(hostname): Podman Images Updated" \
+            "$HOSTNAME: Podman Images Updated" \
             "${#updated_services[@]} project(s) updated: $service_list" \
             "whale" \
             "default"
@@ -308,6 +365,8 @@ main() {
     if [[ "$PODMAN_ENABLED" == "true" ]]; then
         update_podman_images
     fi
+
+    check_kernel_reboot
 
     log "=== Auto-update run complete ==="
 }

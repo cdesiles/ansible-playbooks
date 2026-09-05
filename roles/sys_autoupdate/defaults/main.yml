@@ -17,7 +17,33 @@ sys_autoupdate_randomized_delay: 60m
 sys_autoupdate_check_news: true
 sys_autoupdate_news_hours: 24
 
+# Kernel reboot check cadence: notify drift (running vs installed kernel) only
+# on this day of the week (1=Monday .. 7=Sunday) to avoid daily nagging.
+sys_autoupdate_reboot_notify_weekday: 1
+
 sys_autoupdate_allow_downgrade: false
+
+# Packages excluded from auto-update.
+# Arch: passed as `pacman --ignore=pkg1,pkg2`
+# Debian/Ubuntu: reconciled via `apt-mark hold` / `apt-mark unhold` on each run
+#
+# Common use case: hold kernel back when running out-of-tree modules (ZFS DKMS,
+# Nvidia, VirtualBox, etc.). When holding the kernel, also hold matching headers
+# and any DKMS modules to keep them in lockstep.
+#
+# Example (Arch with ZFS DKMS):
+# sys_autoupdate_ignore_packages:
+#   - linux
+#   - linux-headers
+#   - zfs-dkms
+#   - zfs-utils
+#
+# Example (Debian/Ubuntu with ZFS DKMS):
+# sys_autoupdate_ignore_packages:
+#   - linux-image-generic
+#   - linux-headers-generic
+#   - zfs-dkms
+sys_autoupdate_ignore_packages: []
 
 # Podman image auto-update (rootless, runs as ansible_user)
 # Pulls latest images via podman-compose and recreates containers if changed
