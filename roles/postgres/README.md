@@ -92,7 +92,7 @@ via `postgres_exporter`. Enable it:
 
 ```yaml
 postgres_exporter_enabled: true
-postgres_exporter_password: "<min 12 chars>"  # keep URL-safe
+postgres_exporter_password: "<min 12 chars>"  # avoid spaces/single quotes
 ```
 
 The role creates a `postgres_exporter` monitoring role with the built-in

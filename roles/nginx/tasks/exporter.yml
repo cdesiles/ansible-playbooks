@@ -17,6 +17,9 @@
     mode: "0644"
   notify: Reload nginx
 
+- name: Flush handlers to reload nginx with stub_status
+  ansible.builtin.meta: flush_handlers
+
 - name: Deploy exporter environment file
   ansible.builtin.template:
     src: exporter-env.conf.j2

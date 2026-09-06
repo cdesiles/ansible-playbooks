@@ -42,12 +42,9 @@ valkey_exporter_listen_address: "127.0.0.1:9121"
 valkey_exporter_redis_addr: "redis://127.0.0.1:6379"
 valkey_exporter_user: valkey_exporter
 # valkey_exporter_password: ""  # Intentionally undefined - required when enabled
-# Read-only command set recommended by redis_exporter for monitoring.
-valkey_exporter_commands: >-
-  -@all +@connection +memory -readonly +strlen +config|get +xinfo +pfcount
-  -quit +zcard +type +xlen -readwrite -command +client -wait +scard +llen
-  +hlen +arcount +get +eval +slowlog +cluster|info +cluster|slots +cluster|nodes
-  -hello -echo +info +latency +scan -reset -auth -asking
+# Read-only command set for monitoring: connection (auth/ping/client) + the
+# metrics the exporter scrapes (INFO, CONFIG GET maxmemory).
+valkey_exporter_commands: "-@all +@connection +info +config|get"
 
 # Valkey log level (debug, verbose, notice, warning)
 valkey_loglevel: notice
