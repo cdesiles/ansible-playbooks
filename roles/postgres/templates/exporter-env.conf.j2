@@ -1,0 +1,3 @@
+# Managed by Ansible - DO NOT EDIT MANUALLY
+{{ postgres_exporter_args_var }}="--web.listen-address={{ postgres_exporter_listen_address }}"
+DATA_SOURCE_NAME="postgresql://{{ postgres_exporter_user }}:{{ postgres_exporter_password }}@{{ postgres_exporter_pg_host }}:{{ postgres_exporter_pg_port }}/{{ postgres_exporter_pg_dbname }}?sslmode=disable"

@@ -99,3 +99,7 @@
     state: present
   become: false
   become_user: "{{ postgres_admin_user }}"
+
+- name: Deploy Prometheus postgres exporter
+  ansible.builtin.include_tasks: exporter.yml
+  when: postgres_exporter_enabled | bool

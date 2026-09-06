@@ -1,0 +1,34 @@
+---
+# Prometheus nginx exporter (optional, gated by nginx_exporter_enabled).
+# Installs nginx-prometheus-exporter and exposes a loopback-only stub_status
+# endpoint that the exporter scrapes.
+
+- name: Install nginx-prometheus-exporter
+  ansible.builtin.package:
+    name: "{{ nginx_exporter_package }}"
+    state: present
+
+- name: Deploy nginx stub_status endpoint
+  ansible.builtin.template:
+    src: stub-status.conf.j2
+    dest: "{{ nginx_conf_dir }}/99-stub-status.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+
+- name: Deploy exporter environment file
+  ansible.builtin.template:
+    src: exporter-env.conf.j2
+    dest: "{{ nginx_exporter_args_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart nginx exporter
+
+- name: Enable and start nginx exporter
+  ansible.builtin.systemd:
+    name: "{{ nginx_exporter_service }}"
+    enabled: true
+    state: started
+    daemon_reload: true

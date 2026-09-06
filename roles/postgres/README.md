@@ -85,6 +85,27 @@ sudo -u postgres psql -c "SHOW shared_buffers;"
 sudo -u postgres psql -c "SHOW effective_cache_size;"
 ```
 
+## Prometheus exporter
+
+Optionally exposes PostgreSQL metrics (connections, cache hit ratio, deadlocks)
+via `postgres_exporter`. Enable it:
+
+```yaml
+postgres_exporter_enabled: true
+postgres_exporter_password: "<min 12 chars>"  # keep URL-safe
+```
+
+The role creates a `postgres_exporter` monitoring role with the built-in
+`pg_monitor` role (no superuser). The exporter binds to `127.0.0.1:9187`;
+pair it with a scrape job:
+
+```yaml
+prometheus_scrape_configs:
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['127.0.0.1:9187']
+```
+
 ## References
 
 - [PostgreSQL Documentation](https://www.postgresql.org/docs/current/)

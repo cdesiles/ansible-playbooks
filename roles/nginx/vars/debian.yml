@@ -1,3 +1,9 @@
 ---
 nginx_user: www-data
 certbot_timer: certbot.timer
+
+# Prometheus exporter
+nginx_exporter_package: prometheus-nginx-exporter
+nginx_exporter_service: prometheus-nginx-exporter
+nginx_exporter_args_file: /etc/default/prometheus-nginx-exporter
+nginx_exporter_args_var: ARGS

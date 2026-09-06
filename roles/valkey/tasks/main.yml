@@ -60,3 +60,7 @@
   delay: 2
   register: ufw_result
   until: ufw_result is succeeded
+
+- name: Deploy Prometheus valkey exporter
+  ansible.builtin.include_tasks: exporter.yml
+  when: valkey_exporter_enabled | bool

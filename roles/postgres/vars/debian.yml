@@ -8,3 +8,9 @@ postgres_service_name: postgresql
 postgres_config_path: /etc/postgresql/current/main/postgresql.conf
 postgres_config_dir: /etc/postgresql/current/main/conf.d
 postgres_hba_path: /etc/postgresql/current/main/pg_hba.conf
+
+# Prometheus exporter
+postgres_exporter_package: prometheus-postgres-exporter
+postgres_exporter_service: prometheus-postgres-exporter
+postgres_exporter_args_file: /etc/default/prometheus-postgres-exporter
+postgres_exporter_args_var: ARGS

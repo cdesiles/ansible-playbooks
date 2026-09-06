@@ -6,3 +6,9 @@ valkey_config_file: /etc/valkey/valkey.conf
 valkey_user: valkey
 valkey_group: valkey
 valkey_dir: /var/lib/valkey
+
+# Prometheus exporter
+valkey_exporter_package: prometheus-redis-exporter
+valkey_exporter_service: prometheus-redis-exporter
+valkey_exporter_args_file: /etc/default/prometheus-redis-exporter
+valkey_exporter_args_var: ARGS

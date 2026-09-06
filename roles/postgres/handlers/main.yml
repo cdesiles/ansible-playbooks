@@ -8,3 +8,8 @@
   ansible.builtin.systemd:
     name: "{{ postgres_service_name }}"
     state: reloaded
+
+- name: Restart postgres exporter
+  ansible.builtin.systemd:
+    name: "{{ postgres_exporter_service }}"
+    state: restarted

@@ -8,3 +8,8 @@
   ansible.builtin.systemd:
     name: nginx
     state: restarted
+
+- name: Restart nginx exporter
+  ansible.builtin.systemd:
+    name: "{{ nginx_exporter_service }}"
+    state: restarted

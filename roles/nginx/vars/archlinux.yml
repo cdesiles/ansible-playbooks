@@ -1,3 +1,9 @@
 ---
 nginx_user: http
 certbot_timer: certbot-renew.timer
+
+# Prometheus exporter
+nginx_exporter_package: nginx-prometheus-exporter
+nginx_exporter_service: nginx-prometheus-exporter
+nginx_exporter_args_file: /etc/conf.d/nginx-prometheus-exporter
+nginx_exporter_args_var: NGINX_EXPORTER_ARGS

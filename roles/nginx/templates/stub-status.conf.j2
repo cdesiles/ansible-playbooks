@@ -1,0 +1,12 @@
+# Managed by Ansible - DO NOT EDIT MANUALLY
+# stub_status endpoint for nginx-prometheus-exporter (loopback only)
+server {
+    listen {{ nginx_exporter_stub_status_listen }};
+    server_name localhost;
+
+    location /stub_status {
+        stub_status;
+        allow 127.0.0.1;
+        deny all;
+    }
+}

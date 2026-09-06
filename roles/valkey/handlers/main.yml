@@ -13,6 +13,11 @@
     name: "{{ valkey_service_name }}"
     state: reloaded
 
+- name: Restart valkey exporter
+  ansible.builtin.systemd:
+    name: "{{ valkey_exporter_service }}"
+    state: restarted
+
 - name: Update GRUB
   ansible.builtin.shell: |
     if command -v update-grub &> /dev/null; then

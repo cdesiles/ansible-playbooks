@@ -44,3 +44,10 @@ nginx_forwarder: {}
 # Let's Encrypt / Certbot configuration
 # acme_email: ""  # Required for Let's Encrypt - intentionally undefined
 # Set this variable to enable Certbot installation and certificate management
+
+# Prometheus exporter (optional, via nginx-prometheus-exporter)
+# Scrapes a loopback-only stub_status endpoint this role deploys.
+nginx_exporter_enabled: false
+nginx_exporter_listen_address: "127.0.0.1:9113"
+nginx_exporter_stub_status_listen: "127.0.0.1:8090"
+nginx_exporter_scrape_uri: "http://127.0.0.1:8090/stub_status"

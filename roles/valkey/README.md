@@ -326,6 +326,26 @@ INFO memory
 INFO stats
 ```
 
+### Prometheus exporter
+
+Enable the exporter and set a password to create a dedicated read-only
+`valkey_exporter` ACL user:
+
+```yaml
+valkey_exporter_enabled: true
+valkey_exporter_password: "<min 12 chars>"
+```
+
+The role appends the user to `users.acl` and runs `redis_exporter` on
+`127.0.0.1:9121`. Pair it with a scrape job:
+
+```yaml
+prometheus_scrape_configs:
+  - job_name: 'valkey'
+    static_configs:
+      - targets: ['127.0.0.1:9121']
+```
+
 Check connected clients:
 
 ```bash

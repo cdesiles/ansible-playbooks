@@ -28,6 +28,26 @@ hostname and breaking TLS verification on other vhosts.
 
 Disable with `nginx_default_server_enabled: false`.
 
+## Prometheus exporter
+
+Optionally exposes nginx metrics (active connections, requests/sec) for
+Prometheus via `nginx-prometheus-exporter`, which scrapes a loopback-only
+`stub_status` endpoint this role deploys. Enable it:
+
+```yaml
+nginx_exporter_enabled: true
+```
+
+The exporter binds to `127.0.0.1:9113`; the `stub_status` block listens on
+`127.0.0.1:8090` and denies non-localhost clients. Pair it with a scrape job:
+
+```yaml
+prometheus_scrape_configs:
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['127.0.0.1:9113']
+```
+
 ## Service Integration Pattern
 
 Each service role should deploy its own vhost config:

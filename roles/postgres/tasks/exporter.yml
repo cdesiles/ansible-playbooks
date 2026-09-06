@@ -1,0 +1,54 @@
+---
+# Prometheus postgres exporter (optional, gated by postgres_exporter_enabled).
+# Creates a minimal monitoring role (pg_monitor) and runs postgres_exporter
+# against the local instance.
+
+- name: Validate exporter password is set
+  ansible.builtin.assert:
+    that:
+      - postgres_exporter_password is defined
+      - postgres_exporter_password | length >= 12
+    fail_msg: |
+      postgres_exporter_password is required (min 12 chars) when
+      postgres_exporter_enabled is true.
+      See roles/postgres/defaults/main.yml for configuration instructions.
+    success_msg: "Exporter password validation passed"
+
+- name: Install postgres_exporter
+  ansible.builtin.package:
+    name: "{{ postgres_exporter_package }}"
+    state: present
+
+- name: Create postgres_exporter monitoring role
+  community.postgresql.postgresql_user:
+    name: "{{ postgres_exporter_user }}"
+    password: "{{ postgres_exporter_password }}"
+    role_attr_flags: NOSUPERUSER,NOCREATEDB,NOCREATEROLE
+    state: present
+  become: false
+  become_user: "{{ postgres_admin_user }}"
+
+- name: Grant pg_monitor to postgres_exporter
+  community.postgresql.postgresql_membership:
+    group: pg_monitor
+    target_roles:
+      - "{{ postgres_exporter_user }}"
+    state: present
+  become: false
+  become_user: "{{ postgres_admin_user }}"
+
+- name: Deploy exporter environment file
+  ansible.builtin.template:
+    src: exporter-env.conf.j2
+    dest: "{{ postgres_exporter_args_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart postgres exporter
+
+- name: Enable and start postgres exporter
+  ansible.builtin.systemd:
+    name: "{{ postgres_exporter_service }}"
+    enabled: true
+    state: started
+    daemon_reload: true
