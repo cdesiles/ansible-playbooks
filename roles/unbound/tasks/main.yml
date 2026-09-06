@@ -137,13 +137,20 @@
     group: root
     mode: "0644"
 
+# Match so-rcvbuf/so-sndbuf (4m) in unbound.conf. rmem_max was 1 MiB and
+# wmem_max was left at its ~208 KiB default, silently capping unbound's
+# requested 4 MiB buffers (the kernel halves SO_RCVBUF/SO_SNDBUF requests
+# against these sysctls before doubling them).
 - name: Configure sysctl for unbound socket buffers
   ansible.posix.sysctl:
-    name: net.core.rmem_max
-    value: "1048576"
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
     state: present
     sysctl_set: true
     reload: true
+  loop:
+    - { name: net.core.rmem_max, value: "4194304" }
+    - { name: net.core.wmem_max, value: "4194304" }
 
 - name: Install unbound config
   ansible.builtin.template:
@@ -184,3 +191,7 @@
   delay: 2
   register: ufw_result
   until: ufw_result is succeeded
+
+- name: Deploy Prometheus unbound exporter
+  ansible.builtin.include_tasks: exporter.yml
+  when: unbound_exporter_enabled | bool

@@ -1,0 +1,4 @@
+# Managed by Ansible - DO NOT EDIT MANUALLY
+# Empty cert flags (-unbound.ca= etc.) make the exporter speak plain-text to
+# unbound's control interface (control-use-cert: no).
+{{ unbound_exporter_args_var }}="-web.listen-address={{ unbound_exporter_listen_address }} -unbound.ca= -unbound.cert= -unbound.key= -unbound.host tcp://127.0.0.1:8953"

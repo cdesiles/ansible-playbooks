@@ -1,3 +1,28 @@
+# Metrics (Prometheus)
+
+Set `unbound_exporter_enabled: true` in inventory/host_vars. This enables
+`remote-control` (no TLS, loopback only) and deploys `prometheus-unbound-exporter`
+(Arch Linux only), which scrapes `unbound-control stats_noreset` on
+`127.0.0.1:9167`.
+
+Verify:
+
+```sh
+curl -s 127.0.0.1:9167/metrics | grep '^unbound_up'
+```
+
+Add a scrape job in `prometheus_scrape_configs`:
+
+```yaml
+- job_name: 'unbound'
+  static_configs:
+    - targets: ['localhost:9167']
+```
+
+Key QoS metrics: cache hit ratio (`unbound_cache_hit_rate` or
+`num.cachehits`/`num.cachemiss`), recursion latency (`num.query.time.avg/median`),
+requestlist backlog, and `num.answer.rcode.SERVFAIL` failure rate.
+
 # Testing
 
 ## DNS leaks

@@ -14,3 +14,8 @@
 - name: Reload AppArmor profile
   ansible.builtin.command: apparmor_parser -r {{ unbound_apparmor_profile_path }}
   when: ansible_facts.apparmor.status == "enabled"
+
+- name: Restart unbound exporter
+  ansible.builtin.systemd:
+    name: "{{ unbound_exporter_service }}"
+    state: restarted

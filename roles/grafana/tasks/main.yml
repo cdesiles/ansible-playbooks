@@ -215,7 +215,7 @@
     state: absent
   notify: Restart grafana
 
-- name: Deploy services dashboards (nginx, postgres, valkey)
+- name: Deploy services dashboards (nginx, postgres, valkey, unbound)
   ansible.builtin.copy:
     src: "{{ item }}"
     dest: "{{ grafana_provisioning_path }}/dashboards/{{ item }}"
@@ -226,6 +226,7 @@
     - nginx-dashboard.json
     - postgres-dashboard.json
     - valkey-dashboard.json
+    - unbound-dashboard.json
   notify: Restart grafana
 
 # Service management

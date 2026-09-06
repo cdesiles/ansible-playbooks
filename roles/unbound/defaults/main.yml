@@ -25,3 +25,9 @@ unbound_firewall_allowed_sources:
 unbound_custom_lan_records:
   "example.lan":
     v4: 192.168.1.2
+
+# Prometheus exporter (optional, via prometheus-unbound-exporter).
+# Scrapes unbound-control stats_noreset over the local control interface.
+# Arch Linux only — the exporter is not packaged in Debian/Ubuntu.
+unbound_exporter_enabled: false
+unbound_exporter_listen_address: "127.0.0.1:9167"

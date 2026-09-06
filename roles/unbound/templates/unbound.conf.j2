@@ -130,5 +130,18 @@ server:
     # Enable DNSSEC
     auto-trust-anchor-file: "{{ unbound_anchor_root_key }}"
 
+    # Statistics for monitoring (unbound-control stats / prometheus exporter)
+    statistics-interval: 0
+    statistics-cumulative: yes
+    extended-statistics: yes
+
+# Remote control for unbound-control and the prometheus exporter.
+# control-use-cert: no — unbound only accepts plain control connections from
+# loopback in this mode, so no TLS certs need to be generated.
+remote-control:
+    control-enable: yes
+    control-interface: 127.0.0.1
+    control-use-cert: no
+
 include: "{{ unbound_custom_lan_config_path }}"
 include: "{{ unbound_custom_vpn_config_path }}"

@@ -1,0 +1,6 @@
+---
+# Prometheus exporter
+unbound_exporter_package: prometheus-unbound-exporter
+unbound_exporter_service: prometheus-unbound-exporter
+unbound_exporter_args_file: /etc/conf.d/prometheus-unbound-exporter
+unbound_exporter_args_var: UNBOUND_EXPORTER_ARGS
