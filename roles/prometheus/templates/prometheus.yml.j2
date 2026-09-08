@@ -36,6 +36,18 @@ scrape_configs:
 {% if scrape_config.metrics_path is defined %}
     metrics_path: {{ scrape_config.metrics_path }}
 {% endif %}
+{% if scrape_config.honor_labels is defined %}
+    honor_labels: {{ scrape_config.honor_labels | bool | lower }}
+{% endif %}
+{% if scrape_config.params is defined %}
+    params:
+{% for param_key, param_values in scrape_config.params.items() %}
+      {{ param_key }}:
+{% for param_value in param_values %}
+        - {{ param_value }}
+{% endfor %}
+{% endfor %}
+{% endif %}
 {% if scrape_config.static_configs is defined %}
     static_configs:
 {% for static_config in scrape_config.static_configs %}

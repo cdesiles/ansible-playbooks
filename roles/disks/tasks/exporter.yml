@@ -1,0 +1,86 @@
+---
+# Prometheus S.M.A.R.T. exporter (optional, gated by smartctl_exporter_enabled).
+# Downloads the checksum-verified prometheus-community/smartctl_exporter static
+# binary and runs it as a hardened root systemd service (required to read raw
+# S.M.A.R.T. attributes from block devices via smartctl).
+
+- name: Install smartmontools
+  ansible.builtin.package:
+    name: smartmontools
+    state: present
+
+- name: Map CPU architecture to release asset
+  ansible.builtin.set_fact:
+    smartctl_exporter_arch: >-
+      {{ {
+           'x86_64': 'amd64',
+           'aarch64': 'arm64',
+           'armv7l': 'armv7',
+           'armv6l': 'armv6',
+           'i386': '386',
+           'i686': '386'
+         }[ansible_architecture] }}
+
+- name: Set release filenames
+  ansible.builtin.set_fact:
+    smartctl_exporter_archive: "smartctl_exporter-{{ smartctl_exporter_version }}.linux-{{ smartctl_exporter_arch }}.tar.gz"
+    smartctl_exporter_extracted: "smartctl_exporter-{{ smartctl_exporter_version }}.linux-{{ smartctl_exporter_arch }}"
+    smartctl_exporter_release_base: "https://github.com/prometheus-community/smartctl_exporter/releases/download/v{{ smartctl_exporter_version }}"
+
+- name: Download smartctl_exporter release
+  ansible.builtin.get_url:
+    url: "{{ smartctl_exporter_release_base }}/{{ smartctl_exporter_archive }}"
+    dest: "/tmp/{{ smartctl_exporter_archive }}"
+    mode: "0644"
+
+- name: Download release checksums
+  ansible.builtin.get_url:
+    url: "{{ smartctl_exporter_release_base }}/sha256sums.txt"
+    dest: /tmp/smartctl_exporter_sha256sums.txt
+    mode: "0644"
+
+- name: Verify release archive checksum
+  ansible.builtin.command: "sha256sum -c --ignore-missing smartctl_exporter_sha256sums.txt"
+  args:
+    chdir: /tmp
+  changed_when: false
+
+- name: Extract smartctl_exporter release
+  ansible.builtin.unarchive:
+    src: "/tmp/{{ smartctl_exporter_archive }}"
+    dest: /tmp
+    remote_src: true
+
+- name: Install smartctl_exporter binary
+  ansible.builtin.copy:
+    src: "/tmp/{{ smartctl_exporter_extracted }}/smartctl_exporter"
+    dest: "{{ smartctl_exporter_binary_dir }}/smartctl_exporter"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Clean up temporary files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/tmp/{{ smartctl_exporter_archive }}"
+    - "/tmp/{{ smartctl_exporter_extracted }}"
+    - /tmp/smartctl_exporter_sha256sums.txt
+
+- name: Deploy smartctl_exporter systemd unit
+  ansible.builtin.template:
+    src: smartctl_exporter.service.j2
+    dest: /etc/systemd/system/smartctl_exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart smartctl exporter
+
+- name: Enable and start smartctl_exporter
+  ansible.builtin.systemd:
+    name: smartctl_exporter
+    enabled: true
+    state: started
+    daemon_reload: true

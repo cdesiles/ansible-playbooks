@@ -209,6 +209,24 @@
     mode: "0644"
   notify: Restart grafana
 
+- name: Deploy S.M.A.R.T. dashboard
+  ansible.builtin.copy:
+    src: smartctl-dashboard.json
+    dest: "{{ grafana_provisioning_path }}/dashboards/smartctl.json"
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: "0644"
+  notify: Restart grafana
+
+- name: Deploy fail2ban dashboard
+  ansible.builtin.copy:
+    src: fail2ban-dashboard.json
+    dest: "{{ grafana_provisioning_path }}/dashboards/fail2ban.json"
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: "0644"
+  notify: Restart grafana
+
 - name: Remove legacy combined services dashboard
   ansible.builtin.file:
     path: "{{ grafana_provisioning_path }}/dashboards/services.json"
@@ -227,6 +245,7 @@
     - postgres-dashboard.json
     - valkey-dashboard.json
     - unbound-dashboard.json
+    - wireguard-dashboard.json
   notify: Restart grafana
 
 # Service management

@@ -1,0 +1,6 @@
+---
+# Prometheus exporter
+wireguard_exporter_package: prometheus-wireguard-exporter
+wireguard_exporter_service: prometheus-wireguard-exporter
+wireguard_exporter_args_file: /etc/conf.d/prometheus-wireguard-exporter
+wireguard_exporter_args_var: WIREGUARD_EXPORTER_ARGS

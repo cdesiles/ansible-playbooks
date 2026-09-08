@@ -1,0 +1,16 @@
+[Unit]
+Description=Fail2Ban Prometheus Exporter
+After=network.target fail2ban.service
+
+[Service]
+ExecStart={{ fail2ban_exporter_binary_dir }}/fail2ban_exporter --collector.f2b.socket={{ fail2ban_exporter_socket }} --web.listen-address={{ fail2ban_exporter_listen_address }}
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=yes
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

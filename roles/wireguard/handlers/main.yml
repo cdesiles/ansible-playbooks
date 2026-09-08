@@ -10,8 +10,13 @@
 - name: Reload wireguard tunnel
   ansible.builtin.shell: |
     set -o pipefail
-    wg-quick strip "{{ item.interface }}" | wg syncconf "{{ item.interface }}"
+    wg syncconf "{{ item.interface }}" <(wg-quick strip "{{ item.interface }}")
   args:
     executable: /bin/bash
   loop: "{{ wireguard_tunnels }}"
   changed_when: true
+
+- name: Restart wireguard exporter
+  ansible.builtin.systemd:
+    name: "{{ wireguard_exporter_service }}"
+    state: restarted

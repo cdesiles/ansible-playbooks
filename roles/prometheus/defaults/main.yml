@@ -12,7 +12,13 @@ prometheus_retention_size: 0
 
 # Web interface settings
 prometheus_web_listen_address: "127.0.0.1:9090"
+prometheus_port: 9090
 prometheus_web_external_url: ""
+
+# UFW sources allowed to reach the web UI/federation endpoint. Empty means
+# localhost-only; set on VPN-server hosts so a remote Prometheus can federate
+# over the tunnel.
+prometheus_firewall_allowed_sources: []
 
 # Storage settings (uses prometheus_data_dir from vars/)
 prometheus_storage_tsdb_path: "{{ prometheus_data_dir }}"

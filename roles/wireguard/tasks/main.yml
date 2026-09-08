@@ -14,10 +14,20 @@
     name: "{{ wireguard_package_name }}"
     state: present
 
+- name: Install nftables (Arch server_mode PostUp dependency)
+  ansible.builtin.package:
+    name: nftables
+    state: present
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - wireguard_tunnels | selectattr('server_mode', 'defined') | selectattr('server_mode', 'equalto', true) | list | length > 0
+
 # Use systemd-resolved for DNS management (modern approach on all distributions)
-# Install systemd-resolvconf to provide resolvconf compatibility wrapper
-# "systemd-resolved" is prefered over "openresolv"
-- name: Install systemd-resolvconf (Debian only, built into systemd on Arch)
+# wg-quick calls `resolvconf` (not resolvectl) to apply DNS, so the
+# systemd-resolvconf compat wrapper must be installed wherever wg-quick is
+# used to push DNS to the local host. On Arch, tunnels that need this should
+# set `dns:` and install openresolv/systemd-resolvconf explicitly.
+- name: Install systemd-resolvconf (provides resolvconf wrapper for wg-quick)
   ansible.builtin.package:
     name: systemd-resolvconf
     state: present
@@ -42,3 +52,7 @@
   loop: "{{ wireguard_tunnels }}"
   loop_control:
     loop_var: _tunnel
+
+- name: Deploy Prometheus wireguard exporter
+  ansible.builtin.include_tasks: exporter.yml
+  when: wireguard_exporter_enabled | bool

@@ -1,2 +1,10 @@
 ---
 ssd_trim_periodicity: monthly
+
+# Prometheus S.M.A.R.T. exporter (optional, gated by smartctl_exporter_enabled).
+smartctl_exporter_enabled: false
+smartctl_exporter_version: "0.14.0"
+smartctl_exporter_listen_address: "127.0.0.1:9633"
+smartctl_exporter_binary_dir: "/usr/local/bin"
+smartctl_exporter_smartctl_path: "/usr/sbin/smartctl"
+smartctl_exporter_interval: "1h"

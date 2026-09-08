@@ -1,0 +1,40 @@
+---
+# Prometheus WireGuard exporter (optional, gated by wireguard_exporter_enabled).
+# Runs `wg show all dump` and exposes per-peer byte counters and last-handshake
+# timestamps. Arch Linux only: prometheus-wireguard-exporter is packaged in
+# [extra]; there is no Debian/Ubuntu package.
+
+- name: Assert exporter is supported on this OS
+  ansible.builtin.assert:
+    that: ansible_facts['os_family'] == 'Archlinux'
+    fail_msg: |
+      wireguard_exporter is Arch Linux only (prometheus-wireguard-exporter is
+      not packaged for Debian/Ubuntu). Set wireguard_exporter_enabled: false.
+    success_msg: "Exporter OS support validated"
+
+- name: Load OS-specific exporter variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - "archlinux.yml"
+
+- name: Install wireguard exporter
+  ansible.builtin.package:
+    name: "{{ wireguard_exporter_package }}"
+    state: present
+
+- name: Deploy exporter environment file
+  ansible.builtin.template:
+    src: exporter-env.conf.j2
+    dest: "{{ wireguard_exporter_args_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart wireguard exporter
+
+- name: Enable and start wireguard exporter
+  ansible.builtin.systemd:
+    name: "{{ wireguard_exporter_service }}"
+    enabled: true
+    state: started
+    daemon_reload: true

@@ -17,6 +17,19 @@ Bans brute-force sources via UFW. Reads logs from the systemd journal (`backend 
 
 See [defaults/main.yml](defaults/main.yml).
 
+## Prometheus exporter
+
+Optionally exposes fail2ban metrics (`f2b_*`) for Prometheus via
+[hectorjsmith/fail2ban-prometheus-exporter](https://gitlab.com/hectorjsmith/fail2ban-prometheus-exporter).
+
+```yaml
+fail2ban_exporter_enabled: true
+```
+
+Downloads the checksum-verified static binary to `/usr/local/bin` and runs it
+as a hardened root systemd service (required to read the root-owned socket) on
+`{{ fail2ban_exporter_listen_address }}` (default `127.0.0.1:9191`).
+
 ## Verify
 
 ```bash

@@ -1,0 +1,83 @@
+---
+# Prometheus fail2ban exporter (optional, gated by fail2ban_exporter_enabled).
+# Downloads the checksum-verified hectorjsmith/fail2ban-prometheus-exporter
+# static binary and runs it as a hardened root systemd service (required to
+# read the root-owned fail2ban socket).
+
+- name: Map CPU architecture to release asset
+  ansible.builtin.set_fact:
+    fail2ban_exporter_arch: >-
+      {{ {
+           'x86_64': 'amd64',
+           'aarch64': 'arm64',
+           'armv7l': 'armv7',
+           'armv6l': 'armv6',
+           'i386': '386',
+           'i686': '386'
+         }[ansible_architecture] }}
+
+- name: Set release filenames
+  ansible.builtin.set_fact:
+    fail2ban_exporter_archive: "fail2ban_exporter_{{ fail2ban_exporter_version }}_linux_{{ fail2ban_exporter_arch }}.tar.gz"
+    fail2ban_exporter_checksums: "fail2ban_exporter_{{ fail2ban_exporter_version }}_checksums.txt"
+    fail2ban_exporter_release_base: "https://gitlab.com/hectorjsmith/fail2ban-prometheus-exporter/-/releases/v{{ fail2ban_exporter_version }}/downloads"
+
+- name: Download fail2ban_exporter release
+  ansible.builtin.get_url:
+    url: "{{ fail2ban_exporter_release_base }}/{{ fail2ban_exporter_archive }}"
+    dest: "/tmp/{{ fail2ban_exporter_archive }}"
+    mode: "0644"
+
+- name: Download release checksums
+  ansible.builtin.get_url:
+    url: "{{ fail2ban_exporter_release_base }}/{{ fail2ban_exporter_checksums }}"
+    dest: "/tmp/{{ fail2ban_exporter_checksums }}"
+    mode: "0644"
+
+- name: Verify release archive checksum
+  ansible.builtin.command: "sha256sum -c --ignore-missing {{ fail2ban_exporter_checksums }}"
+  args:
+    chdir: /tmp
+  changed_when: false
+
+- name: Extract fail2ban_exporter binary
+  ansible.builtin.unarchive:
+    src: "/tmp/{{ fail2ban_exporter_archive }}"
+    dest: /tmp
+    remote_src: true
+    extra_opts:
+      - fail2ban_exporter
+
+- name: Install fail2ban_exporter binary
+  ansible.builtin.copy:
+    src: /tmp/fail2ban_exporter
+    dest: "{{ fail2ban_exporter_binary_dir }}/fail2ban_exporter"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Clean up temporary files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/tmp/{{ fail2ban_exporter_archive }}"
+    - "/tmp/{{ fail2ban_exporter_checksums }}"
+    - /tmp/fail2ban_exporter
+
+- name: Deploy fail2ban_exporter systemd unit
+  ansible.builtin.template:
+    src: fail2ban_exporter.service.j2
+    dest: /etc/systemd/system/fail2ban_exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart fail2ban_exporter
+
+- name: Enable and start fail2ban_exporter
+  ansible.builtin.systemd:
+    name: fail2ban_exporter
+    enabled: true
+    state: started
+    daemon_reload: true

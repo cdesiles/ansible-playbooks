@@ -1,0 +1,100 @@
+{
+  "title": "WireGuard",
+  "uid": "wireguard-overview",
+  "tags": ["wireguard", "vpn", "networking"],
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-6h", "to": "now" },
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "label": "Host",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": { "query": "label_values(up{job=\"wireguard\"}, instance)", "refId": "A" },
+        "refresh": 2,
+        "multi": false,
+        "includeAll": false,
+        "sort": 1,
+        "current": { "selected": false, "text": "", "value": "" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Up",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "none", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }, "mappings": [ { "type": "value", "options": { "0": { "text": "Down", "color": "red" }, "1": { "text": "Up", "color": "green" } } } ] }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
+      "targets": [ { "refId": "A", "expr": "up{job=\"wireguard\", instance=\"$instance\"}" } ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Connected Peers (3m)",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "blue", "value": null } ] }, "mappings": [] }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
+      "targets": [ { "refId": "A", "expr": "count(wireguard_latest_handshake_seconds{job=\"wireguard\", instance=\"$instance\"} > (time() - 180))" } ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Total Peers",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "blue", "value": null } ] }, "mappings": [] }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
+      "targets": [ { "refId": "A", "expr": "count(wireguard_latest_handshake_seconds{job=\"wireguard\", instance=\"$instance\"})" } ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Interfaces",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "blue", "value": null } ] }, "mappings": [] }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
+      "targets": [ { "refId": "A", "expr": "count(count by (interface) (wireguard_latest_handshake_seconds{job=\"wireguard\", instance=\"$instance\"}))" } ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Throughput",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "Bps", "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 20, "lineWidth": 1, "drawStyle": "line", "showPoints": "never" } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum by (instance) (rate(wireguard_received_bytes_total{job=\"wireguard\", instance=\"$instance\"}[$__rate_interval]))", "legendFormat": "received ({{instance}})" },
+        { "refId": "B", "expr": "sum by (instance) (rate(wireguard_sent_bytes_total{job=\"wireguard\", instance=\"$instance\"}[$__rate_interval]))", "legendFormat": "sent ({{instance}})" }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Received per peer",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "Bps", "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 20, "lineWidth": 1, "drawStyle": "line", "showPoints": "never" } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "rate(wireguard_received_bytes_total{job=\"wireguard\", instance=\"$instance\"}[$__rate_interval])", "legendFormat": "{{allowed_ips}} ({{interface}})" } ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Sent per peer",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "Bps", "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 20, "lineWidth": 1, "drawStyle": "line", "showPoints": "never" } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "rate(wireguard_sent_bytes_total{job=\"wireguard\", instance=\"$instance\"}[$__rate_interval])", "legendFormat": "{{allowed_ips}} ({{interface}})" } ]
+    }
+  ]
+}

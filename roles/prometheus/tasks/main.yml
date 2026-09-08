@@ -60,6 +60,21 @@
       enabled: true
       state: started
 
+- name: Setup firewall rules for Prometheus
+  community.general.ufw:
+      rule: allow
+      src: "{{ item }}"
+      port: "{{ prometheus_port }}"
+      proto: tcp
+      direction: in
+      comment: "Prometheus"
+  loop: "{{ prometheus_firewall_allowed_sources }}"
+  retries: 5
+  delay: 2
+  register: ufw_result
+  until: ufw_result is succeeded
+  when: prometheus_firewall_allowed_sources | length > 0
+
 - name: Deploy Nginx vhost configuration
   ansible.builtin.template:
       src: nginx-vhost.conf.j2

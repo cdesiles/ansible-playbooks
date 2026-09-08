@@ -19,3 +19,12 @@ wireguard_tunnels: []
 # OS-dependent package name
 wireguard_package_name: >-
   {{ (ansible_facts['os_family'] == 'Archlinux') | ternary('wireguard-tools', 'wireguard') }}
+
+# Prometheus exporter (optional, gated by wireguard_exporter_enabled).
+# Exposes `wg show all dump` as Prometheus metrics (bytes per peer, last
+# handshake). Arch Linux only: prometheus-wireguard-exporter is packaged in
+# [extra]; no Debian/Ubuntu equivalent exists. Bind stays loopback-only:
+# the host's local Prometheus scrapes it and is federated by the central one.
+wireguard_exporter_enabled: false
+wireguard_exporter_listen_address: "127.0.0.1"
+wireguard_exporter_port: 9586

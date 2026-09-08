@@ -70,3 +70,7 @@
     name: fail2ban
     state: started
     enabled: true
+
+- name: Deploy Prometheus fail2ban exporter
+  ansible.builtin.include_tasks: exporter.yml
+  when: fail2ban_exporter_enabled | bool

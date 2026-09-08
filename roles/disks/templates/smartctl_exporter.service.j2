@@ -1,0 +1,17 @@
+[Unit]
+Description=Smartctl Prometheus Exporter
+After=network.target
+
+[Service]
+# Runs as root with its capabilities intact: smartctl needs raw device ioctls
+# (SG_IO / CAP_SYS_RAWIO) to read S.M.A.R.T. attributes.
+ExecStart={{ smartctl_exporter_binary_dir }}/smartctl_exporter --smartctl.path={{ smartctl_exporter_smartctl_path }} --smartctl.interval={{ smartctl_exporter_interval }} --web.listen-address={{ smartctl_exporter_listen_address }}
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target

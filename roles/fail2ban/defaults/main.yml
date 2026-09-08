@@ -2,3 +2,10 @@
 fail2ban_firewall: ufw
 fail2ban_backend: systemd
 fail2ban_blocktype: deny
+
+# Prometheus exporter (optional, gated by fail2ban_exporter_enabled).
+fail2ban_exporter_enabled: false
+fail2ban_exporter_version: "0.10.3"
+fail2ban_exporter_listen_address: "127.0.0.1:9191"
+fail2ban_exporter_socket: "/var/run/fail2ban/fail2ban.sock"
+fail2ban_exporter_binary_dir: "/usr/local/bin"
