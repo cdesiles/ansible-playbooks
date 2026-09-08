@@ -11,6 +11,9 @@
       - vim
       - nano
       - unzip
+      - smartmontools
+      - ncdu
+      - nmap
       - "{{ tooling_dig_package }}"
       - "{{ tooling_netcat_package }}"
     state: present
