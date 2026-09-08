@@ -96,9 +96,12 @@ server:
 
     # Perform prefetching of close to expired message cache entries
     # This only applies to domains that have been frequently queried
-    # NOTE: Disabled because prefetch doesn't work with subnet module (views)
     # see: https://unbound.docs.nlnetlabs.nl/en/latest/manpages/unbound.conf.html#unbound-conf-prefetch
-    prefetch: no
+    prefetch: yes
+    prefetch-key: yes
+
+    # RFC 8482: answer ANY queries with an empty response instead of recursing
+    deny-any: yes
 
     # Threads and cache slabs optimized for 4-core CPU
     num-threads: 4
