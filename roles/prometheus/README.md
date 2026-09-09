@@ -49,6 +49,21 @@ prometheus_nginx_ssl_certificate: /path/to/cert.pem
 prometheus_nginx_ssl_certificate_key: /path/to/key.pem
 ```
 
+## Alert Rules
+
+The role deploys two rule files into `/etc/prometheus/rules/` (loaded via the
+`prometheus_rule_files` glob):
+
+- `backup-alerts.yml` — `BackupStale` (no successful backup in 14 days) and
+  `BackupTimerSilent` (a `backup@*.timer` that stopped firing). Metrics come
+  from the backup role via node_exporter's textfile collector.
+- `systemd-alerts.yml` — `SystemdUnitFailed`, fired when any unit is in the
+  failed state.
+
+There is no Alertmanager in this setup: rules evaluate into the `ALERTS`
+series (visible in Grafana) but do not page. Push notifications are handled
+per-service via ntfy (see each role's own notify config).
+
 ## Usage
 
 ```yaml

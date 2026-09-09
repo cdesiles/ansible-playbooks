@@ -370,6 +370,62 @@ run_repository() {
 }
 
 # ---------------------------------------------------------------------------
+# Metrics
+# ---------------------------------------------------------------------------
+
+# Escape a value for use as a Prometheus label value.
+escape_label() {
+    local v="$1"
+    v="${v//\\/\\\\}"
+    v="${v//\"/\\\"}"
+    printf '%s' "$v"
+}
+
+# Write the job's result as Prometheus textfile metrics, consumed by
+# node_exporter's textfile collector. Only emitted when that directory exists
+# (i.e. when the node_exporter role is deployed on this host).
+#
+# One file per job, written atomically (tmp + mv) so the collector never reads
+# a half-written file. The `backup_job` label is used rather than `job` to
+# avoid colliding with Prometheus's own scrape-job label.
+emit_metrics() {
+    local metrics_dir="{{ backup_metrics_dir }}"
+    [[ -d "$metrics_dir" ]] || return 0
+
+    local now_ts
+    now_ts="$(date +%s)"
+
+    local job_label repo_label
+    job_label="$(escape_label "$JOB")"
+
+    local out="$metrics_dir/backup-$JOB.prom"
+    local tmp="$out.tmp"
+
+    {
+        echo "# HELP backup_last_success_timestamp_seconds Unix timestamp of the last successful backup to this repository."
+        echo "# TYPE backup_last_success_timestamp_seconds gauge"
+        echo "# HELP backup_last_run_timestamp_seconds Unix timestamp of the last run against this repository, by result."
+        echo "# TYPE backup_last_run_timestamp_seconds gauge"
+
+        local repo
+        for repo in ${succeeded[@]+"${succeeded[@]}"}; do
+            repo_label="$(escape_label "$repo")"
+            echo "backup_last_success_timestamp_seconds{backup_job=\"$job_label\",repo=\"$repo_label\"} $now_ts"
+            echo "backup_last_run_timestamp_seconds{backup_job=\"$job_label\",repo=\"$repo_label\",result=\"success\"} $now_ts"
+        done
+        for repo in ${failed[@]+"${failed[@]}"}; do
+            repo_label="$(escape_label "$repo")"
+            echo "backup_last_run_timestamp_seconds{backup_job=\"$job_label\",repo=\"$repo_label\",result=\"fail\"} $now_ts"
+        done
+        for repo in ${skipped[@]+"${skipped[@]}"}; do
+            repo_label="$(escape_label "$repo")"
+            echo "backup_last_run_timestamp_seconds{backup_job=\"$job_label\",repo=\"$repo_label\",result=\"skip\"} $now_ts"
+        done
+    } > "$tmp"
+    mv "$tmp" "$out"
+}
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -437,6 +493,8 @@ main() {
     summary+=$'\n'"failed: ${failed[*]:-none}"
     log "=== Backup job '$JOB' complete ==="
     log "$summary"
+
+    emit_metrics
 
     # Notifications are per-repository above; the exit code still tells systemd
     # whether any destination failed.

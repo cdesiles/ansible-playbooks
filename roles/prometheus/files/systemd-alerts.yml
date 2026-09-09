@@ -1,0 +1,17 @@
+# Systemd state alerts. Managed by Ansible (roles/prometheus).
+#
+# node_exporter's systemd collector exposes node_systemd_unit_state. A unit in
+# the failed state is exactly the kind of thing that needs paging at 03:00.
+groups:
+  - name: systemd
+    rules:
+      - alert: SystemdUnitFailed
+        expr: node_systemd_unit_state{state="failed"} == 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "systemd unit {{ $labels.name }} is in failed state ({{ $labels.instance }})"
+          description: >-
+            Unit {{ $labels.name }} (type {{ $labels.type }}) has been failed
+            for more than 5 minutes on {{ $labels.instance }}.

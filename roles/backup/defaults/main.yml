@@ -13,6 +13,13 @@ backup_dumps_dir: /var/lib/backup/dumps
 # be excluded from snapshots rather than silently backing itself up.
 backup_cache_dir: /var/cache/restic
 
+# Directory node_exporter's textfile collector reads `*.prom` files from. The
+# backup script drops one file per job here on every run, so Prometheus can
+# track last-success timestamps and alert when backups go silent. Must match
+# node_exporter_textfile_dir in roles/node_exporter/defaults/main.yml. Metrics
+# are only written when the directory exists (i.e. node_exporter is deployed).
+backup_metrics_dir: /var/lib/node_exporter/textfile_collector
+
 # ---------------------------------------------------------------------------
 # Schedule (systemd OnCalendar syntax) - per-job `schedule` overrides this
 # ---------------------------------------------------------------------------

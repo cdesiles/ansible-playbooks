@@ -258,6 +258,24 @@ Every snapshot is a logically complete view; "incremental" describes only how it
 
 The role always excludes restic's own cache, and the staging directories of *other* jobs — otherwise a job backing up `/var` would sweep up both.
 
+### Monitoring
+
+After each run the script writes Prometheus metrics into node_exporter's
+textfile directory (`backup_metrics_dir`), re-exposed by the exporter:
+
+```
+backup_last_success_timestamp_seconds{backup_job="ntfy", repo="next_s3"}
+backup_last_run_timestamp_seconds{backup_job="ntfy", repo="next_s3", result="success|fail|skip"}
+```
+
+This is what turns "silence" into a signal: ntfy alerts on failures, but a
+timer that stopped firing (or a job that's been failing for a week) looks the
+same as success unless you track `backup_last_success_timestamp_seconds`. The
+Grafana "Backups - Restic" dashboard and the `BackupStale` /
+`BackupTimerSilent` Prometheus rules (deployed by the prometheus role) consume
+these. Metrics are written only when `backup_metrics_dir` exists, i.e. when
+node_exporter is deployed on the host.
+
 ### Failure notification
 
 Each repository can carry a `notify` channel: `{ topic, server, token, notify_success }`. A repository with `notify.topic` alerts on that destination's own result — an offsite failure is `urgent`, a missing USB disk is a low-priority `warning`, and a destination without `notify` is silent. Success alerts are opt-in per channel (`notify_success`), off by default because routine chatter trains you to ignore the failure alerts.
@@ -270,4 +288,3 @@ Every configured channel gets a test notification during the play. ntfy runs wit
 
 - **No automated restore test.** An untested backup is a hypothesis. Restore one by hand, on a schedule.
 - **No append-only protection.** The host holds credentials that can delete its own snapshots, so an attacker with root can destroy the backups too. Mitigate with object versioning or an object-lock policy on the bucket, which is outside this role.
-- **No metrics.** Failures are visible through `systemctl --failed`, the journal, and ntfy.

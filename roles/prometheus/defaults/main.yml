@@ -43,10 +43,11 @@ prometheus_scrape_configs:
 #       - targets: ['localhost:9093']
 prometheus_alertmanager_configs: []
 
-# Rule files (optional)
-# prometheus_rule_files:
-#   - '/etc/prometheus/rules/*.yml'
-prometheus_rule_files: []
+# Rule files (optional). The rules directory is always created; drop .yml rule
+# files into /etc/prometheus/rules/ and they are picked up by this glob. The
+# role deploys backup-alerts.yml and systemd-alerts.yml there by default.
+prometheus_rule_files:
+  - '/etc/prometheus/rules/*.yml'
 
 # Nginx reverse proxy (optional)
 prometheus_nginx_enabled: false

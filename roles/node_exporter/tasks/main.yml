@@ -10,6 +10,14 @@
     name: "{{ node_exporter_package }}"
     state: present
 
+- name: Create textfile collector directory
+  ansible.builtin.file:
+    path: "{{ node_exporter_textfile_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Deploy node_exporter configuration
   ansible.builtin.template:
     src: env.conf.j2

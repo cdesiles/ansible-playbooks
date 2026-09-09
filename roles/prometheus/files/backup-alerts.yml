@@ -1,0 +1,31 @@
+# Backup monitoring alerts. Managed by Ansible (roles/prometheus).
+#
+# Metrics are emitted by the backup role (roles/backup) into node_exporter's
+# textfile collector. The default backup schedule is weekly, so a successful
+# backup is expected at least once a week; alert only when nothing succeeded
+# for twice that. Tune the threshold if backup_schedule changes.
+groups:
+  - name: backup
+    rules:
+      - alert: BackupStale
+        expr: time() - backup_last_success_timestamp_seconds > 14 * 24 * 3600
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backup stale ({{ $labels.backup_job }} / {{ $labels.repo }})"
+          description: >-
+            Job '{{ $labels.backup_job }}' has not backed up repository
+            '{{ $labels.repo }}' successfully on {{ $labels.instance }} in over
+            14 days.
+
+      - alert: BackupTimerSilent
+        expr: time() - node_systemd_timer_last_trigger_seconds{name=~"backup@.*"} > 14 * 24 * 3600
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backup timer {{ $labels.name }} has not fired on {{ $labels.instance }}"
+          description: >-
+            Timer {{ $labels.name }} last triggered {{ $value | humanizeDuration }}
+            ago.

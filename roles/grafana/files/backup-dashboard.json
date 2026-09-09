@@ -1,0 +1,61 @@
+{
+  "title": "Backups - Restic",
+  "uid": "backup-restic",
+  "tags": ["backup", "restic"],
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-30d", "to": "now" },
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "label": "Host",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": { "query": "query_result(count by (instance) (backup_last_success_timestamp_seconds))", "refId": "A" },
+        "regex": "/.*instance=\"([^\"]+)\".*/",
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "sort": 1,
+        "current": { "selected": true, "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Last backup age",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "dtdhms", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 172800 }, { "color": "red", "value": 1209600 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
+      "targets": [ { "refId": "A", "expr": "time() - backup_last_success_timestamp_seconds{instance=~\"$instance\"}", "legendFormat": "{{backup_job}} / {{repo}}" } ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Failing backups (14d)",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
+      "targets": [ { "refId": "A", "expr": "count(backup_last_run_timestamp_seconds{instance=~\"$instance\",result=\"fail\"} > (time() - 14 * 86400)) or vector(0)" } ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Backup success history",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "dateTimeAsIso", "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 0, "lineWidth": 1, "drawStyle": "line", "showPoints": "always", "pointSize": 5 } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "backup_last_success_timestamp_seconds{instance=~\"$instance\"}", "legendFormat": "{{backup_job}} / {{repo}}" } ]
+    }
+  ]
+}

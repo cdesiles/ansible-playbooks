@@ -1,0 +1,71 @@
+{
+  "title": "Systemd",
+  "uid": "systemd",
+  "tags": ["systemd", "services", "timers"],
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-7d", "to": "now" },
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "label": "Host",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": { "query": "query_result(count by (instance) (node_systemd_unit_state))", "refId": "A" },
+        "regex": "/.*instance=\"([^\"]+)\".*/",
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "sort": 1,
+        "current": { "selected": true, "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Failed units",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
+      "targets": [ { "refId": "A", "expr": "sum(node_systemd_unit_state{instance=~\"$instance\",state=\"failed\"}) or vector(0)" } ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Failed unit",
+      "gridPos": { "h": 4, "w": 18, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "none", "color": { "mode": "fixed" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }, "mappings": [ { "type": "value", "options": { "1": { "text": "FAILED", "color": "red" } } } ] }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
+      "targets": [ { "refId": "A", "expr": "node_systemd_unit_state{instance=~\"$instance\",state=\"failed\"} == 1", "legendFormat": "{{name}}" } ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Timer last trigger age",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "dtdhms", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 172800 }, { "color": "red", "value": 1209600 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
+      "targets": [ { "refId": "A", "expr": "time() - node_systemd_timer_last_trigger_seconds{instance=~\"$instance\"}", "legendFormat": "{{name}}" } ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Unit states",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 20, "lineWidth": 1, "drawStyle": "line", "showPoints": "never" } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "sum by (state) (node_systemd_unit_state{instance=~\"$instance\"})", "legendFormat": "{{state}}" } ]
+    }
+  ]
+}

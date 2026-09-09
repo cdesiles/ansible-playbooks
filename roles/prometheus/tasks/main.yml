@@ -35,6 +35,18 @@
       mode: "0755"
   when: prometheus_rule_files | length > 0
 
+- name: Deploy backup and systemd alert rules
+  ansible.builtin.copy:
+      src: "{{ item }}"
+      dest: "{{ prometheus_config_dir }}/rules/{{ item }}"
+      owner: "{{ prometheus_user }}"
+      group: "{{ prometheus_group }}"
+      mode: "0644"
+  loop:
+      - backup-alerts.yml
+      - systemd-alerts.yml
+  notify: Restart Prometheus
+
 - name: Deploy Prometheus configuration
   ansible.builtin.template:
       src: prometheus.yml.j2

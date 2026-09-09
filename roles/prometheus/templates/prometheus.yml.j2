@@ -44,7 +44,7 @@ scrape_configs:
 {% for param_key, param_values in scrape_config.params.items() %}
       {{ param_key }}:
 {% for param_value in param_values %}
-        - {{ param_value }}
+        - {{ param_value | to_json }}
 {% endfor %}
 {% endfor %}
 {% endif %}
