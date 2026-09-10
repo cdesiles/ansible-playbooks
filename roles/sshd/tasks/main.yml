@@ -51,16 +51,13 @@
         mode: "0755"
 
     - name: Backup authorized_keys out of HOME dir (if unavailable at startup)
-      ansible.builtin.command: "cp /home/{{ item }}/.ssh/authorized_keys {{ ssh_authorized_keys_fallback_dir }}/{{ item }}"
-      loop: "{{ ssh_users.split() }}"
-      changed_when: false
-
-    - name: Fix ownership
-      ansible.builtin.file:
-        path: "{{ ssh_authorized_keys_fallback_dir }}/{{ item }}"
-        owner: "{{ item }}"
-        group: "{{ item }}"
-        mode: "0600"
+      ansible.builtin.copy:
+        src: "/home/{{ item }}/.ssh/authorized_keys"
+        dest: "{{ ssh_authorized_keys_fallback_dir }}/{{ item }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0644"
       loop: "{{ ssh_users.split() }}"
 
 - name: Remove motd on Debian
