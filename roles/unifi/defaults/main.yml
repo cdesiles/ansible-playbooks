@@ -8,6 +8,10 @@ unifi_image: docker.io/jacobalberty/unifi
 # Storage location for persistent data (MongoDB, config, backups)
 unifi_data_dir: "{{ podman_projects_dir }}/unifi/data"
 
+# Backup manifest - MongoDB (device/AP config), settings and auto-backups.
+unifi_backup_paths:
+  - "{{ unifi_data_dir }}"
+
 # Network binding — REQUIRED, must be set in inventory
 # IP address of the LAN interface for AP communication (inform, STUN, discovery).
 # APs must be able to reach this address.

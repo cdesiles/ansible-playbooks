@@ -85,8 +85,8 @@ backup_repositories:
   #   password: "{{ vault_backup_usb_password }}"
   #   retention:
   #     keep_weekly: 12
-  #   notify:
-  #     topic: backups-reminders   # low-priority reminder, not an alarm
+#   notify:
+#     topic: backups-reminders   # low-priority reminder, not an alarm
 
 backup_jobs:
   - name: ntfy
@@ -94,6 +94,7 @@ backup_jobs:
     paths: "{{ ntfy_backup_paths }}"
     exclude: "{{ ntfy_backup_exclude }}"
     sqlite: "{{ ntfy_backup_sqlite }}"
+    schedule: "*-*-* 03:00:00"   # OnCalendar; omit to use the global backup_schedule
 ```
 
 Generate the repository password and **store it outside this repository and outside the machine being backed up**:

@@ -327,6 +327,15 @@ repo_work() {
         restic init || return 1
     fi
 
+    # A run killed mid-flight (systemd timeout, OOM, reboot) leaves an exclusive
+    # lock behind. `forget --prune` and `check` both need that lock, so every
+    # later run backs up successfully and then fails, until someone clears it by
+    # hand. The per-repository flock above makes us the only local writer, and a
+    # repository is never shared between hosts (see README), so any lock left
+    # here belongs to a dead process. `unlock` only removes locks it considers
+    # stale, so a genuinely live one is left alone.
+    restic unlock || return 1
+
     repo_backup || return 1
     repo_forget || return 1
     repo_check || return 1

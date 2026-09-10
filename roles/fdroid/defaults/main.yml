@@ -11,6 +11,10 @@ fdroid_port: 8070
 # Data directory (keystore, config, metadata, repo APKs)
 fdroid_data_dir: "{{ podman_projects_dir }}/fdroid/data"
 
+# Backup manifest - signing keystore (irreplaceable), config, metadata, published APKs.
+fdroid_backup_paths:
+  - "{{ fdroid_data_dir }}"
+
 # Repository metadata
 fdroid_repo_url: "https://apk.mysite.fr/repo"
 fdroid_repo_name: "F-Droid Repository"

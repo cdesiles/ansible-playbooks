@@ -184,6 +184,11 @@ immich_valkey_password: "{{ vault_immich_valkey_password }}"
 # Backup configuration
 # --------------------
 # restic: encrypted, deduplicated, incremental. See roles/backup/README.md.
+#
+# Schedule is a systemd OnCalendar expression. This global default applies to
+# every job; a job's own `schedule` overrides it.
+# backup_schedule: "Sun *-*-* 03:00:00"   # weekly
+# backup_randomized_delay: 30m
 
 # Destinations. `repository` is RESTIC_REPOSITORY verbatim. Retention lives
 # here: a large local disk can afford more history than metered object storage.
@@ -241,6 +246,9 @@ backup_jobs:
     paths: "{{ ntfy_backup_paths }}"
     exclude: "{{ ntfy_backup_exclude }}"
     sqlite: "{{ ntfy_backup_sqlite }}"
+    # Daily. Weekly jobs omit this and inherit backup_schedule. Retention is
+    # per-tag, so jobs sharing a repository never prune each other's snapshots.
+    schedule: "*-*-* 03:00:00"
 
   # Databases only, no files. pg_dumpall --globals-only is always included.
   # - name: databases

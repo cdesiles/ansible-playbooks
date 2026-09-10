@@ -65,7 +65,10 @@ backup_timeout: 4h
 #   read_data_subset  (optional) e.g. "5%" or "1/12". Makes `restic check`
 #                         also re-hash that fraction of the pack files, so the
 #                         whole repository gets verified over time without
-#                         paying for a full read on every run.
+#                         paying for a full read on every run. The check runs on
+#                         every job that targets the repository, so a large
+#                         repository with frequent jobs wants a small fraction
+#                         (1%), or each run pays the read again.
 #   options    (optional) extra restic flags, e.g. ["-o", "s3.list-objects-v1=true"]
 #
 #   notify     (optional) ntfy notification channel for THIS repository. Each

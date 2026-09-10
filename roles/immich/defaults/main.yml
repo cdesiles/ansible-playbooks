@@ -5,6 +5,18 @@ immich_version: release
 # Storage location (@see https://docs.immich.app/install/environment-variables/)
 immich_upload_location: "{{ podman_projects_dir }}/immich/data/upload"
 
+# Backup manifest - original photos/videos (the irreplaceable data). The
+# PostgreSQL side is covered by the `postgres: all` job in the inventory.
+immich_backup_paths:
+  - "{{ immich_upload_location }}"
+
+# Regenerable derivatives. Immich rebuilds these on demand (Generate
+# Thumbnails / Transcode Videos jobs), and they are many small files that
+# dominate S3 request count - exclude them for restore value.
+immich_backup_exclude:
+  - "{{ immich_upload_location }}/thumbs"
+  - "{{ immich_upload_location }}/encoded-video"
+
 # External libraries (read-only host paths exposed to the server container)
 # Use the in-container `mount_path` when registering the library in the Immich UI.
 # Example:
