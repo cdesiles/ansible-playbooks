@@ -1,2 +1,4 @@
 # Managed by Ansible - DO NOT EDIT MANUALLY
-{{ wireguard_exporter_args_var }}="-l {{ wireguard_exporter_listen_address }} -p {{ wireguard_exporter_port }}"
+# --prepend_sudo=true: the exporter runs as the non-root wireguard_exporter
+# user (Arch service unit) and needs sudo to call `wg show` (see sudoers.d).
+{{ wireguard_exporter_args_var }}="-l {{ wireguard_exporter_listen_address }} -p {{ wireguard_exporter_port }} --prepend_sudo=true"

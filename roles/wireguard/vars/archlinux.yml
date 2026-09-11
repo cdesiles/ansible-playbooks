@@ -4,3 +4,5 @@ wireguard_exporter_package: prometheus-wireguard-exporter
 wireguard_exporter_service: prometheus-wireguard-exporter
 wireguard_exporter_args_file: /etc/conf.d/prometheus-wireguard-exporter
 wireguard_exporter_args_var: WIREGUARD_EXPORTER_ARGS
+# User the Arch service unit runs as; granted sudo for `wg show` via sudoers.d.
+wireguard_exporter_user: wireguard_exporter

@@ -32,6 +32,15 @@
     mode: "0644"
   notify: Restart wireguard exporter
 
+- name: Allow exporter to run wg via sudo
+  ansible.builtin.copy:
+    content: "{{ wireguard_exporter_user }} ALL=(root) NOPASSWD: /usr/bin/wg\n"
+    dest: /etc/sudoers.d/wireguard_exporter
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+
 - name: Enable and start wireguard exporter
   ansible.builtin.systemd:
     name: "{{ wireguard_exporter_service }}"
