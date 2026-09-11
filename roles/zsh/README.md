@@ -7,7 +7,7 @@
 - **Autosuggestions** based on history
 - **fzf integration** (Ctrl+R history, Ctrl+T files, Alt+C directories)
 - **fzf-tab** for completion menus
-- **Smart aliases** (docker → podman)
+- **Smart aliases** (docker → podman, ls → eza)
 - **Persistent history** across sessions
 
 ## Configuration

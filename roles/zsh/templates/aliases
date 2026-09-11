@@ -1,3 +1,6 @@
+alias ls="eza --icons --group-directories-first"
+alias ll="eza --icons --group-directories-first -l"
+alias la="eza --icons --group-directories-first -la"
 alias p="podman"
 alias pp="podman play"
 alias pl="podman logs -f"

@@ -4,6 +4,11 @@
     name: zsh
     state: present
 
+- name: Install eza (better ls)
+  ansible.builtin.package:
+    name: eza
+    state: present
+
 - name: Install alacritty terminfo
   ansible.builtin.include_tasks: alacritty-terminfo.yml
 
