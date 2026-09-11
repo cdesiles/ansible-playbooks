@@ -44,9 +44,9 @@
       "title": "Failed unit",
       "gridPos": { "h": 4, "w": 18, "x": 6, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "none", "color": { "mode": "fixed" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }, "mappings": [ { "type": "value", "options": { "1": { "text": "FAILED", "color": "red" } } } ] }, "overrides": [] },
+      "fieldConfig": { "defaults": { "unit": "none", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }, "mappings": [ { "type": "value", "options": { "0": { "text": "OK", "color": "green" }, "1": { "text": "FAILED", "color": "red" } } } ] }, "overrides": [] },
       "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
-      "targets": [ { "refId": "A", "expr": "node_systemd_unit_state{instance=~\"$instance\",state=\"failed\"} == 1", "legendFormat": "{{name}}" } ]
+      "targets": [ { "refId": "A", "expr": "node_systemd_unit_state{instance=~\"$instance\",state=\"failed\"} == 1 or vector(0)", "legendFormat": "{{name}}" } ]
     },
     {
       "id": 3,

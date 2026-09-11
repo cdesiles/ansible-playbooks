@@ -5,7 +5,7 @@
   "schemaVersion": 39,
   "version": 1,
   "refresh": "1m",
-  "time": { "from": "now-30d", "to": "now" },
+  "time": { "from": "now-7d", "to": "now" },
   "timezone": "browser",
   "editable": true,
   "graphTooltip": 1,
@@ -13,49 +13,108 @@
     "list": [
       {
         "name": "instance",
-        "label": "Host",
+        "label": "Instance",
         "type": "query",
         "datasource": { "type": "prometheus", "uid": "prometheus" },
-        "query": { "query": "query_result(count by (instance) (backup_last_success_timestamp_seconds))", "refId": "A" },
-        "regex": "/.*instance=\"([^\"]+)\".*/",
-        "refresh": 2,
-        "multi": true,
-        "includeAll": true,
-        "allValue": ".*",
+        "query": { "query": "label_values(node_systemd_timer_last_trigger_seconds{name=~\"backup@.*\"}, instance)", "refId": "A" },
+        "refresh": 1,
+        "multi": false,
+        "includeAll": false,
         "sort": 1,
-        "current": { "selected": true, "text": "All", "value": "$__all" }
+        "current": { "selected": false, "text": "", "value": "" }
       }
     ]
   },
   "panels": [
     {
-      "id": 1,
-      "type": "stat",
-      "title": "Last backup age",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 0 },
+      "id": 5,
+      "type": "timeseries",
+      "title": "Backup runs (successes up, failures down)",
+      "description": "Runs counted per bucket with changes() on the last-run timestamp: every run stamps a new value, so a value change is a run. Successes and failures are separate series rather than a signed sum, so a bucket containing both stays readable. Bucket width follows the zoom level with a 12h floor. Rendered as a timeseries rather than a barchart panel: barchart joins all series into one frame and returns no data at all when some of them are empty, which is the normal state here (no failures, no skips). Caveat: the first run after a job/repo first appears registers no change and is not counted.",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "dtdhms", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 172800 }, { "color": "red", "value": 1209600 } ] } }, "overrides": [] },
-      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
-      "targets": [ { "refId": "A", "expr": "time() - backup_last_success_timestamp_seconds{instance=~\"$instance\"}", "legendFormat": "{{backup_job}} / {{repo}}" } ]
-    },
-    {
-      "id": 2,
-      "type": "stat",
-      "title": "Failing backups (14d)",
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
-      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
-      "targets": [ { "refId": "A", "expr": "count(backup_last_run_timestamp_seconds{instance=~\"$instance\",result=\"fail\"} > (time() - 14 * 86400)) or vector(0)" } ]
+      "interval": "12h",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "bars",
+            "barAlignment": 0,
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": -1,
+            "axisSoftMax": 1,
+            "stacking": { "mode": "none", "group": "A" },
+            "thresholdsStyle": { "mode": "off" }
+          }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "successful runs" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } } ] },
+          { "matcher": { "id": "byName", "options": "failed runs" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] },
+          { "matcher": { "id": "byName", "options": "skipped runs" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } } ] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "none" } },
+      "targets": [
+        { "refId": "A", "expr": "sum(changes(backup_last_run_timestamp_seconds{instance=\"$instance\",result=\"success\"}[$__interval])) or vector(0)", "legendFormat": "successful runs" },
+        { "refId": "B", "expr": "-(sum(changes(backup_last_run_timestamp_seconds{instance=\"$instance\",result=\"fail\"}[$__interval])) or vector(0))", "legendFormat": "failed runs" },
+        { "refId": "C", "expr": "-(sum(changes(backup_last_run_timestamp_seconds{instance=\"$instance\",result=\"skip\"}[$__interval])) or vector(0))", "legendFormat": "skipped runs" }
+      ]
     },
     {
       "id": 3,
-      "type": "timeseries",
-      "title": "Backup success history",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 },
+      "type": "stat",
+      "title": "Timer last triggered",
+      "description": "Time since each backup@*.timer last fired. Timers that have never fired report 0 and are filtered out.",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "dateTimeAsIso", "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 0, "lineWidth": 1, "drawStyle": "line", "showPoints": "always", "pointSize": 5 } }, "overrides": [] },
-      "targets": [ { "refId": "A", "expr": "backup_last_success_timestamp_seconds{instance=~\"$instance\"}", "legendFormat": "{{backup_job}} / {{repo}}" } ]
+      "fieldConfig": { "defaults": { "unit": "dtdhms", "noValue": "never triggered", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1209600 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
+      "targets": [ { "refId": "A", "expr": "time() - (node_systemd_timer_last_trigger_seconds{instance=\"$instance\", name=~\"backup@.*\"} > 0)", "legendFormat": "{{name}}" } ]
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "Last run per job / repository",
+      "description": "Most recent run of every job/repository pair, whatever the outcome. Age is time since that run, so a repository going stale is visible here even while the graph above stays empty.",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "dtdhms", "custom": { "align": "auto", "cellOptions": { "type": "auto" } } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Result" },
+            "properties": [
+              { "id": "custom.cellOptions", "value": { "type": "color-background" } },
+              { "id": "mappings", "value": [
+                { "type": "value", "options": {
+                  "success": { "text": "success", "color": "green", "index": 0 },
+                  "fail": { "text": "fail", "color": "red", "index": 1 },
+                  "skip": { "text": "skip", "color": "orange", "index": 2 }
+                } }
+              ] }
+            ]
+          }
+        ]
+      },
+      "options": { "showHeader": true, "cellHeight": "sm", "footer": { "show": false, "reducer": ["sum"], "fields": "" } },
+      "targets": [ { "refId": "A", "expr": "time() - backup_last_run_timestamp_seconds{instance=\"$instance\"}", "format": "table", "instant": true } ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true, "job": true },
+            "renameByName": { "Value": "Age", "backup_job": "Job", "repo": "Repository", "result": "Result", "instance": "Instance" },
+            "indexByName": { "instance": 0, "backup_job": 1, "repo": 2, "result": 3, "Value": 4 }
+          }
+        },
+        { "id": "sortBy", "options": { "fields": {}, "sort": [ { "field": "Result", "desc": false } ] } }
+      ]
     }
   ]
 }

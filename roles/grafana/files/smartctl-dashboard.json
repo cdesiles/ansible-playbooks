@@ -16,7 +16,7 @@
         "label": "Instance",
         "type": "query",
         "datasource": { "type": "prometheus", "uid": "prometheus" },
-        "query": { "query": "label_values(smartctl_device, instance)", "refId": "A" },
+        "query": { "query": "label_values(smartctl_device_smart_status, instance)", "refId": "A" },
         "refresh": 2,
         "sort": 1,
         "multi": false,
