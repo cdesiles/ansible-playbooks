@@ -9,10 +9,20 @@
       See roles/wireguard/defaults/main.yml for configuration instructions.
     success_msg: "wireguard_tunnels validation passed"
 
-- name: Install wireguard
+- name: Install wireguard (Linux)
   ansible.builtin.package:
     name: "{{ wireguard_package_name }}"
     state: present
+  when: ansible_facts['os_family'] != 'Darwin'
+
+# Homebrew refuses to run as root, so never become for this task even when the
+# role is applied with become (needed later for /etc/wireguard and wg-quick).
+- name: Install wireguard (macOS)
+  community.general.homebrew:
+    name: "{{ wireguard_package_name }}"
+    state: present
+  become: false
+  when: ansible_facts['os_family'] == 'Darwin'
 
 - name: Install nftables (Arch server_mode PostUp dependency)
   ansible.builtin.package:
@@ -38,13 +48,15 @@
     name: systemd-resolved
     enabled: true
     state: started
+  when: ansible_facts['os_family'] != 'Darwin'
 
 - name: Ensure wireguard configuration is only owned by root
   ansible.builtin.file:
     path: "{{ wireguard_config_base_path }}"
     owner: root
-    group: root
+    group: "{{ wireguard_config_group }}"
     mode: "0700"
+    state: directory
     recurse: true
 
 - name: Configure tunnel

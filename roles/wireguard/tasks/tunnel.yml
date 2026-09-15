@@ -15,22 +15,36 @@
   ansible.builtin.stat:
     path: "{{ wireguard_config_base_path }}/{{ _tunnel.interface }}.privatekey"
   register: _tunnel_pkey_file
+  when: _tunnel.private_key is not defined
 
-- name: "Generate wireguard keys for {{ _tunnel.interface }} if not present"
-  ansible.builtin.shell: >
-    wg genkey |
+- name: "Generate wireguard keys if not present for {{ _tunnel.interface }}"
+  ansible.builtin.shell: |
+    set -o pipefail
+    {{ wireguard_wg_bin }} genkey |
     tee {{ wireguard_config_base_path }}/{{ _tunnel.interface }}.privatekey |
-    wg pubkey > {{ wireguard_config_base_path }}/{{ _tunnel.interface }}.publickey
-  when: not _tunnel_pkey_file.stat.exists
+    {{ wireguard_wg_bin }} pubkey > {{ wireguard_config_base_path }}/{{ _tunnel.interface }}.publickey
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when:
+    - _tunnel.private_key is not defined
+    - not _tunnel_pkey_file.stat.exists
 
 - name: "Retrieve wireguard private key for {{ _tunnel.interface }}"
   ansible.builtin.slurp:
     src: "{{ wireguard_config_base_path }}/{{ _tunnel.interface }}.privatekey"
   register: _tunnel_private_key_b64
+  when: _tunnel.private_key is not defined
 
-- name: "Set wireguard private key fact for {{ _tunnel.interface }}"
+- name: "Set wireguard private key fact from inventory for {{ _tunnel.interface }}"
+  ansible.builtin.set_fact:
+    _tunnel_private_key: "{{ _tunnel.private_key }}"
+  when: _tunnel.private_key is defined
+
+- name: "Set wireguard private key fact from host for {{ _tunnel.interface }}"
   ansible.builtin.set_fact:
     _tunnel_private_key: "{{ _tunnel_private_key_b64['content'] | b64decode }}"
+  when: _tunnel.private_key is not defined
 
 - name: "Resolve effective DNS for {{ _tunnel.interface }}"
   ansible.builtin.set_fact:
@@ -41,7 +55,7 @@
     src: wireguard.conf.j2
     dest: "{{ wireguard_config_base_path }}/{{ _tunnel.interface }}.conf"
     owner: root
-    group: root
+    group: "{{ wireguard_config_group }}"
     mode: "0600"
   notify: Reload wireguard tunnel
 
@@ -50,6 +64,7 @@
     path: "/etc/systemd/system/wg-quick@{{ _tunnel.interface }}.service.d"
     state: directory
     mode: "0755"
+  when: ansible_facts['os_family'] != 'Darwin'
 
 - name: "Deploy systemd override for network dependency for {{ _tunnel.interface }}"
   ansible.builtin.template:
@@ -57,6 +72,7 @@
     dest: "/etc/systemd/system/wg-quick@{{ _tunnel.interface }}.service.d/network-dependency.conf"
     mode: "0644"
   notify: Reload systemd
+  when: ansible_facts['os_family'] != 'Darwin'
 
 - name: "Enable IP forwarding for {{ _tunnel.interface }}"
   ansible.builtin.copy:
@@ -64,10 +80,12 @@
     content: |
       net.ipv4.ip_forward = 1
     owner: root
-    group: root
+    group: "{{ wireguard_config_group }}"
     mode: "0644"
   notify: Apply sysctl
-  when: _tunnel.server_mode | default(false)
+  when:
+    - _tunnel.server_mode | default(false)
+    - ansible_facts['os_family'] != 'Darwin'
 
 - name: "Configure the firewall for {{ _tunnel.interface }}"
   community.general.ufw:
@@ -83,6 +101,7 @@
   when:
     - _tunnel.server_mode | default(false)
     - _tunnel.port is defined
+    - ansible_facts['os_family'] != 'Darwin'
 
 - name: "Allow forwarding for {{ _tunnel.interface }}"
   community.general.ufw:
@@ -100,7 +119,9 @@
       out: "{{ _tunnel.primary_interface | default(wireguard_primary_interface) }}"
     - in: "{{ _tunnel.primary_interface | default(wireguard_primary_interface) }}"
       out: "{{ _tunnel.interface }}"
-  when: _tunnel.server_mode | default(false)
+  when:
+    - _tunnel.server_mode | default(false)
+    - ansible_facts['os_family'] != 'Darwin'
 
 - name: "Start and enable wg-quick@{{ _tunnel.interface }}"
   ansible.builtin.service:
@@ -108,3 +129,19 @@
     state: started
     enabled: true
     daemon_reload: true
+  when: ansible_facts['os_family'] != 'Darwin'
+
+# macOS: no systemd; wg-quick drives wireguard-go directly. Idempotent via the
+# list of active interfaces rather than a `creates` path.
+- name: "List active wireguard interfaces (macOS)"
+  ansible.builtin.command: "{{ wireguard_wg_bin }} show interfaces"
+  register: _wg_active_interfaces
+  changed_when: false
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: "Bring up tunnel (macOS) for {{ _tunnel.interface }}"
+  ansible.builtin.command: "{{ wireguard_darwin_bash }} {{ wireguard_wg_quick_bin }} up {{ _tunnel.interface }}"
+  changed_when: true
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - _tunnel.interface not in _wg_active_interfaces.stdout.split()

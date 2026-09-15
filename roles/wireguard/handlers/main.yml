@@ -2,17 +2,29 @@
 - name: Reload systemd
   ansible.builtin.systemd:
     daemon_reload: true
+  become: true
+  when: ansible_facts['os_family'] != 'Darwin'
 
 - name: Apply sysctl
   ansible.builtin.command: sysctl --system
+  become: true
   changed_when: true
+  when: ansible_facts['os_family'] != 'Darwin'
 
+# Linux applies the config live with wg syncconf (no downtime). macOS has no
+# syncconf-friendly flow here, so bounce the interface through wg-quick.
 - name: Reload wireguard tunnel
   ansible.builtin.shell: |
     set -o pipefail
-    wg syncconf "{{ item.interface }}" <(wg-quick strip "{{ item.interface }}")
+    if [ "{{ ansible_facts['os_family'] }}" = "Darwin" ]; then
+      {{ wireguard_darwin_bash }} {{ wireguard_wg_quick_bin }} down "{{ item.interface }}" 2>/dev/null || true
+      {{ wireguard_darwin_bash }} {{ wireguard_wg_quick_bin }} up "{{ item.interface }}"
+    else
+      {{ wireguard_wg_bin }} syncconf "{{ item.interface }}" <(wg-quick strip "{{ item.interface }}")
+    fi
   args:
     executable: /bin/bash
+  become: true
   loop: "{{ wireguard_tunnels }}"
   changed_when: true
 
@@ -20,3 +32,5 @@
   ansible.builtin.systemd:
     name: "{{ wireguard_exporter_service }}"
     state: restarted
+  become: true
+  when: ansible_facts['os_family'] != 'Darwin'
