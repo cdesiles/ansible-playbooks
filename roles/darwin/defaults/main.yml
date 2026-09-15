@@ -1,0 +1,6 @@
+---
+# macOS baseline managed through Homebrew. No-op on non-Darwin hosts.
+darwin_homebrew_update: false
+darwin_taps: []
+darwin_formulae: []
+darwin_casks: []

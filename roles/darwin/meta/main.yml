@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  author: Jokester <main@jokester.fr>
+  description: macOS baseline via Homebrew (taps, formulae, casks)
+  license: MIT
+  min_ansible_version: "2.15"
+  galaxy_tags:
+    - macos
+    - homebrew
+  platforms:
+    - name: MacOSX
+      versions:
+        - all
+dependencies: []

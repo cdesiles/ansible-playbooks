@@ -1,0 +1,31 @@
+---
+- name: Assert the target is macOS
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] == 'Darwin'
+    fail_msg: "The darwin role only supports macOS (ansible_os_family == 'Darwin')."
+    success_msg: "macOS target validated"
+
+# Homebrew refuses to run as root: keep this role out of any become context.
+- name: Update Homebrew metadata
+  community.general.homebrew:
+    update_homebrew: true
+  when: darwin_homebrew_update | bool
+
+- name: Tap Homebrew repositories
+  community.general.homebrew_tap:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ darwin_taps }}"
+
+- name: Install Homebrew formulae
+  community.general.homebrew:
+    name: "{{ darwin_formulae }}"
+    state: present
+  when: darwin_formulae | length > 0
+
+- name: Install Homebrew casks
+  community.general.homebrew_cask:
+    name: "{{ darwin_casks }}"
+    state: present
+  when: darwin_casks | length > 0
