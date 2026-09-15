@@ -8,7 +8,7 @@ This is a good playground to learn and I encourage you to adapt these roles to y
 
 ## Architecture Overview
 
-**Platform Support:** Arch Linux, Debian/Ubuntu
+**Platform Support:** Arch Linux, Debian/Ubuntu, Darwin (partial)
 
 **Core Design:**
 
@@ -34,6 +34,8 @@ This is a good playground to learn and I encourage you to adapt these roles to y
 | static-web  | Static website hosting                                   |
 | vpn         | WireGuard server                                         |
 
+And more.
+
 ## Port Reservation Rules
 
 Reserved ports that **must not** be used as role defaults:
@@ -58,7 +60,7 @@ Base tools:
 # linux
 apt-get install ansible ansible-lint ansible-galaxy
 pacman -Syu ansible ansible-lint ansible-galaxy
-# macos
+# darwin
 brew install ansible ansible-lint ansible-galaxy
 # windows
 choco install ansible ansible-lint ansible-galaxy
@@ -127,6 +129,90 @@ Linting:
 ansible-lint
 npx prettier --write .
 ```
+
+## Contributing
+
+### Role Types
+
+| Type | Examples | Structure |
+| --- | --- | --- |
+| Containerized web service | immich, gitea, ntfy, uptime_kuma | `defaults/`, `tasks/`, `handlers/`, `templates/{<svc>.yaml.j2, <svc>.service.j2, nginx-vhost.conf.j2}`, `meta/` |
+| Shared database (host-level) | postgres, valkey | Single instance, per-app isolated creds, binds `127.0.0.1`, per-app users `NOSUPERUSER,NOCREATEDB,NOCREATEROLE` |
+| Native system service | grafana, prometheus, nginx | Like DB services, may include an nginx vhost |
+
+Container service task order: password validation → DB/Valkey setup → project dir → config files → kube YAML → getent home → systemd user dir → service unit → lingering → enable/start → nginx vhost.
+
+### Required Patterns
+
+**Password validation** (any role needing secrets):
+
+```yaml
+- name: Validate required passwords are set
+  ansible.builtin.assert:
+    that:
+      - myservice_password is defined
+      - myservice_password | length >= 12
+    fail_msg: |-
+      myservice_password is required (min 12 chars).
+      See roles/myservice/defaults/main.yml.
+```
+
+Leave passwords undefined in `defaults/main.yml` (`# myservice_password: ""  # Intentionally undefined`).
+
+**User home directory** — resolve via `getent`, not `ansible_env.HOME`:
+
+```yaml
+- ansible.builtin.getent: { database: passwd, key: "{{ ansible_user }}" }
+- ansible.builtin.set_fact:
+    user_home_dir: "{{ ansible_facts['getent_passwd'][ansible_user][4] }}"
+```
+
+**Systemd user service** — rootless, `Type=notify`, `--service-container=true`, `restartPolicy: Never` in the pod manifest:
+
+```ini
+[Service]
+Type=notify
+NotifyAccess=all
+WorkingDirectory={{ podman_projects_dir }}/myservice
+ExecStart=/usr/bin/podman kube play --replace --service-container=true --network=pasta:--map-host-loopback={{ podman_gw_gateway }} myservice.yaml
+ExecStop=/usr/bin/podman kube down myservice.yaml
+Restart=on-failure
+[Install]
+WantedBy=default.target
+```
+
+Containers reach host `127.0.0.1` services at `{{ podman_gw_gateway }}` (default `100.64.0.1`). Pasta is configured globally in `roles/podman/templates/containers.conf.j2`.
+
+**PostgreSQL for apps** — `community.postgresql.postgresql_user` (with `NOSUPERUSER,NOCREATEDB,NOCREATEROLE`) → `postgresql_db` (owned by the app user) → `postgresql_privs` (`ALL` on schema `public`), all as `become_user: "{{ postgres_admin_user }}"`.
+
+**Valkey ACL user** — define `myservice_valkey_acl` in defaults and add it to the `valkey_acl_users` list in inventory:
+
+```yaml
+myservice_valkey_acl:
+  username: "{{ myservice_valkey_user }}"
+  password: "{{ myservice_valkey_password }}"
+  keypattern: "myservice_*"
+  commands: "&* -@dangerous +@read +@write +@pubsub +select +auth +ping +info"
+```
+
+**Nginx vhost** — deploy to `{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/myservice.conf`, gated by `myservice_nginx_enabled`, `notify: Reload nginx`; remove with `state: absent` when disabled.
+
+**OS-specific variables** — `vars/archlinux.yml` / `vars/debian.yml`, loaded with:
+
+```yaml
+- ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - debian.yml
+```
+
+### Conventions
+
+- **Meta deps**: only always-required (`podman`, `postgres`). Never optional (nginx uses a `*_nginx_enabled` flag).
+- **Naming**: variables `snake_case`, tasks/handlers Capitalized, files `kebab-case`.
+- **Idempotency**: `changed_when: false` for reads, `creates:` for commands that produce files, `set -o pipefail` in shell.
+- **Permissions**: config `0644`, secrets `0600`/`0640`, dirs `0755`, data `0750`, systemd units `0644`.
+- **Ports**: pick a default outside the reserved ranges above.
 
 ## Q&A
 
