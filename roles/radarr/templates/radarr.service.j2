@@ -1,0 +1,15 @@
+[Unit]
+Description=Radarr Movie Manager
+
+[Service]
+Type=notify
+NotifyAccess=all
+WorkingDirectory={{ podman_projects_dir | default('/opt/podman') }}/radarr
+ExecStart=/usr/bin/podman kube play --replace --service-container=true --network=pasta:--map-host-loopback={{ podman_gw_gateway }} radarr.yaml
+ExecStop=/usr/bin/podman kube down radarr.yaml
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=180
+
+[Install]
+WantedBy=default.target

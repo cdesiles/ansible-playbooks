@@ -1,0 +1,45 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: prowlarr
+  labels:
+    app: prowlarr
+spec:
+  containers:
+    - name: prowlarr
+      image: {{ prowlarr_image }}:{{ prowlarr_version }}
+      ports:
+        - containerPort: {{ prowlarr_port }}
+          hostPort: {{ prowlarr_port }}
+      env:
+        - name: PUID
+          value: "{{ ansible_facts['getent_passwd'][ansible_user][1] }}"
+        - name: PGID
+          value: "{{ ansible_facts['getent_passwd'][ansible_user][2] }}"
+        - name: TZ
+          value: "{{ prowlarr_timezone }}"
+      volumeMounts:
+        - name: localtime
+          mountPath: /etc/localtime
+          readOnly: true
+        - name: config
+          mountPath: /config
+      livenessProbe:
+        tcpSocket:
+          port: {{ prowlarr_port }}
+        initialDelaySeconds: 60
+        periodSeconds: 30
+        timeoutSeconds: 10
+        failureThreshold: 3
+      restartPolicy: Never
+
+  volumes:
+    - name: localtime
+      hostPath:
+        path: /etc/localtime
+        type: File
+    - name: config
+      hostPath:
+        path: {{ prowlarr_config_dir }}
+        type: Directory

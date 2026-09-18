@@ -1,0 +1,57 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: radarr
+  labels:
+    app: radarr
+spec:
+  containers:
+    - name: radarr
+      image: {{ radarr_image }}:{{ radarr_version }}
+      ports:
+        - containerPort: {{ radarr_port }}
+          hostPort: {{ radarr_port }}
+      env:
+        - name: PUID
+          value: "{{ ansible_facts['getent_passwd'][ansible_user][1] }}"
+        - name: PGID
+          value: "{{ ansible_facts['getent_passwd'][ansible_user][2] }}"
+        - name: TZ
+          value: "{{ radarr_timezone }}"
+      volumeMounts:
+        - name: localtime
+          mountPath: /etc/localtime
+          readOnly: true
+        - name: config
+          mountPath: /config
+        - name: movies
+          mountPath: /movies
+        - name: downloads
+          mountPath: /downloads
+      livenessProbe:
+        tcpSocket:
+          port: {{ radarr_port }}
+        initialDelaySeconds: 60
+        periodSeconds: 30
+        timeoutSeconds: 10
+        failureThreshold: 3
+      restartPolicy: Never
+
+  volumes:
+    - name: localtime
+      hostPath:
+        path: /etc/localtime
+        type: File
+    - name: config
+      hostPath:
+        path: {{ radarr_config_dir }}
+        type: Directory
+    - name: movies
+      hostPath:
+        path: {{ radarr_movies_dir }}
+        type: Directory
+    - name: downloads
+      hostPath:
+        path: {{ radarr_downloads_dir }}
+        type: Directory

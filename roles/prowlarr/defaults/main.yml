@@ -1,0 +1,21 @@
+---
+# Prowlarr container image and version
+prowlarr_image: lscr.io/linuxserver/prowlarr
+prowlarr_version: latest
+
+# Network
+prowlarr_port: 9696
+
+# Timezone
+prowlarr_timezone: UTC
+
+# Config holds the SQLite database (indexers, API keys, settings)
+prowlarr_config_dir: "{{ podman_projects_dir }}/prowlarr/config"
+
+# Backup manifest - consumed by roles/backup via inventory `backup_jobs`
+prowlarr_backup_paths:
+  - "{{ prowlarr_config_dir }}"
+
+# Nginx reverse proxy configuration
+prowlarr_nginx_enabled: false
+prowlarr_nginx_hostname: prowlarr.nas.local

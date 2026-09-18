@@ -1,0 +1,27 @@
+---
+# Radarr container image and version
+radarr_image: lscr.io/linuxserver/radarr
+radarr_version: latest
+
+# Network
+radarr_port: 7878
+
+# Timezone
+radarr_timezone: UTC
+
+# Config holds the SQLite database (library, indexers, download clients)
+radarr_config_dir: "{{ podman_projects_dir }}/radarr/config"
+
+# Movie library (root folder in the Radarr UI -> /movies)
+radarr_movies_dir: /mnt/andromeda/movies
+
+# Completed downloads, shared with the download client (-> /downloads)
+radarr_downloads_dir: "{{ podman_projects_dir }}/deluge/downloads"
+
+# Backup manifest - consumed by roles/backup via inventory `backup_jobs`
+radarr_backup_paths:
+  - "{{ radarr_config_dir }}"
+
+# Nginx reverse proxy configuration
+radarr_nginx_enabled: false
+radarr_nginx_hostname: radarr.nas.local

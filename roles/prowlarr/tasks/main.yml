@@ -1,0 +1,104 @@
+---
+- name: Get home directory for {{ ansible_user }}
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ ansible_user }}"
+
+- name: Set user home directory fact
+  ansible.builtin.set_fact:
+    user_home_dir: "{{ ansible_facts['getent_passwd'][ansible_user][4] }}"
+
+- name: Create Prowlarr project directory
+  ansible.builtin.file:
+    path: "{{ podman_projects_dir | default('/opt/podman') }}/prowlarr"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Create Prowlarr state directory
+  ansible.builtin.file:
+    path: "{{ prowlarr_config_dir }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0750"
+
+- name: Get current Prowlarr image ID
+  ansible.builtin.command: "podman image inspect --format {% raw %}{{.Id}}{% endraw %} {{ prowlarr_image }}:{{ prowlarr_version }}"
+  register: prowlarr_image_before
+  failed_when: false # image may not exist yet on first deploy
+  changed_when: false
+  become: false
+  become_user: "{{ ansible_user }}"
+
+- name: Pull Prowlarr container image
+  ansible.builtin.command: "podman pull --quiet {{ prowlarr_image }}:{{ prowlarr_version }}"
+  register: prowlarr_pull
+  changed_when: prowlarr_pull.stdout != prowlarr_image_before.stdout
+  become: false
+  become_user: "{{ ansible_user }}"
+  notify: Restart Prowlarr
+
+- name: Deploy Kubernetes YAML for Prowlarr
+  ansible.builtin.template:
+    src: prowlarr.yaml.j2
+    dest: "{{ podman_projects_dir | default('/opt/podman') }}/prowlarr/prowlarr.yaml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  notify: Restart Prowlarr
+
+- name: Create systemd user directory for Prowlarr
+  ansible.builtin.file:
+    path: "{{ user_home_dir }}/.config/systemd/user"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Create systemd service for Prowlarr (user scope)
+  ansible.builtin.template:
+    src: prowlarr.service.j2
+    dest: "{{ user_home_dir }}/.config/systemd/user/prowlarr.service"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  notify: Reload systemd user
+
+- name: Enable lingering for user {{ ansible_user }}
+  ansible.builtin.command: "loginctl enable-linger {{ ansible_user }}"
+  changed_when: false
+  when: ansible_user != 'root'
+
+- name: Enable and start Prowlarr service (user scope)
+  ansible.builtin.systemd:
+    name: prowlarr.service
+    enabled: true
+    state: started
+    scope: user
+  become: false
+  become_user: "{{ ansible_user }}"
+
+- name: Provision TLS certificate for Prowlarr
+  ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"
+  vars:
+    certbot_hostname: "{{ prowlarr_nginx_hostname }}"
+  when: prowlarr_nginx_enabled
+
+- name: Deploy nginx vhost configuration for Prowlarr
+  ansible.builtin.template:
+    src: nginx-vhost.conf.j2
+    dest: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/prowlarr.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  when: prowlarr_nginx_enabled
+  notify: Reload nginx
+
+- name: Remove nginx vhost configuration for Prowlarr
+  ansible.builtin.file:
+    path: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/prowlarr.conf"
+    state: absent
+  when: not prowlarr_nginx_enabled
+  notify: Reload nginx

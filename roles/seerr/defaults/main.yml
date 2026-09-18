@@ -1,0 +1,28 @@
+---
+# Seerr container image and version
+seerr_image: ghcr.io/seerr-team/seerr
+seerr_version: latest
+
+# Network
+seerr_port: 5055
+
+# Timezone and log level (error/warn/info/debug)
+seerr_timezone: UTC
+seerr_log_level: info
+
+# Config holds the SQLite database (users, requests, settings)
+seerr_config_dir: "{{ podman_projects_dir }}/seerr/config"
+
+# The image runs as the unprivileged `node` user (UID/GID 1000). Rootless
+# podman maps the pod user onto that UID so the container can write the
+# host-owned config directory.
+seerr_container_uid: 1000
+seerr_container_gid: 1000
+
+# Backup manifest - consumed by roles/backup via inventory `backup_jobs`
+seerr_backup_paths:
+  - "{{ seerr_config_dir }}"
+
+# Nginx reverse proxy configuration
+seerr_nginx_enabled: false
+seerr_nginx_hostname: seerr.nas.local
