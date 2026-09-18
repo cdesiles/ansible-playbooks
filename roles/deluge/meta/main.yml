@@ -1,0 +1,5 @@
+---
+# No meta dependencies: podman is a shared service deployed once via the
+# playbook (see playbooks/omega.yml role ordering). Declaring it here
+# would re-run it on every deluge deploy.
+dependencies: []

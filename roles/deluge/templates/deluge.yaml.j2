@@ -1,0 +1,60 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: deluge
+  labels:
+    app: deluge
+spec:
+  containers:
+    - name: deluge
+      image: {{ deluge_image }}:{{ deluge_version }}
+      ports:
+        - containerPort: {{ deluge_web_port }}
+          hostPort: {{ deluge_web_port }}
+        - containerPort: {{ deluge_torrent_port }}
+          hostPort: {{ deluge_torrent_port }}
+        - containerPort: {{ deluge_torrent_port }}
+          hostPort: {{ deluge_torrent_port }}
+          protocol: UDP
+      env:
+        - name: PUID
+          value: "{{ ansible_facts['getent_passwd'][ansible_user][1] }}"
+        - name: PGID
+          value: "{{ ansible_facts['getent_passwd'][ansible_user][2] }}"
+        - name: TZ
+          value: "{{ deluge_timezone }}"
+        - name: DELUGE_LOGLEVEL
+          value: "{{ deluge_loglevel }}"
+        - name: UMASK
+          value: "022"
+      volumeMounts:
+        - name: localtime
+          mountPath: /etc/localtime
+          readOnly: true
+        - name: config
+          mountPath: /config
+        - name: downloads
+          mountPath: /downloads
+      livenessProbe:
+        tcpSocket:
+          port: {{ deluge_web_port }}
+        initialDelaySeconds: 60
+        periodSeconds: 30
+        timeoutSeconds: 10
+        failureThreshold: 3
+      restartPolicy: Never
+
+  volumes:
+    - name: localtime
+      hostPath:
+        path: /etc/localtime
+        type: File
+    - name: config
+      hostPath:
+        path: {{ deluge_config_dir }}
+        type: Directory
+    - name: downloads
+      hostPath:
+        path: {{ deluge_downloads_dir }}
+        type: Directory

@@ -1,0 +1,27 @@
+---
+# Deluge container image and version
+deluge_image: lscr.io/linuxserver/deluge
+deluge_version: latest
+
+# Network
+deluge_web_port: 8112
+deluge_torrent_port: 6881
+
+# Timezone and log level (error/info/debug)
+deluge_timezone: UTC
+deluge_loglevel: error
+
+# Storage. Config holds torrent state, auth and web settings; downloads is the
+# default save path. Both must live on local storage, not NFS.
+deluge_config_dir: "{{ podman_projects_dir }}/deluge/config"
+deluge_downloads_dir: "{{ podman_projects_dir }}/deluge/downloads"
+
+# Backup manifest - consumed by roles/backup via inventory `backup_jobs`.
+# Only the config (torrent state, auth, web settings) is worth backing up;
+# downloads are user data, not Ansible-reproducible state.
+deluge_backup_paths:
+  - "{{ deluge_config_dir }}"
+
+# Nginx reverse proxy configuration
+deluge_nginx_enabled: false
+deluge_nginx_hostname: deluge.nas.local
