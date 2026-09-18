@@ -57,6 +57,9 @@ otherwise.
 These feed the **ZFS - Pools & Datasets** Grafana dashboard. node_exporter's
 built-in `--collector.zfs` exposes ARC, I/O and pool state only, not capacity.
 
+`zfs_pool_capacity_percent` also drives Grafana capacity alerts (80/90/95%
+tiers) to ntfy, provisioned by the `grafana` role — see `roles/grafana/README.md`.
+
 Tunables (`defaults/main.yml`): `zfs_metrics_enabled`, `zfs_metrics_dir`,
 `zfs_metrics_script_path`, `zfs_metrics_interval`.
 
