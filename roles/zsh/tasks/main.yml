@@ -1,16 +1,26 @@
 ---
-- name: Install zsh
+- name: Install zsh (Linux)
   ansible.builtin.package:
     name: zsh
     state: present
+  when: not (zsh_os_darwin | bool)
 
-- name: Install eza (better ls)
+- name: Install eza (Linux)
   ansible.builtin.package:
     name: eza
     state: present
+  when: not (zsh_os_darwin | bool)
+
+- name: Install eza (macOS)
+  community.general.homebrew:
+    name: eza
+    state: present
+  become: false
+  when: zsh_os_darwin | bool
 
 - name: Install alacritty terminfo
   ansible.builtin.include_tasks: alacritty-terminfo.yml
+  when: not (zsh_os_darwin | bool)
 
 - name: Install zsh plugins
   ansible.builtin.include_tasks: plugins.yml

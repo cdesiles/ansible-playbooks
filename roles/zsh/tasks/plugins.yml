@@ -3,8 +3,8 @@
   ansible.builtin.file:
     path: "{{ zsh_plugins_path }}"
     state: directory
-    owner: root
-    group: users
+    owner: "{{ zsh_plugins_owner }}"
+    group: "{{ zsh_plugins_group }}"
     mode: "0755"
 
 - name: Add a readme file to advice from where this comes
@@ -14,8 +14,8 @@
       # zsh plugins
       Managed by Ansible
     mode: "0644"
-    group: users
-    owner: root
+    group: "{{ zsh_plugins_group }}"
+    owner: "{{ zsh_plugins_owner }}"
 
 - name: "Git clone plugins"
   ansible.builtin.git:
@@ -36,16 +36,24 @@
       dest: "{{ zsh_plugins_path }}/fzf-tab"
       version: master
 
-- name: Install fzf package
+- name: Install fzf package (Linux)
   ansible.builtin.package:
     name: fzf
     state: present
+  when: not (zsh_os_darwin | bool)
+
+- name: Install fzf package (macOS)
+  community.general.homebrew:
+    name: fzf
+    state: present
+  become: false
+  when: zsh_os_darwin | bool
 
 - name: Assert plugins are available for any user
   ansible.builtin.file:
     path: "{{ item }}"
-    owner: root
-    group: users
+    owner: "{{ zsh_plugins_owner }}"
+    group: "{{ zsh_plugins_group }}"
     mode: "0755"
     state: directory
   loop:

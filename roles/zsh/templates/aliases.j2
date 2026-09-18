@@ -1,6 +1,8 @@
+# {{ ansible_managed }}
 alias ls="eza --icons --group-directories-first"
 alias ll="eza --icons --group-directories-first -l"
 alias la="eza --icons --group-directories-first -la"
+{% if not (zsh_os_darwin | bool) %}
 alias p="podman"
 alias pp="podman play"
 alias pl="podman logs -f"
@@ -10,4 +12,5 @@ alias jd="journalctl -xe"
 alias docker="echo 'use podman instead'"
 alias docker-compose="echo 'use podman-compose instead'"
 alias dc="echo 'use podman-compose instead'"
+{% endif %}
 alias w='cd $HOME/workspace'

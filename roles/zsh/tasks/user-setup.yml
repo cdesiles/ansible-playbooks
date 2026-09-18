@@ -4,7 +4,7 @@
     src: zshenv.j2
     dest: "{{ zsh_home }}/.zshenv"
     owner: "{{ zsh_user }}"
-    group: "{{ zsh_user }}"
+    group: "{{ zsh_group }}"
     mode: "0600"
 
 - name: Setup .zprofile (login banner)
@@ -12,7 +12,7 @@
     src: zprofile.j2
     dest: "{{ zsh_home }}/.zprofile"
     owner: "{{ zsh_user }}"
-    group: "{{ zsh_user }}"
+    group: "{{ zsh_group }}"
     mode: "0600"
 
 - name: Setup zsh base config
@@ -20,7 +20,7 @@
     src: main.zshrc.j2
     dest: "{{ zsh_base_config }}"
     owner: "{{ zsh_user }}"
-    group: "{{ zsh_user }}"
+    group: "{{ zsh_group }}"
     mode: "0600"
 
 - name: Setup .config/zsh directory
@@ -28,7 +28,7 @@
     path: "{{ zsh_config_path }}"
     state: directory
     owner: "{{ zsh_user }}"
-    group: "{{ zsh_user }}"
+    group: "{{ zsh_group }}"
     mode: "0700"
 
 - name: Configure zsh config
@@ -36,15 +36,15 @@
     src: zshrc.j2
     dest: "{{ zsh_config_file }}"
     owner: "{{ zsh_user }}"
-    group: "{{ zsh_user }}"
+    group: "{{ zsh_group }}"
     mode: "0600"
 
 - name: Copy aliases
-  ansible.builtin.copy:
-    src: ./templates/aliases
+  ansible.builtin.template:
+    src: aliases.j2
     dest: "{{ zsh_config_path }}/aliases"
     owner: "{{ zsh_user }}"
-    group: "{{ zsh_user }}"
+    group: "{{ zsh_group }}"
     mode: "0600"
 
 - name: Configure fzf-tab plugin
@@ -56,18 +56,19 @@
       zstyle ':fzf-tab:*' group-colors ''
       zstyle ':fzf-tab:*' preview-contained-categories true
     owner: "{{ zsh_user }}"
-    group: "{{ zsh_user }}"
+    group: "{{ zsh_group }}"
     mode: "0600"
 
 - name: Change default shell to zsh
   ansible.builtin.user:
     name: "{{ zsh_user }}"
     shell: /bin/zsh
+  when: not (zsh_os_darwin | bool)
 
 - name: Configure powerlevel10k theme
   ansible.builtin.copy:
     src: "./templates/{{ 'root.p10k.zsh' if zsh_user == 'root' else 'user.p10k.zsh' }}"
     dest: "{{ zsh_p10k_theme_config }}"
     owner: "{{ zsh_user }}"
-    group: "{{ zsh_user }}"
+    group: "{{ zsh_group }}"
     mode: "0600"

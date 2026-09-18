@@ -61,8 +61,8 @@ source $ZSH_PLUGINS/zsh-history-substring-search/zsh-history-substring-search.zs
 source $ZSH_PLUGINS/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
 # Enable fzf integration (Ctrl+R, Ctrl+T, Alt+C)
-source /usr/share/fzf/key-bindings.zsh
-source /usr/share/fzf/completion.zsh
+source {{ zsh_fzf_shell_path }}/key-bindings.zsh
+source {{ zsh_fzf_shell_path }}/completion.zsh
 
 # Enable fzf-tab for completions (after compinit)
 source $ZSH_PLUGINS/fzf-tab/fzf-tab.zsh

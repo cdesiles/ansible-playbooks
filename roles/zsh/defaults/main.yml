@@ -1,5 +1,12 @@
 ---
-zsh_home: "{{ '/root' if zsh_user == 'root' else '/home/' + zsh_user }}"
+zsh_os_darwin: "{{ ansible_facts['os_family'] == 'Darwin' }}"
+zsh_home: >-
+  {{ (zsh_os_darwin | bool)
+     | ternary(ansible_env.HOME,
+               ('/root' if zsh_user == 'root' else '/home/' + zsh_user)) }}
+# Primary group of the managed files. macOS has no per-user group (it's `staff`).
+zsh_group: >-
+  {{ (zsh_os_darwin | bool) | ternary('staff', zsh_user) }}
 zsh_base_config: "{{ zsh_home }}/.zshrc"
 zsh_config_path: "{{ zsh_home }}/.config/zsh"
 zsh_config_file: "{{ zsh_config_path }}/.zshrc"
@@ -7,4 +14,13 @@ zsh_p10k_theme_config: "{{ zsh_config_path }}/p10k.zsh"
 zsh_users:
   - jokester
   - root
-zsh_plugins_path: "/opt/zsh/plugins"
+# System-wide on Linux (root:users); per-user on macOS (user:staff).
+zsh_plugins_path: >-
+  {{ (zsh_os_darwin | bool) | ternary(zsh_config_path + '/plugins', '/opt/zsh/plugins') }}
+zsh_plugins_owner: >-
+  {{ (zsh_os_darwin | bool) | ternary(ansible_user, 'root') }}
+zsh_plugins_group: >-
+  {{ (zsh_os_darwin | bool) | ternary('staff', 'users') }}
+# fzf shell integrations (key-bindings.zsh / completion.zsh).
+zsh_fzf_shell_path: >-
+  {{ (zsh_os_darwin | bool) | ternary('$(brew --prefix)/opt/fzf/shell', '/usr/share/fzf') }}
