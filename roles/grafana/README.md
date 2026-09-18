@@ -10,6 +10,7 @@ This role:
 - Creates a dedicated PostgreSQL database and user
 - Configures Grafana to use PostgreSQL
 - Optionally configures Nginx reverse proxy
+- Optionally provisions disk alerting (temperature + capacity) to ntfy (see [Alerting](#alerting))
 - Follows the shared services pattern
 
 ## Dependencies
@@ -64,6 +65,18 @@ grafana_check_for_updates: false
 grafana_nginx_enabled: false
 grafana_nginx_hostname: grafana.local
 ```
+
+### Alerting
+
+```yaml
+grafana_alerting_enabled: false
+grafana_ntfy_webhook_url: "https://ntfy.example.com/sys-alerts?template=grafana"
+grafana_ntfy_token: "{{ vault_ntfy_token }}" # write access to the topic
+```
+
+`grafana_ntfy_webhook_url` and `grafana_ntfy_token` are required when
+`grafana_alerting_enabled: true`. The token is rendered into the contact point
+provisioning file, which is deployed `0600`.
 
 ## Example Playbook
 
@@ -168,6 +181,46 @@ When `grafana_nginx_enabled: true`, the role:
 - Reloads Nginx gracefully
 
 When disabled, the vhost configuration is removed.
+
+## Alerting
+
+When `grafana_alerting_enabled: true`, the role provisions [Grafana Unified
+Alerting](https://grafana.com/docs/grafana/latest/alerting/) as code under
+`{{ grafana_provisioning_path }}/alerting/`:
+
+- `contact-points.yaml` — stock **webhook** receiver pointing at an ntfy topic,
+  token sent as `Authorization: Bearer`. Deployed `0600` (secret).
+- `policies.yaml` — notification policy tree (root route to that receiver).
+- `rules.yaml` — disk alert rules: HDD temperature
+  (`smartctl_device_temperature{temperature_type="current"}`) and capacity
+  (ZFS pools `zfs_pool_capacity_percent`; local filesystems
+  `node_filesystem_avail_bytes` / `node_filesystem_size_bytes`, filtered to
+  `fstype=~"ext4|xfs|btrfs"`).
+
+No plugin, bridge or Alertmanager is involved: the webhook URL carries
+`?template=grafana`, so ntfy's built-in `grafana` template renders Grafana's
+webhook JSON into a `🚨`/`✅` title and message. Resolved alerts are sent
+automatically (`disableResolveMessage: false`). Adding rules means adding
+entries to `rules.yaml`; the receiver and policy stay generic.
+
+> Provisioning the notification policy tree replaces the entire tree; UI edits
+> to policies are overwritten on the next deploy.
+
+### Capacity tiers
+
+Cumulative thresholds: a rise fires each newly crossed threshold (lower tiers
+keep firing), a fall acks each crossed-down threshold. ZFS capacity is emitted
+hourly by the `zfs` role, so its tiers need at least an hourly `for` to see the
+new value.
+
+| Metric | Threshold | `severity` | `for` |
+|--------|-----------|-----------|-------|
+| `zfs_pool_capacity_percent` / filesystem used % | ≥80% | warning | 6h |
+| `zfs_pool_capacity_percent` / filesystem used % | ≥90% | high | 1h |
+| `zfs_pool_capacity_percent` / filesystem used % | ≥95% | critical | 15m |
+
+ZFS datasets are excluded from the filesystem rule: they report pool-wide free
+space, not per-dataset usage, so the pool metric is authoritative.
 
 ## OS Support
 

@@ -1,0 +1,706 @@
+apiVersion: 1
+
+# Managed by Ansible (roles/grafana). Disk alert rules: HDD temperature and
+# capacity (ZFS pools + local filesystems).
+#
+# Temperature metric: smartctl_device_temperature{temperature_type="current"} (job="smartctl").
+# Capacity metrics: zfs_pool_capacity_percent and
+# node_filesystem_avail_bytes/node_filesystem_size_bytes (job="node").
+# node_filesystem_* is filtered to real local filesystems (ext4/xfs/btrfs);
+# ZFS datasets are excluded because they report pool-wide free space, not
+# per-dataset, and are covered by zfs_pool_capacity_percent instead.
+#
+# Tiers are cumulative thresholds (>= N), not non-overlapping bands:
+#   rising  -> each newly crossed threshold fires; lower tiers keep firing
+#   falling -> each crossed-down threshold resolves (ack); lower tiers keep firing
+# So a rise pages once per tier crossed and a fall acks once per tier, with the
+# final ack when leaving the lowest tier. Below the lowest threshold = no series
+# = NoData, mapped to OK on purpose.
+groups:
+  - orgId: 1
+    name: disk-temperature
+    folder: Disks
+    interval: 1m
+    rules:
+      - uid: disk_temp_ge_48
+        title: "Disk temperature ≥48°C"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                smartctl_device_temperature{job="smartctl", temperature_type="current"} >= 48
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{device}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk {{ $labels.device }} at {{ $values.B }}°C ({{ $labels.instance }})"
+          description: "S.M.A.R.T. temperature is at or above 48°C. Ideal is 20-45°C."
+
+      - uid: disk_temp_ge_50
+        title: "Disk temperature ≥50°C"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                smartctl_device_temperature{job="smartctl", temperature_type="current"} >= 50
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{device}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk {{ $labels.device }} at {{ $values.B }}°C ({{ $labels.instance }})"
+          description: "S.M.A.R.T. temperature is at or above 50°C."
+
+      - uid: disk_temp_ge_52
+        title: "Disk temperature ≥52°C"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                smartctl_device_temperature{job="smartctl", temperature_type="current"} >= 52
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{device}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk {{ $labels.device }} at {{ $values.B }}°C ({{ $labels.instance }})"
+          description: "S.M.A.R.T. temperature is at or above 52°C."
+
+      - uid: disk_temp_ge_54
+        title: "Disk temperature ≥54°C"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                smartctl_device_temperature{job="smartctl", temperature_type="current"} >= 54
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{device}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: high
+        annotations:
+          summary: "Disk {{ $labels.device }} at {{ $values.B }}°C ({{ $labels.instance }})"
+          description: "S.M.A.R.T. temperature is at or above 54°C. Check airflow/fan."
+
+      - uid: disk_temp_ge_56
+        title: "Disk temperature ≥56°C"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                smartctl_device_temperature{job="smartctl", temperature_type="current"} >= 56
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{device}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: high
+        annotations:
+          summary: "Disk {{ $labels.device }} at {{ $values.B }}°C ({{ $labels.instance }})"
+          description: "S.M.A.R.T. temperature is at or above 56°C. Check airflow/fan."
+
+      - uid: disk_temp_ge_58
+        title: "Disk temperature ≥58°C"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                smartctl_device_temperature{job="smartctl", temperature_type="current"} >= 58
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{device}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk {{ $labels.device }} at {{ $values.B }}°C ({{ $labels.instance }})"
+          description: "S.M.A.R.T. temperature is at or above 58°C, close to the failure limit."
+
+      - uid: disk_temp_ge_60
+        title: "Disk temperature ≥60°C"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                smartctl_device_temperature{job="smartctl", temperature_type="current"} >= 60
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{device}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk {{ $labels.device }} at {{ $values.B }}°C ({{ $labels.instance }})"
+          description: "S.M.A.R.T. temperature is at or above the 60°C failure limit."
+
+      - uid: disk_temp_lt_20
+        title: "Disk temperature <20°C"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                smartctl_device_temperature{job="smartctl", temperature_type="current"} < 20
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{device}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk {{ $labels.device }} at {{ $values.B }}°C ({{ $labels.instance }})"
+          description: "S.M.A.R.T. temperature is below the 20°C ideal minimum (sensor/fan/offline disk?)."
+
+      # --- Capacity: ZFS pools (data disk) ---
+      # zfs_pool_capacity_percent is emitted hourly by the zfs role's
+      # zfs-metrics.timer via node_exporter's textfile collector. Cumulative
+      # thresholds; below threshold = no series = NoData, mapped to OK.
+      - uid: zfs_pool_capacity_ge_80
+        title: "ZFS pool ≥80% full"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                zfs_pool_capacity_percent{job="node"} >= 80
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{pool}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 6h
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: "ZFS pool {{ $labels.pool }} at {{ $values.B }}% ({{ $labels.instance }})"
+          description: "ZFS pool is at or above 80% capacity. ZFS performance degrades above 80%."
+
+      - uid: zfs_pool_capacity_ge_90
+        title: "ZFS pool ≥90% full"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                zfs_pool_capacity_percent{job="node"} >= 90
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{pool}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 1h
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: high
+        annotations:
+          summary: "ZFS pool {{ $labels.pool }} at {{ $values.B }}% ({{ $labels.instance }})"
+          description: "ZFS pool is at or above 90% capacity. Free space is getting low."
+
+      - uid: zfs_pool_capacity_ge_95
+        title: "ZFS pool ≥95% full"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                zfs_pool_capacity_percent{job="node"} >= 95
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{pool}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 15m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+        annotations:
+          summary: "ZFS pool {{ $labels.pool }} at {{ $values.B }}% ({{ $labels.instance }})"
+          description: "ZFS pool is at or above 95% capacity. Writes may fail soon."
+
+      # --- Capacity: local filesystems (system disk, db disk) ---
+      # node_exporter's filesystem collector. fstype filter excludes ZFS
+      # (pool-wide free space is not per-dataset) and virtual filesystems.
+      # Cumulative thresholds; below threshold = no series = NoData, OK.
+      - uid: fs_capacity_ge_80
+        title: "Filesystem ≥80% full"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                100 * (1 - node_filesystem_avail_bytes{job="node", fstype=~"ext4|xfs|btrfs"}
+                / node_filesystem_size_bytes{job="node", fstype=~"ext4|xfs|btrfs"}) >= 80
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{mountpoint}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 6h
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: "Filesystem {{ $labels.mountpoint }} at {{ $values.B }}% ({{ $labels.instance }})"
+          description: "Filesystem is at or above 80% capacity."
+
+      - uid: fs_capacity_ge_90
+        title: "Filesystem ≥90% full"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                100 * (1 - node_filesystem_avail_bytes{job="node", fstype=~"ext4|xfs|btrfs"}
+                / node_filesystem_size_bytes{job="node", fstype=~"ext4|xfs|btrfs"}) >= 90
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{mountpoint}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 1h
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: high
+        annotations:
+          summary: "Filesystem {{ $labels.mountpoint }} at {{ $values.B }}% ({{ $labels.instance }})"
+          description: "Filesystem is at or above 90% capacity. Free space is getting low."
+
+      - uid: fs_capacity_ge_95
+        title: "Filesystem ≥95% full"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                100 * (1 - node_filesystem_avail_bytes{job="node", fstype=~"ext4|xfs|btrfs"}
+                / node_filesystem_size_bytes{job="node", fstype=~"ext4|xfs|btrfs"}) >= 95
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{mountpoint}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 15m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+        annotations:
+          summary: "Filesystem {{ $labels.mountpoint }} at {{ $values.B }}% ({{ $labels.instance }})"
+          description: "Filesystem is at or above 95% capacity. Writes may fail soon."

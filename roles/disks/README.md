@@ -11,7 +11,7 @@ See [defaults/main.yml](defaults/main.yml).
 
 Gated by `smartctl_exporter_enabled`. When true, downloads and runs the
 `smartctl_exporter` static binary as a root systemd service, polling `smartctl`
-at `smartctl_exporter_interval` (default `1h`).
+at `smartctl_exporter_interval` (default `30m`).
 
 ```yaml
 smartctl_exporter_enabled: true
@@ -27,3 +27,23 @@ prometheus_scrape_configs:
         labels:
           instance: andromeda
 ```
+
+### Temperature alerts
+
+The `grafana` role provisions cumulative temperature thresholds: a rise fires
+each newly crossed threshold (lower tiers keep firing), a fall resolves each
+crossed-down threshold (ack), and the final ack fires when leaving the lowest
+tier.
+
+| Threshold | `severity` | `for` |
+|-----------|-----------|-------|
+| ≥48°C | warning | 10m |
+| ≥50°C | warning | 10m |
+| ≥52°C | warning | 10m |
+| ≥54°C | high | 10m |
+| ≥56°C | high | 10m |
+| ≥58°C | critical | 10m |
+| ≥60°C | critical | 5m |
+| <20°C | warning | 10m |
+
+Responsiveness is bounded by `smartctl_exporter_interval` (default `30m`).

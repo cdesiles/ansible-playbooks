@@ -1,0 +1,15 @@
+apiVersion: 1
+
+# Managed by Ansible (roles/grafana). Contains the ntfy access token: mode 0600.
+contactPoints:
+  - orgId: 1
+    name: ntfy-sys-alerts
+    receivers:
+      - uid: ntfy_sys_alerts
+        type: webhook
+        disableResolveMessage: false
+        settings:
+          url: "{{ grafana_ntfy_webhook_url }}"
+          httpMethod: POST
+          authorization_scheme: Bearer
+          authorization_credentials: "{{ grafana_ntfy_token }}"

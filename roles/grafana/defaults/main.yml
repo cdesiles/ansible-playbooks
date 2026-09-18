@@ -31,3 +31,14 @@ grafana_check_for_updates: false
 # Nginx reverse proxy
 grafana_nginx_enabled: true
 grafana_nginx_hostname: "{{ grafana_domain }}"
+
+# Alerting (Grafana Unified Alerting → ntfy webhook)
+# When enabled, provisions disk alert rules (HDD temperature + ZFS/filesystem
+# capacity), notification policies and an ntfy contact point using ntfy's
+# built-in "grafana" webhook template.
+grafana_alerting_enabled: false
+# Webhook URL of the target ntfy topic. Keep ?template=grafana so ntfy parses
+# Grafana's webhook payload into a readable title/message.
+# grafana_ntfy_webhook_url: "https://ntfy.example.com/sys-alerts?template=grafana"
+# ntfy access token with write access to the topic (set in inventory/vault).
+# grafana_ntfy_token: ""
