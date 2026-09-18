@@ -1,4 +1,4 @@
-# Disks
+# ZFS
 
 Ansible community support for ZFS is limited to create filesystems, volumes and snapshots. There is no support for managing zpools, so here it is.
 
@@ -35,6 +35,30 @@ zfs_datasets:
           mountpoint: /mnt/peace/movies
           quota: 500G
 ```
+
+## Prometheus metrics
+
+The role deploys an hourly systemd timer (`zfs-metrics.timer`) running
+`/usr/local/bin/zfs-metrics.sh`, which writes pool and dataset capacity to
+node_exporter's textfile collector directory (`zfs_metrics_dir`). The
+`node_exporter` role must be deployed on the host; the script exits silently
+otherwise.
+
+| Metric | Labels | Description |
+| --- | --- | --- |
+| `zfs_pool_size_bytes` | `pool` | Total pool size |
+| `zfs_pool_alloc_bytes` | `pool` | Allocated bytes |
+| `zfs_pool_free_bytes` | `pool` | Free bytes |
+| `zfs_pool_capacity_percent` | `pool` | Used capacity |
+| `zfs_dataset_used_bytes` | `dataset` | Used bytes (incl. snapshots and children) |
+| `zfs_dataset_refer_bytes` | `dataset` | Own referenced bytes |
+| `zfs_dataset_quota_bytes` | `dataset` | Quota (0 = none) |
+
+These feed the **ZFS - Pools & Datasets** Grafana dashboard. node_exporter's
+built-in `--collector.zfs` exposes ARC, I/O and pool state only, not capacity.
+
+Tunables (`defaults/main.yml`): `zfs_metrics_enabled`, `zfs_metrics_dir`,
+`zfs_metrics_script_path`, `zfs_metrics_interval`.
 
 ## References
 

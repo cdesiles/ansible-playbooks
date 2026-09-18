@@ -5,3 +5,7 @@
   ansible.builtin.include_tasks: pools.yml
 - name: "Setup ZFS datasets: filesystems, snapshots, volumes"
   ansible.builtin.include_tasks: datasets.yml
+
+- name: Setup ZFS capacity metrics
+  ansible.builtin.include_tasks: metrics.yml
+  when: zfs_metrics_enabled | bool

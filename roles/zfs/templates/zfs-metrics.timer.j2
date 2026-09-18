@@ -1,0 +1,10 @@
+[Unit]
+Description=Timer for ZFS capacity metrics collection
+
+[Timer]
+OnCalendar={{ zfs_metrics_interval }}
+Persistent=true
+Unit=zfs-metrics.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,18 @@
+---
+# ZFS capacity metrics (Prometheus)
+# ---------------------------------
+# Exposes pool size/used/free and per-dataset used/quota to Prometheus via
+# node_exporter's textfile collector. node_exporter's built-in --collector.zfs
+# only exposes ARC, I/O and pool state — not capacity.
+zfs_metrics_enabled: true
+
+# Directory node_exporter's textfile collector reads `*.prom` files from.
+# Must match node_exporter_textfile_dir in roles/node_exporter/defaults/main.yml.
+zfs_metrics_dir: /var/lib/node_exporter/textfile_collector
+
+# Where the collector script is installed.
+zfs_metrics_script_path: /usr/local/bin/zfs-metrics.sh
+
+# systemd OnCalendar expression for the collection timer. Hourly is plenty to
+# track daily growth; Prometheus keeps 90d of history on andromeda.
+zfs_metrics_interval: "hourly"

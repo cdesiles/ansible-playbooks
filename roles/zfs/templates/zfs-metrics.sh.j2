@@ -1,0 +1,49 @@
+#!/bin/sh
+# Managed by Ansible - DO NOT EDIT MANUALLY
+#
+# Writes ZFS pool and dataset capacity metrics as Prometheus textfile metrics
+# into node_exporter's textfile collector directory. node_exporter's built-in
+# --collector.zfs exposes ARC, pool I/O and pool state only, not capacity.
+set -eu
+set -o pipefail
+
+metrics_dir="{{ zfs_metrics_dir }}"
+
+# node_exporter may not be deployed on this host.
+[ -d "$metrics_dir" ] || exit 0
+
+out="$metrics_dir/zfs.prom"
+tmp="$out.tmp"
+
+# Written atomically (tmp + mv) so the collector never reads a half-written file.
+{
+    echo "# HELP zfs_pool_size_bytes Total size of the ZFS pool."
+    echo "# TYPE zfs_pool_size_bytes gauge"
+    echo "# HELP zfs_pool_alloc_bytes Allocated bytes in the ZFS pool."
+    echo "# TYPE zfs_pool_alloc_bytes gauge"
+    echo "# HELP zfs_pool_free_bytes Free bytes in the ZFS pool."
+    echo "# TYPE zfs_pool_free_bytes gauge"
+    echo "# HELP zfs_pool_capacity_percent Used capacity of the ZFS pool, in percent."
+    echo "# TYPE zfs_pool_capacity_percent gauge"
+    echo "# HELP zfs_dataset_used_bytes Used bytes of a ZFS dataset, including snapshots and children."
+    echo "# TYPE zfs_dataset_used_bytes gauge"
+    echo "# HELP zfs_dataset_refer_bytes Bytes referenced by a ZFS dataset itself."
+    echo "# TYPE zfs_dataset_refer_bytes gauge"
+    echo "# HELP zfs_dataset_quota_bytes Quota of a ZFS dataset in bytes (0 = no quota)."
+    echo "# TYPE zfs_dataset_quota_bytes gauge"
+
+    zpool list -Hp -o name,size,alloc,free,capacity | while read -r pool size alloc free capacity; do
+        echo "zfs_pool_size_bytes{pool=\"$pool\"} $size"
+        echo "zfs_pool_alloc_bytes{pool=\"$pool\"} $alloc"
+        echo "zfs_pool_free_bytes{pool=\"$pool\"} $free"
+        echo "zfs_pool_capacity_percent{pool=\"$pool\"} $capacity"
+    done
+
+    zfs list -Hp -o name,used,refer,quota -t filesystem | while read -r dataset used refer quota; do
+        echo "zfs_dataset_used_bytes{dataset=\"$dataset\"} $used"
+        echo "zfs_dataset_refer_bytes{dataset=\"$dataset\"} $refer"
+        echo "zfs_dataset_quota_bytes{dataset=\"$dataset\"} $quota"
+    done
+} > "$tmp"
+
+mv "$tmp" "$out"

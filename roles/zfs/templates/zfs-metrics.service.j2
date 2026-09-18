@@ -1,0 +1,7 @@
+[Unit]
+Description=Collect ZFS pool and dataset capacity metrics
+After=zfs.target zfs-import.target
+
+[Service]
+Type=oneshot
+ExecStart={{ zfs_metrics_script_path }}
