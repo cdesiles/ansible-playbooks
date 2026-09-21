@@ -14,7 +14,7 @@
            'armv6l': 'armv6',
            'i386': '386',
            'i686': '386'
-         }[ansible_architecture] }}
+         }[ansible_facts['architecture']] }}
 
 - name: Set release filenames
   ansible.builtin.set_fact:
