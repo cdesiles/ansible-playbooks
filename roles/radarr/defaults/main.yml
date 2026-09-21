@@ -25,3 +25,16 @@ radarr_backup_paths:
 # Nginx reverse proxy configuration
 radarr_nginx_enabled: false
 radarr_nginx_hostname: radarr.nas.local
+# Let's Encrypt (certbot) requires a publicly-resolvable hostname. Internal
+# names (e.g. *.nas.local) cannot get a public cert: leave this false to use
+# the shared self-signed cert (nginx_default_ssl_cert). Set true once a public
+# DNS record points at the host.
+radarr_nginx_letsencrypt: false
+radarr_nginx_ssl_certificate: >-
+  {{ radarr_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ radarr_nginx_hostname ~ '/fullchain.pem',
+     nginx_default_ssl_cert) }}
+radarr_nginx_ssl_certificate_key: >-
+  {{ radarr_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ radarr_nginx_hostname ~ '/privkey.pem',
+     nginx_default_ssl_key) }}

@@ -5,12 +5,16 @@
 #   - certbot_hostname: the domain to provision (e.g. "apk.jokester.fr")
 #   - acme_email: Let's Encrypt account email (typically from host_vars)
 #
+# Let's Encrypt only issues for publicly-resolvable hostnames, so gate the
+# include on the service's `<service>_nginx_letsencrypt` flag (default false;
+# internal names fall back to the shared self-signed cert).
+#
 # Usage from a service role:
 #   - name: Provision TLS certificate
 #     ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"
 #     vars:
 #       certbot_hostname: "{{ myservice_nginx_hostname }}"
-#     when: myservice_nginx_enabled
+#     when: myservice_nginx_enabled and myservice_nginx_letsencrypt
 
 - name: Validate certbot requirements
   ansible.builtin.assert:

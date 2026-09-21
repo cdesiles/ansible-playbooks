@@ -31,6 +31,19 @@ grafana_check_for_updates: false
 # Nginx reverse proxy
 grafana_nginx_enabled: true
 grafana_nginx_hostname: "{{ grafana_domain }}"
+# Let's Encrypt (certbot) requires a publicly-resolvable hostname. Internal
+# names (e.g. *.nas.local) cannot get a public cert: leave this false to use
+# the shared self-signed cert (nginx_default_ssl_cert). Set true once a public
+# DNS record points at the host.
+grafana_nginx_letsencrypt: false
+grafana_nginx_ssl_certificate: >-
+  {{ grafana_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ grafana_nginx_hostname ~ '/fullchain.pem',
+     nginx_default_ssl_cert) }}
+grafana_nginx_ssl_certificate_key: >-
+  {{ grafana_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ grafana_nginx_hostname ~ '/privkey.pem',
+     nginx_default_ssl_key) }}
 
 # Alerting (Grafana Unified Alerting → ntfy webhook)
 # When enabled, provisions disk alert rules (HDD temperature + ZFS/filesystem

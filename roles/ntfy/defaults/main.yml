@@ -43,3 +43,16 @@ ntfy_enable_reservations: true # Only authenticated users can reserve topics
 # Nginx reverse proxy configuration
 ntfy_nginx_enabled: false
 ntfy_nginx_hostname: ntfy.nas.local
+# Let's Encrypt (certbot) requires a publicly-resolvable hostname. Internal
+# names (e.g. *.nas.local) cannot get a public cert: leave this false to use
+# the shared self-signed cert (nginx_default_ssl_cert). Set true once a public
+# DNS record points at the host.
+ntfy_nginx_letsencrypt: false
+ntfy_nginx_ssl_certificate: >-
+  {{ ntfy_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ ntfy_nginx_hostname ~ '/fullchain.pem',
+     nginx_default_ssl_cert) }}
+ntfy_nginx_ssl_certificate_key: >-
+  {{ ntfy_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ ntfy_nginx_hostname ~ '/privkey.pem',
+     nginx_default_ssl_key) }}

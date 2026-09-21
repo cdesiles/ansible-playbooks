@@ -147,7 +147,7 @@
   ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"
   vars:
     certbot_hostname: "{{ gitea_nginx_hostname }}"
-  when: gitea_nginx_enabled
+  when: gitea_nginx_enabled and gitea_nginx_letsencrypt
 
 - name: Deploy nginx vhost configuration for Gitea
   ansible.builtin.template:

@@ -346,7 +346,7 @@
   ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"
   vars:
     certbot_hostname: "{{ grafana_nginx_hostname }}"
-  when: grafana_nginx_enabled
+  when: grafana_nginx_enabled and grafana_nginx_letsencrypt
 
 - name: Deploy nginx vhost
   ansible.builtin.template:

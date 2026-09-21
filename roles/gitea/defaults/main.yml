@@ -31,3 +31,16 @@ gitea_disable_registration: false
 # Nginx reverse proxy configuration
 gitea_nginx_enabled: true
 gitea_nginx_hostname: "{{ gitea_domain }}"
+# Let's Encrypt (certbot) requires a publicly-resolvable hostname. Internal
+# names (e.g. *.nas.local) cannot get a public cert: leave this false to use
+# the shared self-signed cert (nginx_default_ssl_cert). Set true once a public
+# DNS record points at the host.
+gitea_nginx_letsencrypt: false
+gitea_nginx_ssl_certificate: >-
+  {{ gitea_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ gitea_nginx_hostname ~ '/fullchain.pem',
+     nginx_default_ssl_cert) }}
+gitea_nginx_ssl_certificate_key: >-
+  {{ gitea_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ gitea_nginx_hostname ~ '/privkey.pem',
+     nginx_default_ssl_key) }}

@@ -31,3 +31,16 @@ fdroid_update_interval: "24h"
 # Nginx reverse proxy configuration
 fdroid_nginx_enabled: false
 fdroid_nginx_hostname: apk.nas.local
+# Let's Encrypt (certbot) requires a publicly-resolvable hostname. Internal
+# names (e.g. *.nas.local) cannot get a public cert: leave this false to use
+# the shared self-signed cert (nginx_default_ssl_cert). Set true once a public
+# DNS record points at the host.
+fdroid_nginx_letsencrypt: false
+fdroid_nginx_ssl_certificate: >-
+  {{ fdroid_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ fdroid_nginx_hostname ~ '/fullchain.pem',
+     nginx_default_ssl_cert) }}
+fdroid_nginx_ssl_certificate_key: >-
+  {{ fdroid_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ fdroid_nginx_hostname ~ '/privkey.pem',
+     nginx_default_ssl_key) }}

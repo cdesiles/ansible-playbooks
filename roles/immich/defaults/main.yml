@@ -68,3 +68,16 @@ immich_timezone: UTC
 # Nginx reverse proxy configuration
 immich_nginx_enabled: false
 immich_nginx_hostname: photos.nas.local
+# Let's Encrypt (certbot) requires a publicly-resolvable hostname. Internal
+# names (e.g. *.nas.local) cannot get a public cert: leave this false to use
+# the shared self-signed cert (nginx_default_ssl_cert). Set true once a public
+# DNS record points at the host.
+immich_nginx_letsencrypt: false
+immich_nginx_ssl_certificate: >-
+  {{ immich_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ immich_nginx_hostname ~ '/fullchain.pem',
+     nginx_default_ssl_cert) }}
+immich_nginx_ssl_certificate_key: >-
+  {{ immich_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ immich_nginx_hostname ~ '/privkey.pem',
+     nginx_default_ssl_key) }}

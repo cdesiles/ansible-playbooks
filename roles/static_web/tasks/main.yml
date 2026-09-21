@@ -62,6 +62,7 @@
   when:
     - static_web_sites | length > 0
     - item.value.ssl_enabled | default(true)
+    - item.value.letsencrypt | default(false)
 
 - name: Deploy nginx vhost configurations
   ansible.builtin.template:

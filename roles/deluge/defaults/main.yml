@@ -12,9 +12,16 @@ deluge_timezone: UTC
 deluge_loglevel: error
 
 # Storage. Config holds torrent state, auth and web settings; downloads is the
-# default save path. Both must live on local storage, not NFS.
+# default save path. Config MUST stay on local storage (SQLite over NFS corrupts
+# under concurrent access); downloads may be a network mount (see roles/nfs_client).
 deluge_config_dir: "{{ podman_projects_dir }}/deluge/config"
 deluge_downloads_dir: "{{ podman_projects_dir }}/deluge/downloads"
+
+# Inbound firewall. The torrent port must be reachable by peers, so it is open
+# to the world by default. The web UI is not opened here: expose it via nginx
+# (deluge_nginx_enabled) or reach it over the VPN.
+deluge_firewall_allowed_sources:
+  - "0.0.0.0/0"
 
 # Backup manifest - consumed by roles/backup via inventory `backup_jobs`.
 # Only the config (torrent state, auth, web settings) is worth backing up;
@@ -25,3 +32,20 @@ deluge_backup_paths:
 # Nginx reverse proxy configuration
 deluge_nginx_enabled: false
 deluge_nginx_hostname: deluge.nas.local
+# Let's Encrypt (certbot) requires a publicly-resolvable hostname. Internal
+# names (e.g. *.nas.local) cannot get a public cert: leave this false to use
+# the shared self-signed cert (nginx_default_ssl_cert). Set true once a public
+# DNS record points at the host.
+deluge_nginx_letsencrypt: false
+deluge_nginx_ssl_certificate: >-
+  {{ deluge_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ deluge_nginx_hostname ~ '/fullchain.pem',
+     nginx_default_ssl_cert) }}
+deluge_nginx_ssl_certificate_key: >-
+  {{ deluge_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ deluge_nginx_hostname ~ '/privkey.pem',
+     nginx_default_ssl_key) }}
+# Optional client allow-list for the vhost. Empty = reachable from anywhere.
+# Set to the VPN subnet (e.g. ["192.168.30.0/27"]) to keep the web UI off the
+# public internet while still reaching it over the tunnel.
+deluge_nginx_allowed_sources: []

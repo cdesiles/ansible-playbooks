@@ -26,3 +26,16 @@ seerr_backup_paths:
 # Nginx reverse proxy configuration
 seerr_nginx_enabled: false
 seerr_nginx_hostname: seerr.nas.local
+# Let's Encrypt (certbot) requires a publicly-resolvable hostname. Internal
+# names (e.g. *.nas.local) cannot get a public cert: leave this false to use
+# the shared self-signed cert (nginx_default_ssl_cert). Set true once a public
+# DNS record points at the host.
+seerr_nginx_letsencrypt: false
+seerr_nginx_ssl_certificate: >-
+  {{ seerr_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ seerr_nginx_hostname ~ '/fullchain.pem',
+     nginx_default_ssl_cert) }}
+seerr_nginx_ssl_certificate_key: >-
+  {{ seerr_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ seerr_nginx_hostname ~ '/privkey.pem',
+     nginx_default_ssl_key) }}

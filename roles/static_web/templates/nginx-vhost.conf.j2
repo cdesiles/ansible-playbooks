@@ -23,9 +23,12 @@ server {
     listen [::]:443 ssl;
     server_name {{ hostname }};
 
-    # Let's Encrypt certificates (managed by Certbot)
-    ssl_certificate /etc/letsencrypt/live/{{ hostname }}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/{{ hostname }}/privkey.pem;
+    ssl_certificate {{ (site_config.letsencrypt | default(false)) | ternary(
+        '/etc/letsencrypt/live/' ~ hostname ~ '/fullchain.pem',
+        nginx_default_ssl_cert) }};
+    ssl_certificate_key {{ (site_config.letsencrypt | default(false)) | ternary(
+        '/etc/letsencrypt/live/' ~ hostname ~ '/privkey.pem',
+        nginx_default_ssl_key) }};
 
     # SSL configuration
     ssl_protocols {{ nginx_ssl_protocols | default('TLSv1.3') }};

@@ -22,9 +22,8 @@ server {
     listen [::]:443 ssl;
     server_name {{ gitea_nginx_hostname }};
 
-    # Let's Encrypt certificates (managed by Certbot)
-    ssl_certificate /etc/letsencrypt/live/{{ gitea_nginx_hostname }}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/{{ gitea_nginx_hostname }}/privkey.pem;
+    ssl_certificate {{ gitea_nginx_ssl_certificate }};
+    ssl_certificate_key {{ gitea_nginx_ssl_certificate_key }};
 
     # SSL configuration
     ssl_protocols {{ nginx_ssl_protocols | default('TLSv1.3') }};

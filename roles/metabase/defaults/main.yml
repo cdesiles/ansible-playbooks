@@ -16,3 +16,16 @@ metabase_timezone: UTC
 
 metabase_nginx_enabled: false
 metabase_nginx_hostname: metabase.nas.local
+# Let's Encrypt (certbot) requires a publicly-resolvable hostname. Internal
+# names (e.g. *.nas.local) cannot get a public cert: leave this false to use
+# the shared self-signed cert (nginx_default_ssl_cert). Set true once a public
+# DNS record points at the host.
+metabase_nginx_letsencrypt: false
+metabase_nginx_ssl_certificate: >-
+  {{ metabase_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ metabase_nginx_hostname ~ '/fullchain.pem',
+     nginx_default_ssl_cert) }}
+metabase_nginx_ssl_certificate_key: >-
+  {{ metabase_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ metabase_nginx_hostname ~ '/privkey.pem',
+     nginx_default_ssl_key) }}

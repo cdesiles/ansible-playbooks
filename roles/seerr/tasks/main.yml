@@ -84,7 +84,7 @@
   ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"
   vars:
     certbot_hostname: "{{ seerr_nginx_hostname }}"
-  when: seerr_nginx_enabled
+  when: seerr_nginx_enabled and seerr_nginx_letsencrypt
 
 - name: Deploy nginx vhost configuration for Seerr
   ansible.builtin.template:

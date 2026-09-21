@@ -48,6 +48,10 @@ prometheus_scrape_configs:
       - targets: ['127.0.0.1:9113']
 ```
 
+## TLS certificates
+
+Let's Encrypt (via the shared `certbot.yml` task) only works for publicly-resolvable hostnames. Each service role exposes a `<service>_nginx_letsencrypt` flag (default `false`) and two computed paths (`<service>_nginx_ssl_certificate` / `_key`): when the flag is off the vhost uses the shared self-signed cert (`nginx_default_ssl_cert`), when on it uses `/etc/letsencrypt/live/<hostname>/`. Gate the certbot include on the flag and reference the path variables from the vhost template. Set the flag `true` in inventory only once a public DNS record points at the host.
+
 ## Service Integration Pattern
 
 Each service role should deploy its own vhost config:

@@ -84,7 +84,7 @@
   ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"
   vars:
     certbot_hostname: "{{ prowlarr_nginx_hostname }}"
-  when: prowlarr_nginx_enabled
+  when: prowlarr_nginx_enabled and prowlarr_nginx_letsencrypt
 
 - name: Deploy nginx vhost configuration for Prowlarr
   ansible.builtin.template:

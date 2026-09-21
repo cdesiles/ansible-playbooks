@@ -1,4 +1,4 @@
-# Deluge vhost with Let's Encrypt (Certbot)
+# Deluge vhost (Let's Encrypt when deluge_nginx_letsencrypt, else self-signed)
 # Managed by Ansible - DO NOT EDIT MANUALLY
 
 server {
@@ -22,9 +22,8 @@ server {
     listen [::]:443 ssl;
     server_name {{ deluge_nginx_hostname }};
 
-    # Let's Encrypt certificates (managed by Certbot)
-    ssl_certificate /etc/letsencrypt/live/{{ deluge_nginx_hostname }}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/{{ deluge_nginx_hostname }}/privkey.pem;
+    ssl_certificate {{ deluge_nginx_ssl_certificate }};
+    ssl_certificate_key {{ deluge_nginx_ssl_certificate_key }};
 
     # SSL configuration
     ssl_protocols {{ nginx_ssl_protocols | default('TLSv1.3') }};
@@ -41,6 +40,12 @@ server {
     client_max_body_size 20M;
 
     location / {
+{% if deluge_nginx_allowed_sources | length > 0 %}
+{% for source in deluge_nginx_allowed_sources %}
+        allow {{ source }};
+{% endfor %}
+        deny all;
+{% endif %}
         proxy_pass http://127.0.0.1:{{ deluge_web_port }};
         proxy_set_header Host $http_host;
         proxy_set_header X-Real-IP $remote_addr;

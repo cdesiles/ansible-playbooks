@@ -31,3 +31,16 @@ uptime_kuma_timezone: UTC
 # Nginx reverse proxy configuration
 uptime_kuma_nginx_enabled: false
 uptime_kuma_nginx_hostname: uptime.nas.local
+# Let's Encrypt (certbot) requires a publicly-resolvable hostname. Internal
+# names (e.g. *.nas.local) cannot get a public cert: leave this false to use
+# the shared self-signed cert (nginx_default_ssl_cert). Set true once a public
+# DNS record points at the host.
+uptime_kuma_nginx_letsencrypt: false
+uptime_kuma_nginx_ssl_certificate: >-
+  {{ uptime_kuma_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ uptime_kuma_nginx_hostname ~ '/fullchain.pem',
+     nginx_default_ssl_cert) }}
+uptime_kuma_nginx_ssl_certificate_key: >-
+  {{ uptime_kuma_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ uptime_kuma_nginx_hostname ~ '/privkey.pem',
+     nginx_default_ssl_key) }}

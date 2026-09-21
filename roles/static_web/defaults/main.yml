@@ -9,7 +9,10 @@
 #       git_depth: 1  # optional, shallow clone depth
 #       build_command: ""  # optional, command to run after git clone (e.g., npm build)
 #       root_dir: ""  # optional, subdirectory to serve (e.g., "dist" or "build")
-#       ssl_enabled: true  # optional, enable HTTPS with Let's Encrypt (default: true)
+#       ssl_enabled: true  # optional, enable HTTPS (default: true)
+#       letsencrypt: false  # optional, use Let's Encrypt for TLS (default: false,
+#                           # falls back to the shared self-signed cert). Requires
+#                           # a publicly-resolvable hostname.
 
 static_web_sites: {}
 
