@@ -191,7 +191,7 @@ Alerting](https://grafana.com/docs/grafana/latest/alerting/) as code under
 - `contact-points.yaml` — stock **webhook** receiver pointing at an ntfy topic,
   token sent as `Authorization: Bearer`. Deployed `0600` (secret).
 - `policies.yaml` — notification policy tree (root route to that receiver).
-- `rules.yaml` — disk alert rules: HDD temperature
+- `rules.yaml` — disk alert rules: HDD and NVMe temperature
   (`smartctl_device_temperature{temperature_type="current"}`) and capacity
   (ZFS pools `zfs_pool_capacity_percent`; local filesystems
   `node_filesystem_avail_bytes` / `node_filesystem_size_bytes`, filtered to
@@ -205,6 +205,23 @@ entries to `rules.yaml`; the receiver and policy stay generic.
 
 > Provisioning the notification policy tree replaces the entire tree; UI edits
 > to policies are overwritten on the next deploy.
+
+### Temperature tiers
+
+HDD and NVMe have different safe ranges, so they use separate ladders selected
+by the `device` label (`nvme*` vs everything else). Cumulative thresholds, same
+rise/fall semantics as capacity.
+
+| Device | Threshold | `severity` | `for` |
+|--------|-----------|-----------|-------|
+| HDD | ≥48 / ≥50 / ≥52 / ≥54 / ≥56 / ≥58 / ≥60°C | warning → critical | 10m (5m at 60) |
+| HDD | <20°C | warning | 10m |
+| NVMe | ≥65°C | warning | 15m |
+| NVMe | ≥70°C | high | 10m |
+| NVMe | ≥75°C | critical | 5m |
+
+NVMe runs hotter: 40-60°C is normal, 60-70°C is warm (acceptable under
+sustained load), throttling typically starts at 70-80°C.
 
 ### Capacity tiers
 

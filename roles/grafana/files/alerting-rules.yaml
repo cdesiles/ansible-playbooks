@@ -4,6 +4,10 @@ apiVersion: 1
 # capacity (ZFS pools + local filesystems).
 #
 # Temperature metric: smartctl_device_temperature{temperature_type="current"} (job="smartctl").
+# Split by device class: HDDs (sd*) and NVMe (nvme*) have different
+# safe ranges, so they get separate tier ladders.
+#   HDD:  48..60°C (below 45 ideal) — device!~"(/dev/)?nvme.*"
+#   NVMe: 65..75°C (40-60 normal, 60-70 warm, >70 throttling) — device=~"(/dev/)?nvme.*"
 # Capacity metrics: zfs_pool_capacity_percent and
 # node_filesystem_avail_bytes/node_filesystem_size_bytes (job="node").
 # node_filesystem_* is filtered to real local filesystems (ext4/xfs/btrfs);
@@ -32,7 +36,7 @@ groups:
             model:
               editorMode: code
               expr: >-
-                smartctl_device_temperature{job="smartctl", temperature_type="current"} >= 48
+                smartctl_device_temperature{job="smartctl", temperature_type="current", device!~"(/dev/)?nvme.*"} >= 48
               instant: false
               intervalMs: 1000
               legendFormat: "{{device}}"
@@ -80,7 +84,7 @@ groups:
             model:
               editorMode: code
               expr: >-
-                smartctl_device_temperature{job="smartctl", temperature_type="current"} >= 50
+                smartctl_device_temperature{job="smartctl", temperature_type="current", device!~"(/dev/)?nvme.*"} >= 50
               instant: false
               intervalMs: 1000
               legendFormat: "{{device}}"
@@ -128,7 +132,7 @@ groups:
             model:
               editorMode: code
               expr: >-
-                smartctl_device_temperature{job="smartctl", temperature_type="current"} >= 52
+                smartctl_device_temperature{job="smartctl", temperature_type="current", device!~"(/dev/)?nvme.*"} >= 52
               instant: false
               intervalMs: 1000
               legendFormat: "{{device}}"
@@ -176,7 +180,7 @@ groups:
             model:
               editorMode: code
               expr: >-
-                smartctl_device_temperature{job="smartctl", temperature_type="current"} >= 54
+                smartctl_device_temperature{job="smartctl", temperature_type="current", device!~"(/dev/)?nvme.*"} >= 54
               instant: false
               intervalMs: 1000
               legendFormat: "{{device}}"
@@ -224,7 +228,7 @@ groups:
             model:
               editorMode: code
               expr: >-
-                smartctl_device_temperature{job="smartctl", temperature_type="current"} >= 56
+                smartctl_device_temperature{job="smartctl", temperature_type="current", device!~"(/dev/)?nvme.*"} >= 56
               instant: false
               intervalMs: 1000
               legendFormat: "{{device}}"
@@ -272,7 +276,7 @@ groups:
             model:
               editorMode: code
               expr: >-
-                smartctl_device_temperature{job="smartctl", temperature_type="current"} >= 58
+                smartctl_device_temperature{job="smartctl", temperature_type="current", device!~"(/dev/)?nvme.*"} >= 58
               instant: false
               intervalMs: 1000
               legendFormat: "{{device}}"
@@ -320,7 +324,7 @@ groups:
             model:
               editorMode: code
               expr: >-
-                smartctl_device_temperature{job="smartctl", temperature_type="current"} >= 60
+                smartctl_device_temperature{job="smartctl", temperature_type="current", device!~"(/dev/)?nvme.*"} >= 60
               instant: false
               intervalMs: 1000
               legendFormat: "{{device}}"
@@ -368,7 +372,7 @@ groups:
             model:
               editorMode: code
               expr: >-
-                smartctl_device_temperature{job="smartctl", temperature_type="current"} < 20
+                smartctl_device_temperature{job="smartctl", temperature_type="current", device!~"(/dev/)?nvme.*"} < 20
               instant: false
               intervalMs: 1000
               legendFormat: "{{device}}"
@@ -405,6 +409,154 @@ groups:
         annotations:
           summary: "Disk {{ $labels.device }} at {{ $values.B }}°C ({{ $labels.instance }})"
           description: "S.M.A.R.T. temperature is below the 20°C ideal minimum (sensor/fan/offline disk?)."
+
+      # --- NVMe temperature tiers (device=~"(/dev/)?nvme.*") ---
+      # NVMe runs hotter than HDD: 40-60°C is normal, 60-70°C is warm but
+      # acceptable under sustained load, and throttling typically starts in the
+      # 70-80°C range. The HDD ladder above excludes NVMe devices.
+      - uid: nvme_temp_ge_65
+        title: "NVMe temperature ≥65°C"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                smartctl_device_temperature{job="smartctl", temperature_type="current", device=~"(/dev/)?nvme.*"} >= 65
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{device}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 15m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: "NVMe {{ $labels.device }} at {{ $values.B }}°C ({{ $labels.instance }})"
+          description: "NVMe temperature is at or above 65°C (warm). Normal is 40-60°C; acceptable under sustained load."
+
+      - uid: nvme_temp_ge_70
+        title: "NVMe temperature ≥70°C"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                smartctl_device_temperature{job="smartctl", temperature_type="current", device=~"(/dev/)?nvme.*"} >= 70
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{device}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: high
+        annotations:
+          summary: "NVMe {{ $labels.device }} at {{ $values.B }}°C ({{ $labels.instance }})"
+          description: "NVMe temperature is at or above 70°C. Thermal throttling typically begins in the 70-80°C range."
+
+      - uid: nvme_temp_ge_75
+        title: "NVMe temperature ≥75°C"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                smartctl_device_temperature{job="smartctl", temperature_type="current", device=~"(/dev/)?nvme.*"} >= 75
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{device}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+        annotations:
+          summary: "NVMe {{ $labels.device }} at {{ $values.B }}°C ({{ $labels.instance }})"
+          description: "NVMe temperature is at or above 75°C (hot). Check airflow/heatsink; sustained throttling expected."
 
       # --- Capacity: ZFS pools (data disk) ---
       # zfs_pool_capacity_percent is emitted hourly by the zfs role's
