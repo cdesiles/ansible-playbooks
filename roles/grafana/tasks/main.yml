@@ -53,6 +53,7 @@
     state: present
     update_cache: true
   when: ansible_facts['os_family'] == 'Debian'
+  notify: Restart grafana
 
 # Arch Linux installation
 - name: Install Grafana package (Arch Linux)
@@ -60,6 +61,7 @@
     name: "{{ grafana_package }}"
     state: present
   when: ansible_facts['os_family'] == 'Archlinux'
+  notify: Restart grafana
 
 # Database setup
 - name: Create PostgreSQL database
