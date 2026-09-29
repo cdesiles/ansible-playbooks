@@ -220,8 +220,7 @@ rise/fall semantics as capacity.
 | NVMe | ≥70°C | high | 10m |
 | NVMe | ≥75°C | critical | 5m |
 
-NVMe runs hotter: 40-60°C is normal, 60-70°C is warm (acceptable under
-sustained load), throttling typically starts at 70-80°C.
+NVMe tiers follow the 0-70°C operating spec (dashboard: orange ≥60, red ≥70°C).
 
 ### Capacity tiers
 

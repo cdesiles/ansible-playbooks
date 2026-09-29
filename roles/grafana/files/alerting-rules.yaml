@@ -7,7 +7,7 @@ apiVersion: 1
 # Split by device class: HDDs (sd*) and NVMe (nvme*) have different
 # safe ranges, so they get separate tier ladders.
 #   HDD:  48..60°C (below 45 ideal) — device!~"(/dev/)?nvme.*"
-#   NVMe: 65..75°C (40-60 normal, 60-70 warm, >70 throttling) — device=~"(/dev/)?nvme.*"
+#   NVMe: 65..75°C (rated 0-70°C) — device=~"(/dev/)?nvme.*"
 # Capacity metrics: zfs_pool_capacity_percent and
 # node_filesystem_avail_bytes/node_filesystem_size_bytes (job="node").
 # node_filesystem_* is filtered to real local filesystems (ext4/xfs/btrfs);
@@ -411,9 +411,8 @@ groups:
           description: "S.M.A.R.T. temperature is below the 20°C ideal minimum (sensor/fan/offline disk?)."
 
       # --- NVMe temperature tiers (device=~"(/dev/)?nvme.*") ---
-      # NVMe runs hotter than HDD: 40-60°C is normal, 60-70°C is warm but
-      # acceptable under sustained load, and throttling typically starts in the
-      # 70-80°C range. The HDD ladder above excludes NVMe devices.
+      # Rated 0-70°C: <60 normal, 65 warm, 70 at the rated ceiling, 75 above
+      # spec. The HDD ladder above excludes NVMe devices.
       - uid: nvme_temp_ge_65
         title: "NVMe temperature ≥65°C"
         condition: C
@@ -460,7 +459,7 @@ groups:
           severity: warning
         annotations:
           summary: "NVMe {{ $labels.device }} at {{ $values.B }}°C ({{ $labels.instance }})"
-          description: "NVMe temperature is at or above 65°C (warm). Normal is 40-60°C; acceptable under sustained load."
+          description: "NVMe temperature is at or above 65°C (warm), approaching the 70°C rated maximum."
 
       - uid: nvme_temp_ge_70
         title: "NVMe temperature ≥70°C"
@@ -508,7 +507,7 @@ groups:
           severity: high
         annotations:
           summary: "NVMe {{ $labels.device }} at {{ $values.B }}°C ({{ $labels.instance }})"
-          description: "NVMe temperature is at or above 70°C. Thermal throttling typically begins in the 70-80°C range."
+          description: "NVMe temperature is at or above 70°C, the rated maximum operating temperature."
 
       - uid: nvme_temp_ge_75
         title: "NVMe temperature ≥75°C"
@@ -556,7 +555,7 @@ groups:
           severity: critical
         annotations:
           summary: "NVMe {{ $labels.device }} at {{ $values.B }}°C ({{ $labels.instance }})"
-          description: "NVMe temperature is at or above 75°C (hot). Check airflow/heatsink; sustained throttling expected."
+          description: "NVMe temperature is at or above 75°C, above the 70°C rated maximum. Check airflow/heatsink."
 
       # --- Capacity: ZFS pools (data disk) ---
       # zfs_pool_capacity_percent is emitted hourly by the zfs role's
