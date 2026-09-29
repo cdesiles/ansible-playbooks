@@ -322,10 +322,22 @@ repo_check() {
 }
 
 repo_work() {
-    if ! restic cat config >/dev/null 2>&1; then
-        log "Initialising repository '$REPO_NAME'"
-        restic init || return 1
-    fi
+    local rc=0
+    restic cat config >/dev/null || rc=$?
+    case "$rc" in
+        0) ;;
+        # Exit 10 = repository does not exist (restic >= 0.17). Any other
+        # failure (S3 5xx, timeout, auth) must not fall through to `init`,
+        # which would fail with "config already exists" and hide the real error.
+        10)
+            log "Initialising repository '$REPO_NAME'"
+            restic init || return 1
+            ;;
+        *)
+            log "ERROR: cannot open repository '$REPO_NAME' (restic exit $rc)"
+            return 1
+            ;;
+    esac
 
     # A run killed mid-flight (systemd timeout, OOM, reboot) leaves an exclusive
     # lock behind. `forget --prune` and `check` both need that lock, so every
