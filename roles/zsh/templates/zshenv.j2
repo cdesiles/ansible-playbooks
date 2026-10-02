@@ -6,6 +6,14 @@ export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 
+{% if zsh_os_darwin | bool %}
+# Homebrew. This role owns ~/.zprofile, so initialise brew here to keep it and
+# the tools it installs (fzf, eza, …) on PATH for every zsh session.
+if [[ -z "${HOMEBREW_PREFIX:-}" && -x {{ zsh_darwin_brew_prefix }}/bin/brew ]]; then
+  eval "$({{ zsh_darwin_brew_prefix }}/bin/brew shellenv)"
+fi
+
+{% endif %}
 # Enable color support
 export CLICOLOR=1
 export COLORTERM=truecolor

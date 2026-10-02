@@ -22,6 +22,16 @@ zsh_users:
   - root
 ```
 
+### macOS
+
+Homebrew is initialised from `.zshenv` (the role overwrites `~/.zprofile`,
+which is where the installer normally puts `brew shellenv`). Override the
+prefix on Intel Macs:
+
+```yaml
+zsh_darwin_brew_prefix: /usr/local
+```
+
 ## Keybindings
 
 - `↑/↓` - History search with substring matching
