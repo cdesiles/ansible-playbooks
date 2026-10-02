@@ -1,7 +1,7 @@
 ---
 zsh_os_darwin: "{{ ansible_facts['os_family'] == 'Darwin' }}"
 zsh_home: >-
-  {{ ansible_env.HOME if (zsh_os_darwin | bool)
+  {{ ansible_facts['env']['HOME'] if (zsh_os_darwin | bool)
      else ('/root' if zsh_user == 'root' else '/home/' + zsh_user) }}
 # Primary group of the managed files. macOS has no per-user group (it's `staff`).
 zsh_group: >-

@@ -69,8 +69,8 @@ action.
 JEDI LOST - UNKNOWN STAR SYSTEM
 {% endif %}
 
-{% if ansible_hostname is defined %}
-{{ group_names | first }}: {{ ansible_hostname }}
+{% if ansible_facts['hostname'] is defined %}
+{{ group_names | first }}: {{ ansible_facts['hostname'] }}
 {% endif %}
 ANSIBLE_BANNER_END
 fi

@@ -61,6 +61,6 @@ IgnoreRhosts yes
 PermitUserRC no
 StrictModes yes
 Compression no
-{% if ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian' %}
+{% if ansible_facts['distribution'] == 'Ubuntu' or ansible_facts['distribution'] == 'Debian' %}
 UsePrivilegeSeparation sandbox
 {% endif %}
