@@ -22,6 +22,9 @@ zsh_plugins_group: >-
   {{ 'staff' if (zsh_os_darwin | bool) else 'users' }}
 # Homebrew prefix on macOS (Apple Silicon /opt/homebrew, Intel /usr/local).
 zsh_darwin_brew_prefix: /opt/homebrew
+# rustup shim directory (rustc/cargo + `cargo install` binaries). Added to PATH
+# from .zshenv so locally built binaries are runnable in every shell.
+zsh_cargo_bin: "{{ zsh_home }}/.cargo/bin"
 # fzf shell integrations (key-bindings.zsh / completion.zsh). Resolved at render
 # time: calling `brew --prefix` from .zshrc fails whenever brew is not on PATH.
 zsh_fzf_shell_path: >-

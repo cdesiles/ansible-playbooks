@@ -32,6 +32,23 @@ prefix on Intel Macs:
 zsh_darwin_brew_prefix: /usr/local
 ```
 
+### Rust
+
+`.zshenv` prepends `zsh_cargo_bin` (default `~/.cargo/bin`) to `PATH` when it
+exists, so rustup shims and `cargo install` binaries are available in every
+shell. Override for a custom `CARGO_HOME`:
+
+```yaml
+zsh_cargo_bin: /opt/cargo/bin
+```
+
+### Node.js
+
+`.zshenv` prepends `./node_modules/.bin` to `PATH`, so binaries from locally
+installed dependencies (eslint, tsc, vite, …) can be run directly inside a
+project without `npx`. The entry is relative and therefore resolved against the
+current working directory each time a command is looked up.
+
 ## Keybindings
 
 - `↑/↓` - History search with substring matching

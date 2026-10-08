@@ -14,6 +14,15 @@ if [[ -z "${HOMEBREW_PREFIX:-}" && -x {{ zsh_darwin_brew_prefix }}/bin/brew ]]; 
 fi
 
 {% endif %}
+# Rust: rustup toolchain shims and `cargo install` binaries.
+if [[ -d "{{ zsh_cargo_bin }}" ]]; then
+  export PATH="{{ zsh_cargo_bin }}:$PATH"
+fi
+
+# Node.js: locally installed project binaries. Relative entry, so it resolves
+# against the current directory at lookup time as you move between projects.
+export PATH="./node_modules/.bin:$PATH"
+
 # Enable color support
 export CLICOLOR=1
 export COLORTERM=truecolor
