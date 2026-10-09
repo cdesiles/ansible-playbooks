@@ -49,6 +49,11 @@ installed dependencies (eslint, tsc, vite, …) can be run directly inside a
 project without `npx`. The entry is relative and therefore resolved against the
 current working directory each time a command is looked up.
 
+### Claude Code
+
+`.zshenv` exports `DISABLE_AUTOUPDATER=1`, disabling Claude Code's background
+self-updates. Update manually with `claude update`.
+
 ## Keybindings
 
 - `↑/↓` - History search with substring matching
