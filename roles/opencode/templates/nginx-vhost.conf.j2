@@ -1,0 +1,60 @@
+# OpenCode vhost (Let's Encrypt when opencode_nginx_letsencrypt, else self-signed)
+# Managed by Ansible - DO NOT EDIT MANUALLY
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ opencode_nginx_hostname }};
+
+    # Certbot webroot for ACME challenges
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # Redirect to HTTPS
+    location / {
+        return 301 https://$server_name$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name {{ opencode_nginx_hostname }};
+
+    ssl_certificate {{ opencode_nginx_ssl_certificate }};
+    ssl_certificate_key {{ opencode_nginx_ssl_certificate_key }};
+
+    # SSL configuration
+    ssl_protocols {{ nginx_ssl_protocols | default('TLSv1.3') }};
+    ssl_prefer_server_ciphers on;
+
+{% if nginx_log_backend | default('journald') == 'journald' %}
+    access_log syslog:server=unix:/dev/log,nohostname,tag=nginx_opencode;
+    error_log syslog:server=unix:/dev/log,nohostname,tag=nginx_opencode;
+{% else %}
+    access_log /var/log/nginx/{{ opencode_nginx_hostname }}_access.log main;
+    error_log /var/log/nginx/{{ opencode_nginx_hostname }}_error.log;
+{% endif %}
+
+    # Prompt attachments (images, files)
+    client_max_body_size 50M;
+
+    location / {
+        # Basic auth is enforced upstream (OPENCODE_SERVER_PASSWORD);
+        # the Authorization header is forwarded as-is.
+        proxy_pass {{ opencode_nginx_upstream }};
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket (PTY) and SSE event streams
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $http_connection;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+}

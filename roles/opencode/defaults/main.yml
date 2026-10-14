@@ -1,0 +1,31 @@
+---
+# Server mode: runs `opencode <command>` as a user systemd service.
+opencode_server_enabled: false
+opencode_package: opencode
+# 'web' (browser UI + API) or 'serve' (API only). Same port, same API: the
+# CLI attaches to either with `opencode attach <url>`.
+opencode_command: web
+opencode_bind: "0.0.0.0"
+opencode_port: 4096
+opencode_server_username: opencode
+# HTTP basic auth, required when opencode_server_enabled.
+# opencode_server_password: ""  # Intentionally undefined - role will fail if not set
+# Sources allowed to reach opencode_port through UFW.
+opencode_firewall_allowed_sources: []
+#   - { src: "192.168.2.0/24", comment: "OpenCode from LAN" }
+
+# Reverse proxy mode: nginx vhost forwarding to an opencode server (any host).
+opencode_nginx_enabled: false
+opencode_nginx_hostname: oc.nas.local
+opencode_nginx_upstream: "http://127.0.0.1:{{ opencode_port }}"
+# Let's Encrypt requires a publicly-resolvable hostname; otherwise the shared
+# self-signed cert (nginx_default_ssl_cert) is used.
+opencode_nginx_letsencrypt: false
+opencode_nginx_ssl_certificate: >-
+  {{ opencode_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ opencode_nginx_hostname ~ '/fullchain.pem',
+     nginx_default_ssl_cert) }}
+opencode_nginx_ssl_certificate_key: >-
+  {{ opencode_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ opencode_nginx_hostname ~ '/privkey.pem',
+     nginx_default_ssl_key) }}

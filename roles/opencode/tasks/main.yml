@@ -1,0 +1,114 @@
+---
+- name: Deploy opencode server
+  when: opencode_server_enabled | bool
+  block:
+    - name: Validate required passwords are set
+      ansible.builtin.assert:
+        that:
+          - opencode_server_password is defined
+          - opencode_server_password | length >= 12
+        fail_msg: |
+          opencode_server_password is required (min 12 chars).
+          See roles/opencode/defaults/main.yml for configuration instructions.
+        success_msg: "Password validation passed"
+
+    - name: Install opencode
+      ansible.builtin.package:
+        name: "{{ opencode_package }}"
+        state: present
+      notify: Restart opencode
+
+    - name: Get home directory for {{ ansible_user }}
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ ansible_user }}"
+
+    - name: Set user home directory fact
+      ansible.builtin.set_fact:
+        user_home_dir: "{{ ansible_facts['getent_passwd'][ansible_user][4] }}"
+
+    - name: Create opencode config and systemd user directories
+      ansible.builtin.file:
+        path: "{{ user_home_dir }}/{{ item }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0755"
+      loop:
+        - .config/opencode
+        - .config/systemd/user
+
+    - name: Deploy opencode server environment file
+      ansible.builtin.template:
+        src: server.env.j2
+        dest: "{{ user_home_dir }}/.config/opencode/server.env"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0600"
+      notify: Restart opencode
+
+    - name: Deploy opencode systemd service (user scope)
+      ansible.builtin.template:
+        src: opencode.service.j2
+        dest: "{{ user_home_dir }}/.config/systemd/user/opencode.service"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+      notify:
+        - Reload systemd user
+        - Restart opencode
+
+    - name: Enable lingering for user {{ ansible_user }}
+      ansible.builtin.command:
+        cmd: "loginctl enable-linger {{ ansible_user }}"
+        creates: "/var/lib/systemd/linger/{{ ansible_user }}"
+      when: ansible_user != 'root'
+
+    - name: Flush handlers before starting opencode
+      ansible.builtin.meta: flush_handlers
+
+    - name: Enable and start opencode service (user scope)
+      ansible.builtin.systemd:
+        name: opencode.service
+        enabled: true
+        state: started
+        scope: user
+      become: false
+      become_user: "{{ ansible_user }}"
+
+    - name: Allow opencode through firewall
+      community.general.ufw:
+        rule: allow
+        port: "{{ opencode_port }}"
+        proto: tcp
+        from: "{{ item.src }}"
+        direction: in
+        comment: "{{ item.comment }}"
+      loop: "{{ opencode_firewall_allowed_sources }}"
+      retries: 5
+      delay: 2
+      register: ufw_result
+      until: ufw_result is succeeded
+
+- name: Provision TLS certificate for opencode
+  ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"
+  vars:
+    certbot_hostname: "{{ opencode_nginx_hostname }}"
+  when: opencode_nginx_enabled and opencode_nginx_letsencrypt
+
+- name: Deploy nginx vhost configuration for opencode
+  ansible.builtin.template:
+    src: nginx-vhost.conf.j2
+    dest: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/opencode.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  when: opencode_nginx_enabled
+  notify: Reload nginx
+
+- name: Remove nginx vhost configuration for opencode
+  ansible.builtin.file:
+    path: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/opencode.conf"
+    state: absent
+  when: not opencode_nginx_enabled
+  notify: Reload nginx

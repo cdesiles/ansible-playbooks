@@ -1,0 +1,4 @@
+---
+# No meta dependencies: nginx is deployed once via playbook role ordering
+# (tagged 'infra'). See playbooks/*.yml.
+dependencies: []

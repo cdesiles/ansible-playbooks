@@ -1,0 +1,14 @@
+# Managed by Ansible - DO NOT EDIT MANUALLY
+[Unit]
+Description=OpenCode server ({{ opencode_command }})
+
+[Service]
+Type=simple
+WorkingDirectory=%h
+EnvironmentFile=%h/.config/opencode/server.env
+ExecStart=/usr/bin/opencode {{ opencode_command }} --hostname {{ opencode_bind }} --port {{ opencode_port }}
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
