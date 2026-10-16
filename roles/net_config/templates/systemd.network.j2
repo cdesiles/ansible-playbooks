@@ -4,13 +4,18 @@
 [Match]
 Name={{ interface.name }}
 
+{% if not (interface.ipv4.dhcp | default(false)) %}
 [Address]
 Address={{ interface.ipv4.address }}
 {% if interface.ipv4.metric is defined %}
 RouteMetric={{ interface.ipv4.metric }}
 {% endif %}
 
+{% endif %}
 [Network]
+{% if interface.ipv4.dhcp | default(false) %}
+DHCP=ipv4
+{% endif %}
 {% if interface.type is defined and interface.type == 'bridge' %}
 ConfigureWithoutCarrier=yes
 {% endif %}
@@ -26,10 +31,17 @@ DNS={{ dns }}
 {% endfor %}
 {% endif %}
 
+{% if interface.ipv4.dhcp | default(false) %}
+{% if interface.ipv4.metric is defined %}
+[DHCPv4]
+RouteMetric={{ interface.ipv4.metric }}
+{% endif %}
+{% else %}
 {% if interface.ipv4.gateway is defined %}
 [Route]
 Gateway={{ interface.ipv4.gateway }}
 {% if interface.ipv4.metric is defined %}
 Metric={{ interface.ipv4.metric }}
+{% endif %}
 {% endif %}
 {% endif %}

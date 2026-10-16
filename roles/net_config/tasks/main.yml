@@ -1,16 +1,20 @@
 ---
-- name: Check if the interface ipv4 address is defined
+- name: Warn when the interface has neither a static address nor DHCP
   ansible.builtin.debug:
-    msg: "Warning: iface {{ interface.name }} has no defined ipv4 address, skipping configuration"
-  when: interface.ipv4.address is not defined
+    msg: "Warning: iface {{ interface.name }} has no ipv4.address and ipv4.dhcp is not enabled, skipping configuration"
+  when:
+    - interface.ipv4.address is not defined
+    - not (interface.ipv4.dhcp | default(false))
 
 - name: Process interface configuration
-  when: interface.ipv4.address is defined
+  when: (interface.ipv4.address is defined) or (interface.ipv4.dhcp | default(false))
   block:
+    # Only virtual interfaces get a .netdev; physical ones (ethernet, wireless)
+    # already exist and are configured solely through their .network file.
     - name: Create systemd-netdev file for virtual interface
       when:
         - interface.type is defined
-        - interface.type != 'ethernet'
+        - interface.type not in ['ethernet', 'wireless']
       ansible.builtin.template:
         src: systemd.netdev.j2
         dest: /etc/systemd/network/10-{{ interface.name }}.netdev

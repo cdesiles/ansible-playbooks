@@ -11,9 +11,16 @@ network_interfaces:
       nameservers:
         - 1.1.1.1
         - 8.8.8.8
+  # DHCP client (e.g. an address handed out by an upstream reservation). Omit
+  # `ipv4.address`. `metric` prefers this link over slower ones; `broadcast` is
+  # only needed by tools that cannot derive it from the lease (see
+  # playbooks/wol.yml).
   - name: lan1
     type: ethernet
     mac_address: 0a:3f:5b:1c:d2:e4
+    ipv4:
+      dhcp: true
+      metric: 100
 
 # Unbound DNS resolver configuration
 # ----------------------------------
