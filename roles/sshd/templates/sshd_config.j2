@@ -1,3 +1,8 @@
+# {{ ansible_managed }}
+# Managed by Ansible (roles/sshd). This file replaces the distribution
+# sshd_config: /etc/ssh/sshd_config.d/*.conf is deliberately NOT included, so
+# vendor or imager drop-ins cannot weaken these settings.
+#
 # Hardened SSH Configuration
 # Protocol version
 Protocol 2
@@ -15,7 +20,6 @@ MaxSessions 2
 PubkeyAuthentication yes
 PasswordAuthentication no
 PermitEmptyPasswords no
-ChallengeResponseAuthentication no
 KerberosAuthentication no
 GSSAPIAuthentication no
 UsePAM yes
@@ -27,9 +31,11 @@ AuthorizedKeysFile .ssh/authorized_keys
 
 # Login timeout and grace period
 LoginGraceTime 30s
+MaxStartups 10:30:60
+
+# Idle session timeout: 5 min probes, 2 misses -> disconnect after ~10 min
 ClientAliveInterval 300
 ClientAliveCountMax 2
-MaxStartups 10:30:60
 
 # Forwarding
 AllowAgentForwarding no
@@ -47,10 +53,6 @@ LogLevel VERBOSE
 # SFTP
 Subsystem sftp internal-sftp
 
-# Idle timeout (1 hour)
-ClientAliveInterval 300
-ClientAliveCountMax 12
-
 # Restrict access to specific users/groups (customize as needed)
 AllowUsers {{ ssh_users }}
 # AllowGroups sshusers wheel
@@ -61,6 +63,3 @@ IgnoreRhosts yes
 PermitUserRC no
 StrictModes yes
 Compression no
-{% if ansible_facts['distribution'] == 'Ubuntu' or ansible_facts['distribution'] == 'Debian' %}
-UsePrivilegeSeparation sandbox
-{% endif %}

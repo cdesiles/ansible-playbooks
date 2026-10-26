@@ -1,9 +1,17 @@
 ---
 ssh_port: 22
+# Manage UFW from this role. Set false on appliances whose firewall is owned by
+# the vendor OS (e.g. UGOS) or when rules are provisioned elsewhere.
+sshd_ufw_enabled: true
 ssh_allowed_networks:
   - { src: "192.168.1.0/24", comment: "SSH from LAN" }
   - { src: "192.168.27.0/27", comment: "SSH from VPN" }
 ssh_users: "jokester" # space separated if many
+# Additive public keys installed for every user in ssh_users before the hardened
+# configuration is applied. Empty means authorized_keys is left untouched.
+# When non-empty, the role refuses to harden sshd unless each user ends up with
+# a key (a publickey-only config without a key is a lockout).
+sshd_authorized_keys: []
 ssh_config_dir: "/etc/ssh"
 sshd_config: "{{ ssh_config_dir }}/sshd_config"
 sshd_binary: "/usr/sbin/sshd"

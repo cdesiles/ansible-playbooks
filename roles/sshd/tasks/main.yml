@@ -14,6 +14,7 @@
   ansible.builtin.package:
     name: ufw
     state: present
+  when: sshd_ufw_enabled | bool
 
 - name: Enable SSH
   ansible.builtin.service:
@@ -29,6 +30,7 @@
     direction: in
     comment: "{{ item.comment }}"
   loop: "{{ ssh_allowed_networks }}"
+  when: sshd_ufw_enabled | bool
 
 # TODO
 # - name: Add SSH public key to authorized_keys
@@ -66,6 +68,35 @@
     state: absent
   when: ansible_facts['os_family'] == 'Debian'
 
+# Install the configured keys before touching sshd_config: with
+# AuthenticationMethods publickey, a missing key is a lockout.
+- name: Install authorized SSH keys
+  ansible.posix.authorized_key:
+    user: "{{ item.0 }}"
+    key: "{{ item.1 }}"
+    state: present
+    manage_dir: true
+  loop: "{{ ssh_users.split() | product(sshd_authorized_keys) | list }}"
+  loop_control:
+    label: "{{ item.0 }}"
+  when: sshd_authorized_keys | length > 0
+
+- name: Resolve SSH users' home directories
+  ansible.builtin.getent:
+    database: passwd
+  when: sshd_authorized_keys | length > 0
+
+- name: Verify each SSH user has an authorized key before hardening
+  ansible.builtin.assert:
+    that:
+      - (ansible_facts['getent_passwd'][item][4] ~ '/.ssh/authorized_keys') is file
+    fail_msg: >-
+      {{ item }} has no ~/.ssh/authorized_keys. Refusing to apply
+      AuthenticationMethods publickey, it would lock the account out.
+    quiet: true
+  loop: "{{ ssh_users.split() }}"
+  when: sshd_authorized_keys | length > 0
+
 - name: Hardening sshd_config
   ansible.builtin.template:
     src: templates/sshd_config.j2
@@ -79,10 +110,11 @@
 - name: Enable UFW
   community.general.ufw:
     state: enabled
+  when: sshd_ufw_enabled | bool
 
 - name: Enable UFW service at startup
   ansible.builtin.systemd:
     name: ufw
     enabled: true
     state: started
-
+  when: sshd_ufw_enabled | bool
