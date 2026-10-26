@@ -48,7 +48,8 @@ grafana_nginx_ssl_certificate_key: >-
 # Alerting (Grafana Unified Alerting → ntfy webhook)
 # When enabled, provisions disk alert rules (HDD temperature + ZFS/filesystem
 # capacity), notification policies and an ntfy contact point using ntfy's
-# built-in "grafana" webhook template.
+# built-in "grafana" webhook template. Requires grafana_ntfy_webhook_url and
+# grafana_ntfy_token.
 grafana_alerting_enabled: false
 # Webhook URL of the target ntfy topic. Keep ?template=grafana so ntfy parses
 # Grafana's webhook payload into a readable title/message.

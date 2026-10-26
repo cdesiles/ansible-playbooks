@@ -1,7 +1,8 @@
 apiVersion: 1
 
 # Managed by Ansible (roles/grafana). Disk alert rules: HDD temperature and
-# capacity (ZFS pools + local filesystems).
+# capacity (ZFS pools + local filesystems), plus moOde appliance rules
+# (update availability and Raspberry Pi under-voltage).
 #
 # Temperature metric: smartctl_device_temperature{temperature_type="current"} (job="smartctl").
 # Split by device class: HDDs (sd*) and NVMe (nvme*) have different
@@ -855,3 +856,156 @@ groups:
         annotations:
           summary: "Filesystem {{ $labels.mountpoint }} at {{ $values.B }}% ({{ $labels.instance }})"
           description: "Filesystem is at or above 95% capacity. Writes may fail soon."
+
+  # --- moOde appliance (mozart) ---------------------------------------------
+  # Metrics are emitted by roles/moode into node_exporter's textfile collector
+  # (job="node"). The role also sends an ntfy message on state change; these
+  # rules keep the state visible in Grafana and survive a missed notification.
+  - orgId: 1
+    name: moode
+    folder: Appliance
+    interval: 1m
+    rules:
+      - uid: moode_update_available
+        title: "moOde update available"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                moode_update_available{job="node"} > 0
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{instance}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 1h
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: "moOde update available on {{ $labels.instance }}"
+          description: "A newer in-series moOde release is published. Apply it from the WebUI or with system-updater.sh, reboot, then re-run the playbook for the host."
+
+      - uid: moode_major_update_available
+        title: "New moOde major series"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                moode_major_update_available{job="node"} > 0
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{instance}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 1h
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: "New moOde major series for {{ $labels.instance }}"
+          description: "A new moOde major series exists and has no in-place upgrade. Back up the card, flash the new image, restore the configuration, then re-run the playbook."
+
+      - uid: moode_undervoltage
+        title: "moOde under-voltage"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: >-
+                moode_throttled_undervoltage_now{job="node"} > 0
+              instant: false
+              intervalMs: 1000
+              legendFormat: "{{instance}}"
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+              settings: { mode: dropNN }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              refId: C
+              type: threshold
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+        annotations:
+          summary: "Under-voltage on {{ $labels.instance }}"
+          description: "The Pi is under-volting right now (vcgencmd get_throttled bit 0). Risk of audio glitches and SD corruption: replace the PSU or cable."
