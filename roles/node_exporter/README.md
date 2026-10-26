@@ -7,25 +7,13 @@ Exposes machine metrics (CPU, memory, disk, filesystem, network) for Prometheus.
 - Arch Linux (package `prometheus-node-exporter`, extra repo)
 - Debian/Ubuntu (package `prometheus-node-exporter`)
 
-## Configuration
-
-See [defaults/main.yml](defaults/main.yml).
-
-Optional:
-
-```yaml
-node_exporter_listen_address: "127.0.0.1:9100"
-```
-
-Keep localhost-only — Prometheus scrapes it locally on the same host. To add
-collectors (e.g. `--collector.systemd`, `--collector.textfile.directory`), extend
-`node_exporter_listen_address` or override the args in host_vars.
-
 ## Collectors
 
-The role enables, on top of the defaults:
+Enabled by default through `node_exporter_collectors` (override per host):
 
-- `--collector.zfs` — ZFS pool/dataset metrics.
+- `--collector.zfs` — ZFS pool/dataset metrics. Drop it where ZFS is absent
+  (`node_exporter_collectors: [systemd]` on a Raspberry Pi), otherwise the only
+  effect is a dead collector in the logs.
 - `--collector.systemd` — unit state (`node_systemd_unit_state`), restart
   counts (`node_systemd_restart_count_total`) and timer trigger times
   (`node_systemd_timer_last_trigger_seconds` / `..._next_trigger_seconds`).

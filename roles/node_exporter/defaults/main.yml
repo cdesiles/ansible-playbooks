@@ -5,6 +5,13 @@
 # locally on the same host; no need to expose on the network.
 node_exporter_listen_address: "127.0.0.1:9100"
 
+# Extra collectors enabled on top of the defaults. Override per host when a
+# collector is meaningless there (e.g. no ZFS on a Raspberry Pi):
+#   node_exporter_collectors: [systemd]
+node_exporter_collectors:
+  - zfs
+  - systemd
+
 # Directory the textfile collector reads `*.prom` files from. Jobs (e.g. the
 # backup role) drop metrics here; node_exporter re-exposes them to Prometheus.
 # Must match backup_metrics_dir in roles/backup/defaults/main.yml.
