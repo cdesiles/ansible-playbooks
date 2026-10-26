@@ -1,0 +1,5 @@
+---
+# No meta dependencies: the moOde WebUI owns the appliance, and the base roles
+# this host shares with others (sshd, zsh, ntp_chrony, node_exporter) are
+# ordered by the playbook, not declared here.
+dependencies: []
