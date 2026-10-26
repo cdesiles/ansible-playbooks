@@ -16,4 +16,5 @@
       - nmap
       - "{{ tooling_dig_package }}"
       - "{{ tooling_netcat_package }}"
+      - "{{ tooling_nfs_package }}"
     state: present
