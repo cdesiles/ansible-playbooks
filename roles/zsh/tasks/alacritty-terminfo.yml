@@ -1,7 +1,7 @@
 ---
 - name: Install ncurses for tic command
   ansible.builtin.package:
-    name: ncurses
+    name: "{{ zsh_ncurses_package }}"
     state: present
 
 - name: Copy alacritty terminfo source

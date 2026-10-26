@@ -13,6 +13,10 @@ zsh_p10k_theme_config: "{{ zsh_config_path }}/p10k.zsh"
 zsh_users:
   - jokester
   - root
+# tic(1) compiles the alacritty terminfo entry. Arch ships it in `ncurses`,
+# Debian/Ubuntu in `ncurses-bin` (there is no `ncurses` package there).
+zsh_ncurses_package: >-
+  {{ (ansible_facts['os_family'] == 'Archlinux') | ternary('ncurses', 'ncurses-bin') }}
 # System-wide on Linux (root:users); per-user on macOS (user:staff).
 zsh_plugins_path: >-
   {{ (zsh_config_path + '/plugins') if (zsh_os_darwin | bool) else '/opt/zsh/plugins' }}
