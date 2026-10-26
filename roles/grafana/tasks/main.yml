@@ -55,6 +55,16 @@
   when: ansible_facts['os_family'] == 'Debian'
   notify: Restart grafana
 
+# Out-of-band upgrades (sys_autoupdate) swap the hashed frontend assets under
+# the running server, which keeps serving stale asset names -> "Grafana has
+# failed to load its application files". Restart on every package upgrade.
+- name: Restart Grafana on package upgrade (Debian/Ubuntu)
+  ansible.builtin.lineinfile:
+    path: /etc/default/grafana-server
+    regexp: '^#?\s*RESTART_ON_UPGRADE='
+    line: RESTART_ON_UPGRADE=true
+  when: ansible_facts['os_family'] == 'Debian'
+
 # Arch Linux installation
 - name: Install Grafana package (Arch Linux)
   community.general.pacman:
@@ -62,6 +72,29 @@
     state: present
   when: ansible_facts['os_family'] == 'Archlinux'
   notify: Restart grafana
+
+- name: Ensure pacman hooks directory exists (Arch Linux)
+  ansible.builtin.file:
+    path: /etc/pacman.d/hooks
+    state: directory
+    mode: "0755"
+  when: ansible_facts['os_family'] == 'Archlinux'
+
+- name: Restart Grafana on package upgrade (Arch Linux)
+  ansible.builtin.copy:
+    dest: /etc/pacman.d/hooks/grafana-restart.hook
+    mode: "0644"
+    content: |
+      [Trigger]
+      Operation = Upgrade
+      Type = Package
+      Target = {{ grafana_package }}
+
+      [Action]
+      Description = Restarting Grafana after upgrade...
+      When = PostTransaction
+      Exec = /usr/bin/systemctl try-restart {{ grafana_service }}.service
+  when: ansible_facts['os_family'] == 'Archlinux'
 
 # Database setup
 - name: Create PostgreSQL database
