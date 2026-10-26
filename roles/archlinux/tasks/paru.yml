@@ -1,49 +1,60 @@
 ---
-- name: Check if paru is already installed
-  ansible.builtin.stat:
-    path: /usr/bin/paru
-  register: paru
+# paru is built from the AUR rather than downloaded as a prebuilt binary: the
+# upstream releases are linked against a fixed libalpm soname, so they stop
+# running after a pacman major bump (pacman 7.1 ships libalpm.so.16, every paru
+# release up to 2.1.0 needs libalpm.so.15). A locally built package always
+# matches the host and is upgraded with the system.
 
-- name: Install paru
-  when: not paru.stat.exists
+- name: Check whether /usr/bin/paru belongs to a package
+  ansible.builtin.command: pacman -Qo /usr/bin/paru
+  register: paru_owner
+  changed_when: false
+  failed_when: false
+  # Read-only probe: it must run in check mode too, otherwise it registers rc=0
+  # and the decision below is silently skipped.
+  check_mode: false
+
+- name: Install paru from the AUR
+  when: paru_owner.rc != 0
   block:
-    - name: Get the last github release
-      ansible.builtin.uri:
-        url: "https://api.github.com/repos/{{ paru_git_repo }}/releases/latest"
-        return_content: true
-      register: paru_release
-
-    - name: Get the binary URL ({{ os_arch }})
-      ansible.builtin.set_fact:
-        paru_url: "{{ item.browser_download_url }}"
-      loop: "{{ paru_release.json.assets }}"
-      when: "(os_arch + '.tar.zst') in item.name"
-
-    - name: Download
-      ansible.builtin.get_url:
-        url: "{{ paru_url }}"
-        dest: "/tmp/paru-{{ os_arch }}.tar.zst"
-        mode: "0644"
-
-    - name: Extract paru
-      ansible.builtin.unarchive:
-        src: "/tmp/paru-{{ os_arch }}.tar.zst"
-        dest: /tmp
-        remote_src: true
-        extra_opts:
-          - paru
-
-    - name: Install paru binary
-      ansible.builtin.copy:
-        src: /tmp/paru
-        dest: /usr/bin/paru
-        remote_src: true
-        mode: "0755"
-
-    - name: Cleanup
+    # pacman refuses to install a package over a file it does not own, and the
+    # previous install method dropped the binary straight into /usr/bin.
+    - name: Remove an unmanaged paru binary
       ansible.builtin.file:
-        path: "{{ item }}"
+        path: /usr/bin/paru
         state: absent
-      loop:
-        - "/tmp/paru-{{ os_arch }}.tar.zst"
-        - /tmp/paru
+
+    - name: Build and install paru
+      block:
+        - name: Open the AUR build sudo window
+          ansible.builtin.include_role:
+            name: aur_build
+            tasks_from: open
+
+        - name: Build and install paru from the AUR
+          become: false
+          ansible.builtin.command:
+            cmd: "yay -S --noconfirm --needed paru"
+          changed_when: true
+      always:
+        - name: Close the AUR build sudo window
+          ansible.builtin.include_role:
+            name: aur_build
+            tasks_from: close
+
+- name: Verify paru runs
+  ansible.builtin.command: paru --version
+  register: paru_check
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Assert paru is usable
+  ansible.builtin.assert:
+    that:
+      - paru_check.rc == 0
+    fail_msg: |
+      paru is installed but cannot run: {{ paru_check.stderr | default('no stderr') }}
+      A libalpm soname bump breaks prebuilt AUR-helper binaries. Rebuild it from
+      the AUR (yay -S --rebuild paru) or remove a paru-bin/prebuilt package.
+    success_msg: "paru usable: {{ paru_check.stdout | default('') }}"

@@ -2,5 +2,4 @@
 arch_locale: en_US.UTF-8
 yay_src_path: /opt/yay
 yay_git_repo: https://aur.archlinux.org/yay.git
-paru_git_repo: Morganamilo/paru # GitHub owner/repo slug, used for the releases API
-os_arch: x86_64 # or aarch64
+# paru has no variables: it is built from the AUR with yay (see tasks/paru.yml).

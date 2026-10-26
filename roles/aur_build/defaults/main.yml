@@ -1,0 +1,6 @@
+---
+# sudo applies the LAST matching rule (sudoers(5)), so this filename must sort
+# after any other drop-in that grants the deploy user ALL — typically
+# /etc/sudoers.d/jokester. Hence the zz- prefix.
+aur_build_sudoers_file: /etc/sudoers.d/zz-aur-build
+aur_build_pacman_bin: /usr/bin/pacman

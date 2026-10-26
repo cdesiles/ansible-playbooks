@@ -4,32 +4,29 @@
   register: pgvector_installed
   changed_when: false
   failed_when: false
+  check_mode: false
 
+# paru shells out to sudo to install the built package, so `--noconfirm` needs a
+# passwordless sudo window. The restore lives in `always` so it runs even when
+# the build fails, which otherwise leaves the host with an open window.
 - name: Install pgvector from AUR
   when: pgvector_installed.rc != 0
   block:
-    - name: Disable SUDOERS password prompt for AUR installation
-      no_log: true
-      ansible.builtin.lineinfile:
-        dest: /etc/sudoers
-        state: present
-        regexp: "^#?%wheel"
-        line: "%wheel ALL=(ALL) NOPASSWD: ALL"
-        validate: /usr/sbin/visudo -cf %s
+    - name: Open the AUR build sudo window
+      ansible.builtin.include_role:
+        name: aur_build
+        tasks_from: open
 
     - name: Install pgvector from AUR
       become: false
       ansible.builtin.command:
         cmd: "paru -S --noconfirm pgvector"
-
-    - name: Restore SUDOERS password prompt after AUR installation
-      no_log: true
-      ansible.builtin.lineinfile:
-        dest: /etc/sudoers
-        state: present
-        regexp: "^#?%wheel"
-        line: "%wheel ALL=(ALL:ALL) ALL"
-        validate: /usr/sbin/visudo -cf %s
+      changed_when: true
+  always:
+    - name: Close the AUR build sudo window
+      ansible.builtin.include_role:
+        name: aur_build
+        tasks_from: close
 
 - name: Ensure PostgreSQL is initialized
   ansible.builtin.command:

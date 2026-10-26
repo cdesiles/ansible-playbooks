@@ -41,13 +41,10 @@
     # leaves the host with passwordless root for the whole wheel group.
     - name: Build and install yay
       block:
-        - name: Disable sudo password prompt (makepkg sudoers hack)
-          ansible.builtin.lineinfile:
-            dest: /etc/sudoers
-            state: present
-            regexp: "^#?%wheel"
-            line: "%wheel ALL=(ALL) NOPASSWD: ALL"
-            validate: /usr/sbin/visudo -cf %s
+        - name: Open the AUR build sudo window
+          ansible.builtin.include_role:
+            name: aur_build
+            tasks_from: open
 
         - name: Build and install
           become: true
@@ -57,10 +54,7 @@
             cmd: "makepkg -si -f --noconfirm"
           changed_when: true
       always:
-        - name: Restore sudo with password prompt
-          ansible.builtin.lineinfile:
-            dest: /etc/sudoers
-            state: present
-            regexp: "^#?%wheel"
-            line: "%wheel ALL=(ALL:ALL) ALL"
-            validate: /usr/sbin/visudo -cf %s
+        - name: Close the AUR build sudo window
+          ansible.builtin.include_role:
+            name: aur_build
+            tasks_from: close

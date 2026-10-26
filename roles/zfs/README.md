@@ -63,6 +63,16 @@ module first, or run a kernel for which ZFS is packaged. The role asserts
 `zrepl` is installed on Arch Linux only; use `sanoid`/`syncoid` or the zrepl
 APT repository on Debian.
 
+## Kernel upgrades (Arch)
+
+Upgrading `linux`/`linux-lts` deletes `/usr/lib/modules/<old kernel>` while the
+host keeps running that kernel until reboot. If ZFS is already loaded the role
+does **not** treat this as a failure: the pools are operational, so it only
+warns and asserts that a `zfs.ko` build exists for an installed kernel — the one
+the next boot will use. If no build exists it stops before you reboot into a
+kernel without ZFS (`dkms autoinstall` fixes that). Only when the module is not
+loaded is a failing `modprobe` fatal, with the packaging guidance above.
+
 ## Prometheus metrics
 
 The role deploys an hourly systemd timer (`zfs-metrics.timer`) running

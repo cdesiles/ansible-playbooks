@@ -26,20 +26,17 @@
       register: zfs_dkms_installed
       changed_when: false
       failed_when: false
+      check_mode: false
 
     # The restore lives in `always` so it runs even when paru fails. Otherwise a
-    # failed build leaves the host with passwordless root for the whole wheel group.
+    # failed build leaves the host with an open passwordless sudo window.
     - name: Install ZFS
       when: zfs_dkms_installed.stderr | length > 0
       block:
-        - name: Disable SUDOERS password prompt for makepkg
-          no_log: true
-          ansible.builtin.lineinfile:
-            dest: /etc/sudoers
-            state: present
-            regexp: "^#?%wheel"
-            line: "%wheel ALL=(ALL) NOPASSWD: ALL"
-            validate: /usr/sbin/visudo -cf %s
+        - name: Open the AUR build sudo window
+          ansible.builtin.include_role:
+            name: aur_build
+            tasks_from: open
 
         # Note: I successfully tried zfs-linux-lts and zfs-linux-lts-headers, but
         # the next kernel upgrade failed: cyclic dependency.
@@ -50,32 +47,25 @@
             cmd: "paru -S --noconfirm zfs-dkms zfs-utils"
           changed_when: true
       always:
-        - name: Restore SUDOERS password prompt after paru
-          no_log: true
-          ansible.builtin.lineinfile:
-            dest: /etc/sudoers
-            state: present
-            regexp: "^#?%wheel"
-            line: "%wheel ALL=(ALL:ALL) ALL"
-            validate: /usr/sbin/visudo -cf %s
+        - name: Close the AUR build sudo window
+          ansible.builtin.include_role:
+            name: aur_build
+            tasks_from: close
 
     - name: Check if zrepl is installed
       ansible.builtin.command: pacman -Qi zrepl
       register: zrepl_installed
       changed_when: false
       failed_when: false
+      check_mode: false
 
     - name: Install zrepl
       when: zrepl_installed.stderr | length > 0
       block:
-        - name: Disable SUDOERS password prompt for makepkg
-          no_log: true
-          ansible.builtin.lineinfile:
-            dest: /etc/sudoers
-            state: present
-            regexp: "^#?%wheel"
-            line: "%wheel ALL=(ALL) NOPASSWD: ALL"
-            validate: /usr/sbin/visudo -cf %s
+        - name: Open the AUR build sudo window
+          ansible.builtin.include_role:
+            name: aur_build
+            tasks_from: open
 
         - name: Install zrepl
           become: false
@@ -83,14 +73,10 @@
             cmd: "paru -S --noconfirm zrepl"
           changed_when: true
       always:
-        - name: Restore SUDOERS password prompt after paru
-          no_log: true
-          ansible.builtin.lineinfile:
-            dest: /etc/sudoers
-            state: present
-            regexp: "^#?%wheel"
-            line: "%wheel ALL=(ALL:ALL) ALL"
-            validate: /usr/sbin/visudo -cf %s
+        - name: Close the AUR build sudo window
+          ansible.builtin.include_role:
+            name: aur_build
+            tasks_from: close
 
 # ---------------------------------------------------------------------------
 # Debian/Ubuntu: zfsutils-linux pulls the matching kernel module (zfs-dkms or
@@ -127,15 +113,71 @@
   args:
     creates: /etc/hostid
 
+# A module already loaded in the running kernel keeps ZFS operational even when
+# its module file is gone: upgrading the kernel package removes
+# /usr/lib/modules/<old kernel>, and the host keeps running it until reboot.
+# That is a pending reboot, not a broken system — but the boot that follows must
+# have a build, otherwise ZFS disappears, so that case is still fatal.
+- name: Check if the ZFS module is already loaded
+  ansible.builtin.stat:
+    path: /sys/module/zfs
+  register: zfs_loaded
+  changed_when: false
+
 - name: Load ZFS kernel module
+  when: not zfs_loaded.stat.exists
   ansible.builtin.command: modprobe zfs
   register: zfs_module
   changed_when: false
   check_mode: false
   failed_when: false
 
+- name: Check the running kernel's module tree
+  when: zfs_loaded.stat.exists
+  ansible.builtin.stat:
+    path: "/lib/modules/{{ ansible_facts['kernel'] }}"
+  register: zfs_module_tree
+  changed_when: false
+
+- name: Find ZFS module builds for the installed kernels
+  when:
+    - zfs_loaded.stat.exists
+    - not zfs_module_tree.stat.exists
+  ansible.builtin.find:
+    paths: /usr/lib/modules
+    patterns: "zfs.ko*"
+    recurse: true
+  register: zfs_builds
+
+- name: Report the pending kernel upgrade
+  when:
+    - zfs_loaded.stat.exists
+    - not zfs_module_tree.stat.exists
+  ansible.builtin.debug:
+    msg: >-
+      ZFS is loaded and operational, but the running kernel
+      ({{ ansible_facts['kernel'] }}) no longer has its module tree: a kernel
+      upgrade is pending a reboot. zfs.ko builds found for installed kernels:
+      {{ zfs_builds.matched }}.
+
+- name: Assert the next boot will have ZFS
+  when:
+    - zfs_loaded.stat.exists
+    - not zfs_module_tree.stat.exists
+  ansible.builtin.assert:
+    that:
+      - zfs_builds.matched | int > 0
+    fail_msg: |
+      ZFS is loaded in the running kernel, but no zfs.ko exists under
+      /usr/lib/modules: the next boot would come up without ZFS.
+      Rebuild the DKMS module for the installed kernel (dkms autoinstall)
+      and check `dkms status` before rebooting.
+    success_msg: "ZFS module available for the next boot"
+
 - name: Validate the ZFS kernel module is available
-  when: not ansible_check_mode
+  when:
+    - not zfs_loaded.stat.exists
+    - not ansible_check_mode
   ansible.builtin.assert:
     that:
       - zfs_module.rc == 0

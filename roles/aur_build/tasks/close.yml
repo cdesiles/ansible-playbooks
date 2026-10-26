@@ -1,0 +1,5 @@
+---
+- name: Close the scoped AUR build sudo window
+  ansible.builtin.file:
+    path: "{{ aur_build_sudoers_file }}"
+    state: absent

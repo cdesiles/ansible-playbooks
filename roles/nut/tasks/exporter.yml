@@ -4,10 +4,35 @@
 # the unit's EnvironmentFile (/etc/conf.d/prometheus-nut-exporter).
 
 - name: Install prometheus-nut-exporter (AUR via paru)
-  ansible.builtin.command: "paru -S --noconfirm --needed {{ nut_prometheus_exporter_package }}"
-  register: _nut_prometheus_exporter_install
-  changed_when: "'there is nothing to do' not in _nut_prometheus_exporter_install.stdout | lower"
   when: ansible_facts['os_family'] == 'Archlinux'
+  block:
+    - name: Check if the NUT exporter is installed
+      ansible.builtin.command: pacman -Qi {{ nut_prometheus_exporter_package }}
+      register: _nut_prometheus_exporter_installed
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    # paru bails with "can't install AUR package as root" when it has to build,
+    # so it runs as the deploy user and needs a scoped sudo window for pacman.
+    - name: Build and install prometheus-nut-exporter
+      when: _nut_prometheus_exporter_installed.rc != 0
+      block:
+        - name: Open the AUR build sudo window
+          ansible.builtin.include_role:
+            name: aur_build
+            tasks_from: open
+
+        - name: Build and install prometheus-nut-exporter
+          become: false
+          ansible.builtin.command:
+            cmd: "paru -S --noconfirm --needed {{ nut_prometheus_exporter_package }}"
+          changed_when: true
+      always:
+        - name: Close the AUR build sudo window
+          ansible.builtin.include_role:
+            name: aur_build
+            tasks_from: close
 
 - name: Remove legacy exporter systemd override
   ansible.builtin.file:

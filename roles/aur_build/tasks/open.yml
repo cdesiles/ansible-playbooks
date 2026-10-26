@@ -1,0 +1,15 @@
+---
+# Opens a passwordless sudo window scoped to {{ ansible_user }} + pacman, for
+# AUR builds: makepkg/paru/yay must not run as root but shell out to
+# `sudo pacman` to install the built package.
+#
+# Always pair with tasks/close.yml in an `always:` block — otherwise a failed or
+# interrupted build leaves the window open.
+- name: Open the scoped AUR build sudo window
+  ansible.builtin.copy:
+    dest: "{{ aur_build_sudoers_file }}"
+    owner: root
+    group: root
+    mode: "0440"
+    content: "{{ ansible_user }} ALL=(root) NOPASSWD: {{ aur_build_pacman_bin }}\n"
+    validate: /usr/sbin/visudo -cf %s
