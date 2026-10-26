@@ -1,0 +1,8 @@
+---
+# zfs-dkms/zfs-utils and zrepl are AUR packages, built by install.yml.
+zfs_services:
+  - zfs.target
+  - zfs-import.target
+  - zfs-volumes.target
+  - zfs-import-scan.service
+  - zfs-volume-wait.service

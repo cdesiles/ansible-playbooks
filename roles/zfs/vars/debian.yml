@@ -1,0 +1,8 @@
+---
+# zfsutils-linux ships the userspace tools and pulls the matching kernel
+# module (zfs-dkms or a prebuilt module) as a dependency.
+zfs_services:
+  - zfs-import-cache.service
+  - zfs-mount.service
+  - zfs-zed.service
+  - zfs.target

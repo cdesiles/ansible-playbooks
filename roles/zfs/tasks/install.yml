@@ -1,41 +1,119 @@
 ---
-- name: Check if zfs-linux-lts is installed
-  ansible.builtin.command: pacman -Qi zfs-dkms
-  register: zfs_dkms_installed
-  changed_when: false
-  failed_when: false
+- name: Assert the host runs a supported OS
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in ['Archlinux', 'Debian']
+    fail_msg: >-
+      The zfs role supports Arch Linux and Debian/Ubuntu only
+      (detected {{ ansible_facts['os_family'] }}).
+    success_msg: "ZFS OS support validated"
 
-# The restore lives in `always` so it runs even when paru fails. Otherwise a
-# failed build leaves the host with passwordless root for the whole wheel group.
-- name: Install zfs
-  when: zfs_dkms_installed.stderr | length > 0
+- name: Load OS-specific variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_facts['os_family'] | lower }}.yml"
+    - debian.yml
+
+# ---------------------------------------------------------------------------
+# Arch Linux: zfs-dkms/zfs-utils and zrepl live in the AUR, so they are built
+# with paru as the unprivileged user.
+# ---------------------------------------------------------------------------
+- name: Install ZFS on Arch Linux
+  when: ansible_facts['os_family'] == 'Archlinux'
   block:
-    - name: Disable SUDOERS password prompt for makepkg
-      no_log: true
-      ansible.builtin.lineinfile:
-        dest: /etc/sudoers
-        state: present
-        regexp: "^#?%wheel"
-        line: "%wheel ALL=(ALL) NOPASSWD: ALL"
-        validate: /usr/sbin/visudo -cf %s
+    - name: Check if zfs-dkms is installed
+      ansible.builtin.command: pacman -Qi zfs-dkms
+      register: zfs_dkms_installed
+      changed_when: false
+      failed_when: false
 
-    # Note: I successfully tried zfs-linux-lts and zfs-linux-lts-headers, but
-    # the next kernel upgrade failed: cyclic dependency.
-    # Using dkms with the lts linux kernel is a better approach IMO.
-    - name: Install zfs
-      become: false
-      ansible.builtin.command:
-        cmd: "paru -S --noconfirm zfs-dkms zfs-utils"
-      changed_when: true
-  always:
-    - name: Restore SUDOERS password prompt after paru
-      no_log: true
-      ansible.builtin.lineinfile:
-        dest: /etc/sudoers
-        state: present
-        regexp: "^#?%wheel"
-        line: "%wheel ALL=(ALL:ALL) ALL"
-        validate: /usr/sbin/visudo -cf %s
+    # The restore lives in `always` so it runs even when paru fails. Otherwise a
+    # failed build leaves the host with passwordless root for the whole wheel group.
+    - name: Install ZFS
+      when: zfs_dkms_installed.stderr | length > 0
+      block:
+        - name: Disable SUDOERS password prompt for makepkg
+          no_log: true
+          ansible.builtin.lineinfile:
+            dest: /etc/sudoers
+            state: present
+            regexp: "^#?%wheel"
+            line: "%wheel ALL=(ALL) NOPASSWD: ALL"
+            validate: /usr/sbin/visudo -cf %s
+
+        # Note: I successfully tried zfs-linux-lts and zfs-linux-lts-headers, but
+        # the next kernel upgrade failed: cyclic dependency.
+        # Using dkms with the lts linux kernel is a better approach IMO.
+        - name: Install ZFS
+          become: false
+          ansible.builtin.command:
+            cmd: "paru -S --noconfirm zfs-dkms zfs-utils"
+          changed_when: true
+      always:
+        - name: Restore SUDOERS password prompt after paru
+          no_log: true
+          ansible.builtin.lineinfile:
+            dest: /etc/sudoers
+            state: present
+            regexp: "^#?%wheel"
+            line: "%wheel ALL=(ALL:ALL) ALL"
+            validate: /usr/sbin/visudo -cf %s
+
+    - name: Check if zrepl is installed
+      ansible.builtin.command: pacman -Qi zrepl
+      register: zrepl_installed
+      changed_when: false
+      failed_when: false
+
+    - name: Install zrepl
+      when: zrepl_installed.stderr | length > 0
+      block:
+        - name: Disable SUDOERS password prompt for makepkg
+          no_log: true
+          ansible.builtin.lineinfile:
+            dest: /etc/sudoers
+            state: present
+            regexp: "^#?%wheel"
+            line: "%wheel ALL=(ALL) NOPASSWD: ALL"
+            validate: /usr/sbin/visudo -cf %s
+
+        - name: Install zrepl
+          become: false
+          ansible.builtin.command:
+            cmd: "paru -S --noconfirm zrepl"
+          changed_when: true
+      always:
+        - name: Restore SUDOERS password prompt after paru
+          no_log: true
+          ansible.builtin.lineinfile:
+            dest: /etc/sudoers
+            state: present
+            regexp: "^#?%wheel"
+            line: "%wheel ALL=(ALL:ALL) ALL"
+            validate: /usr/sbin/visudo -cf %s
+
+# ---------------------------------------------------------------------------
+# Debian/Ubuntu: zfsutils-linux pulls the matching kernel module (zfs-dkms or
+# a prebuilt module). Vendor kernels (appliance NAS OSes) often have no
+# matching headers; the module validation below catches that early.
+# ---------------------------------------------------------------------------
+- name: Install Debian/Ubuntu kernel headers for ZFS DKMS
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - zfs_debian_install_headers | bool
+  ansible.builtin.package:
+    name: "{{ zfs_debian_headers_package }}"
+    state: present
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+
+- name: Install ZFS on Debian/Ubuntu
+  when: ansible_facts['os_family'] == 'Debian'
+  ansible.builtin.package:
+    name: "{{ zfs_debian_packages }}"
+    state: present
+  environment:
+    DEBIAN_FRONTEND: noninteractive
 
 - name: Check if /etc/hostid is present
   ansible.builtin.stat:
@@ -45,50 +123,38 @@
 
 - name: Generate /etc/hostid if not present
   when: not hostid.stat.exists
-  ansible.builtin.command: zgenhostid $(hostid)
-- name: Check if zrepl is installed
-  ansible.builtin.command: pacman -Qi zrepl
-  register: zrepl_installed
+  ansible.builtin.command: zgenhostid
+  args:
+    creates: /etc/hostid
+
+- name: Load ZFS kernel module
+  ansible.builtin.command: modprobe zfs
+  register: zfs_module
   changed_when: false
+  check_mode: false
   failed_when: false
 
-- name: Install zrepl
-  when: zrepl_installed.stderr | length > 0
-  block:
-    - name: Disable SUDOERS password prompt for makepkg
-      no_log: true
-      ansible.builtin.lineinfile:
-        dest: /etc/sudoers
-        state: present
-        regexp: "^#?%wheel"
-        line: "%wheel ALL=(ALL) NOPASSWD: ALL"
-        validate: /usr/sbin/visudo -cf %s
+- name: Validate the ZFS kernel module is available
+  when: not ansible_check_mode
+  ansible.builtin.assert:
+    that:
+      - zfs_module.rc == 0
+    fail_msg: |
+      The ZFS kernel module could not be loaded for the running kernel
+      ({{ ansible_facts['kernel'] }}).
+      On stock Debian/Ubuntu install zfs-dkms plus the matching
+      linux-headers package. On appliance/vendor kernels (e.g. UGOS) install
+      the vendor-provided ZFS module or run a kernel for which ZFS is
+      available; this role cannot build a module without matching headers.
+      Details: {{ zfs_module.stderr | default('no stderr') }}
+    success_msg: "ZFS kernel module loaded"
 
-    - name: Install zrepl
-      become: false
-      ansible.builtin.command:
-        cmd: "paru -S --noconfirm zrepl"
-      changed_when: true
-  always:
-    - name: Restore SUDOERS password prompt after paru
-      no_log: true
-      ansible.builtin.lineinfile:
-        dest: /etc/sudoers
-        state: present
-        regexp: "^#?%wheel"
-        line: "%wheel ALL=(ALL:ALL) ALL"
-        validate: /usr/sbin/visudo -cf %s
-
-- name: Enable zfs services
+- name: Enable ZFS services
   ansible.builtin.service:
     name: "{{ item }}"
     enabled: true
     state: started
-  loop:
-    - zfs.target
-    - zfs-import.target
-    - zfs-volumes.target
-    - zfs-import-scan.service
-    - zfs-volume-wait.service
-# Please note /etc/zfs/zpool.cache should not be present, as it is deprecated
-# and we are using zfs-import-scan.service, which rely on blkid.
+  loop: "{{ zfs_services }}"
+# Please note /etc/zfs/zpool.cache should not be present on Arch, as it is
+# deprecated and we are using zfs-import-scan.service, which relies on blkid.
+# Debian keeps using zfs-import-cache.service (see vars/debian.yml).

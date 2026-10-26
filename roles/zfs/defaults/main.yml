@@ -1,4 +1,18 @@
 ---
+# Debian/Ubuntu packages installed by the role. zfsutils-linux depends on the
+# matching kernel module (zfs-dkms or a prebuilt module); kmod provides
+# modprobe/modinfo used by the module validation below.
+zfs_debian_packages:
+  - zfsutils-linux
+  - kmod
+
+# DKMS needs the headers for the *running* kernel. The package name is
+# `linux-headers-$(uname -r)` on Debian/Ubuntu. Set
+# zfs_debian_install_headers: false on vendor kernels that provide their own
+# ZFS module, or override zfs_debian_headers_package.
+zfs_debian_install_headers: true
+zfs_debian_headers_package: "linux-headers-{{ ansible_facts['kernel'] }}"
+
 # ZFS capacity metrics (Prometheus)
 # ---------------------------------
 # Exposes pool size/used/free and per-dataset used/quota to Prometheus via

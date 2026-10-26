@@ -21,6 +21,10 @@ zfs_pools:
 
 And you will get raid1 zpool peace with two disks, with 12 ashift.
 
+The `root` key is informational only; the role does not apply it. Set the pool
+root mountpoint through a `zfs_datasets` entry (`name: peace`, `mountpoint:
+/mnt/peace`) as shown below.
+
 You can use a variety of options, see the [zpoolprops(7)](https://openzfs.github.io/openzfs-docs/man/master/7/zpoolprops.7.html) man page.
 
 And for your zfs filesystems:
@@ -35,6 +39,29 @@ zfs_datasets:
           mountpoint: /mnt/peace/movies
           quota: 500G
 ```
+
+## Debian/Ubuntu
+
+The role installs `zfsutils-linux` (override with `zfs_debian_packages`) plus
+`kmod`, and the headers for the running kernel
+(`linux-headers-$(uname -r)`) so `zfs-dkms` can build. Set
+`zfs_debian_install_headers: false` on vendor kernels that provide their own
+ZFS module, or override `zfs_debian_headers_package`. It then generates
+`/etc/hostid` if needed, loads the module, and enables the standard ZFS units.
+On Debian, ZFS lives in `contrib`: make sure the APT sources include it
+(`deb ... bookworm main contrib`) before running the role.
+
+The DKMS build also works on Debian ARM64/ARMHF; expect the first build to take
+a few minutes on NAS-class CPUs.
+
+Vendor kernels (appliance NAS OSes such as UGOS) usually ship without matching
+headers, so DKMS cannot build the module. In that case install the vendor ZFS
+module first, or run a kernel for which ZFS is packaged. The role asserts
+`modprobe zfs` succeeds and stops with that guidance instead of failing later at
+`zpool create`.
+
+`zrepl` is installed on Arch Linux only; use `sanoid`/`syncoid` or the zrepl
+APT repository on Debian.
 
 ## Prometheus metrics
 
