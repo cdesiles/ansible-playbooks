@@ -1,0 +1,11 @@
+[Unit]
+Description=moOde Pi health metrics timer
+
+[Timer]
+OnBootSec=60s
+OnUnitActiveSec={{ moode_health_timer }}
+AccuracySec=10s
+Unit=moode-health.service
+
+[Install]
+WantedBy=timers.target

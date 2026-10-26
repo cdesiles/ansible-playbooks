@@ -1,0 +1,412 @@
+---
+- name: Validate notifier configuration
+  ansible.builtin.assert:
+    that:
+      - moode_update_notify_topic is defined
+      - moode_update_notify_topic | length > 0
+    fail_msg: |
+      moode_update_notify_topic is required when update checks are enabled.
+      See roles/moode/defaults/main.yml for configuration instructions.
+    success_msg: "Notifier configuration validated"
+  when: moode_update_check_enabled | bool
+
+# --- File sharing -----------------------------------------------------------
+# moOde keeps fs_smb/fs_nfs in cfg_system and starts smbd/nmbd/wsdd2 or
+# nfs-server on demand. Enforce the database value, then mask the units so a
+# stray enable (or a WebUI toggle) cannot expose the card.
+
+- name: Read moOde SMB sharing state
+  ansible.builtin.command:
+    argv: [moodeutl, -q, "SELECT value FROM cfg_system WHERE param='fs_smb'"]
+  register: moode_smb_state
+  changed_when: false
+  check_mode: false
+  when: moode_sharing_managed | bool
+
+- name: Read moOde NFS sharing state
+  ansible.builtin.command:
+    argv: [moodeutl, -q, "SELECT value FROM cfg_system WHERE param='fs_nfs'"]
+  register: moode_nfs_state
+  changed_when: false
+  check_mode: false
+  when: moode_sharing_managed | bool
+
+- name: Configure moOde SMB sharing state
+  ansible.builtin.command:
+    argv:
+      - moodeutl
+      - -q
+      - >-
+        UPDATE cfg_system SET value='{{ moode_sharing_smb_enabled | bool | ternary('On', 'Off') }}'
+        WHERE param='fs_smb'
+  when:
+    - moode_sharing_managed | bool
+    - moode_smb_state.stdout | default('') | trim != (moode_sharing_smb_enabled | bool | ternary('On', 'Off'))
+  changed_when: true
+
+- name: Configure moOde NFS sharing state
+  ansible.builtin.command:
+    argv:
+      - moodeutl
+      - -q
+      - >-
+        UPDATE cfg_system SET value='{{ moode_sharing_nfs_enabled | bool | ternary('On', 'Off') }}'
+        WHERE param='fs_nfs'
+  when:
+    - moode_sharing_managed | bool
+    - moode_nfs_state.stdout | default('') | trim != (moode_sharing_nfs_enabled | bool | ternary('On', 'Off'))
+  changed_when: true
+
+- name: List file-sharing units present on the host
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - list-unit-files
+      - --no-legend
+      - --no-pager
+      - smbd.service
+      - nmbd.service
+      - wsdd2.service
+      - nfs-server.service
+  register: moode_sharing_units
+  changed_when: false
+  check_mode: false
+  when: moode_sharing_managed | bool
+
+- name: Register the file-sharing unit policy
+  ansible.builtin.set_fact:
+    moode_sharing_unit_policy:
+      smbd.service: "{{ moode_sharing_smb_enabled | bool }}"
+      nmbd.service: "{{ moode_sharing_smb_enabled | bool }}"
+      wsdd2.service: "{{ moode_sharing_smb_enabled | bool }}"
+      nfs-server.service: "{{ moode_sharing_nfs_enabled | bool }}"
+  when: moode_sharing_managed | bool
+
+- name: Stop, disable and mask disabled file-sharing services
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+    masked: true
+  loop: "{{ (moode_sharing_units.stdout_lines | default([])) | map('regex_replace', '^(\\S+).*$', '\\1') | list }}"
+  when:
+    - moode_sharing_managed | bool
+    - not (moode_sharing_unit_policy[item] | bool)
+
+- name: Unmask file-sharing services that are enabled in the configuration
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    masked: false
+  loop: "{{ (moode_sharing_units.stdout_lines | default([])) | map('regex_replace', '^(\\S+).*$', '\\1') | list }}"
+  when:
+    - moode_sharing_managed | bool
+    - moode_sharing_unit_policy[item] | bool
+
+# --- Boot config ------------------------------------------------------------
+# moOde edits config.txt one line at a time and keeps lines it does not know.
+# It restores its default file when a section header is missing or appears
+# twice, so the block must never contain one. [all] resets any board filter
+# that could precede the block.
+
+- name: Validate the boot config lines
+  ansible.builtin.assert:
+    that:
+      - >-
+        moode_boot_config_lines
+        | select('search', '# (Device filters|General settings|Do not alter this section|Audio overlays)')
+        | list | length == 0
+    fail_msg: >-
+      moode_boot_config_lines must not contain moOde's config.txt section
+      headers: a duplicate header makes moOde restore its default config.txt.
+    quiet: true
+
+- name: Manage the config.txt block
+  ansible.builtin.blockinfile:
+    path: "{{ moode_boot_config_path }}"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK (roles/moode)"
+    insertafter: EOF
+    block: "{{ (['[all]'] + moode_boot_config_lines) | join('\n') }}"
+    state: "{{ (moode_boot_config_lines | length > 0) | ternary('present', 'absent') }}"
+  notify: Warn about reboot for config.txt
+
+# --- I-Sabre Q2M input ------------------------------------------------------
+# Enabled only: starting the oneshot on every run would switch the input away
+# and back during playback.
+
+- name: Deploy the I-Sabre input resync unit
+  ansible.builtin.template:
+    src: isabre-i2s.service.j2
+    dest: /etc/systemd/system/isabre-i2s.service
+    owner: root
+    group: root
+    mode: "0644"
+  when: moode_isabre_i2s_resync | bool
+
+- name: Enable the I-Sabre input resync unit
+  ansible.builtin.systemd_service:
+    name: isabre-i2s.service
+    enabled: true
+    daemon_reload: true
+  when: moode_isabre_i2s_resync | bool
+
+- name: Remove the I-Sabre input resync unit when disabled
+  when: not (moode_isabre_i2s_resync | bool)
+  block:
+    - name: Disable the I-Sabre input resync unit
+      ansible.builtin.systemd_service:
+        name: isabre-i2s.service
+        enabled: false
+      failed_when: false
+
+    - name: Remove the I-Sabre input resync unit file
+      ansible.builtin.file:
+        path: /etc/systemd/system/isabre-i2s.service
+        state: absent
+
+# --- Metrics ----------------------------------------------------------------
+
+- name: Create textfile collector directory
+  ansible.builtin.file:
+    path: "{{ moode_metrics_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: moode_update_check_enabled | bool or moode_health_metrics_enabled | bool
+
+# --- Update check -----------------------------------------------------------
+
+- name: Create moOde update state directory
+  ansible.builtin.file:
+    path: "{{ moode_update_state_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: moode_update_check_enabled | bool
+
+- name: Deploy moOde notifier environment
+  ansible.builtin.template:
+    src: moode-update.env.j2
+    dest: "{{ moode_update_env_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: Restart moode-update timer
+  when: moode_update_check_enabled | bool
+
+- name: Deploy moOde update check script
+  ansible.builtin.template:
+    src: moode-update-check.sh.j2
+    dest: "{{ moode_update_script_path }}"
+    owner: root
+    group: root
+    mode: "0700"
+  notify: Restart moode-update timer
+  when: moode_update_check_enabled | bool
+
+- name: Deploy moOde update check service
+  ansible.builtin.template:
+    src: moode-update.service.j2
+    dest: /etc/systemd/system/moode-update.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart moode-update timer
+  when: moode_update_check_enabled | bool
+
+- name: Deploy moOde update check timer
+  ansible.builtin.template:
+    src: moode-update.timer.j2
+    dest: /etc/systemd/system/moode-update.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart moode-update timer
+  when: moode_update_check_enabled | bool
+
+- name: Remove moOde update check when disabled
+  when: not (moode_update_check_enabled | bool)
+  block:
+    - name: Stop and disable the update check timer
+      ansible.builtin.systemd_service:
+        name: moode-update.timer
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Remove update check files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/systemd/system/moode-update.timer
+        - /etc/systemd/system/moode-update.service
+        - "{{ moode_update_script_path }}"
+        - "{{ moode_update_env_path }}"
+        - "{{ moode_metrics_dir }}/moode_update.prom"
+
+# --- Pi health metrics ------------------------------------------------------
+
+- name: Deploy Pi health metrics script
+  ansible.builtin.template:
+    src: moode-health.sh.j2
+    dest: "{{ moode_health_script_path }}"
+    owner: root
+    group: root
+    mode: "0700"
+  notify: Restart moode-health timer
+  when: moode_health_metrics_enabled | bool
+
+- name: Deploy Pi health metrics service
+  ansible.builtin.template:
+    src: moode-health.service.j2
+    dest: /etc/systemd/system/moode-health.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart moode-health timer
+  when: moode_health_metrics_enabled | bool
+
+- name: Deploy Pi health metrics timer
+  ansible.builtin.template:
+    src: moode-health.timer.j2
+    dest: /etc/systemd/system/moode-health.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart moode-health timer
+  when: moode_health_metrics_enabled | bool
+
+- name: Remove Pi health metrics when disabled
+  when: not (moode_health_metrics_enabled | bool)
+  block:
+    - name: Stop and disable the Pi health timer
+      ansible.builtin.systemd_service:
+        name: moode-health.timer
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Remove Pi health metrics files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/systemd/system/moode-health.timer
+        - /etc/systemd/system/moode-health.service
+        - "{{ moode_health_script_path }}"
+        - "{{ moode_metrics_dir }}/moode_health.prom"
+
+# --- Auto power-off when idle -----------------------------------------------
+# Uses MPD state plus ALSA PCM state, so renderers that bypass MPD (Spotify
+# Connect, AirPlay, Bluetooth, HDMI) also count as playback.
+
+- name: Validate the auto power-off threshold
+  ansible.builtin.assert:
+    that:
+      - moode_auto_poweroff_idle_minutes | int > 0
+    fail_msg: "moode_auto_poweroff_idle_minutes must be a positive number of minutes"
+    quiet: true
+  when: moode_auto_poweroff_enabled | bool
+
+- name: Create the auto power-off state directory
+  ansible.builtin.file:
+    path: "{{ moode_auto_poweroff_state_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: moode_auto_poweroff_enabled | bool
+
+- name: Deploy the idle power-off script
+  ansible.builtin.template:
+    src: moode-idle-poweroff.sh.j2
+    dest: "{{ moode_auto_poweroff_script_path }}"
+    owner: root
+    group: root
+    mode: "0700"
+  notify: Restart moode-poweroff timer
+  when: moode_auto_poweroff_enabled | bool
+
+- name: Deploy the idle power-off service
+  ansible.builtin.template:
+    src: moode-poweroff.service.j2
+    dest: /etc/systemd/system/moode-poweroff.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart moode-poweroff timer
+  when: moode_auto_poweroff_enabled | bool
+
+- name: Deploy the idle power-off timer
+  ansible.builtin.template:
+    src: moode-poweroff.timer.j2
+    dest: /etc/systemd/system/moode-poweroff.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart moode-poweroff timer
+  when: moode_auto_poweroff_enabled | bool
+
+- name: Remove auto power-off when disabled
+  when: not (moode_auto_poweroff_enabled | bool)
+  block:
+    - name: Stop and disable the idle power-off timer
+      ansible.builtin.systemd_service:
+        name: moode-poweroff.timer
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Remove auto power-off files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/systemd/system/moode-poweroff.timer
+        - /etc/systemd/system/moode-poweroff.service
+        - "{{ moode_auto_poweroff_script_path }}"
+
+# --- Activation -------------------------------------------------------------
+
+- name: Apply pending timer changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start moOde update check timer
+  ansible.builtin.systemd_service:
+    name: moode-update.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: moode_update_check_enabled | bool
+
+- name: Enable and start Pi health metrics timer
+  ansible.builtin.systemd_service:
+    name: moode-health.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: moode_health_metrics_enabled | bool
+
+- name: Enable and start the idle power-off timer
+  ansible.builtin.systemd_service:
+    name: moode-poweroff.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: moode_auto_poweroff_enabled | bool
+
+# Validate the check end to end on deploy: it must run, reach the update
+# metadata and write the metrics file, otherwise the weekly timer would fail
+# silently. Notifications are deduplicated by state, so this cannot spam.
+- name: Run the moOde update check once
+  ansible.builtin.command: "{{ moode_update_script_path }}"
+  changed_when: false
+  when: moode_update_check_enabled | bool
+
+- name: Run the Pi health metrics script once
+  ansible.builtin.command: "{{ moode_health_script_path }}"
+  changed_when: false
+  when: moode_health_metrics_enabled | bool

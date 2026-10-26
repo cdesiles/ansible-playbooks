@@ -1,0 +1,24 @@
+---
+- name: Restart moode-update timer
+  ansible.builtin.systemd_service:
+    name: moode-update.timer
+    daemon_reload: true
+    state: restarted
+
+- name: Restart moode-health timer
+  ansible.builtin.systemd_service:
+    name: moode-health.timer
+    daemon_reload: true
+    state: restarted
+
+- name: Restart moode-poweroff timer
+  ansible.builtin.systemd_service:
+    name: moode-poweroff.timer
+    daemon_reload: true
+    state: restarted
+
+- name: Warn about reboot for config.txt
+  ansible.builtin.debug:
+    msg: |
+      WARNING: {{ moode_boot_config_path }} changed.
+      A REBOOT IS REQUIRED for the overlays and UART settings to apply.

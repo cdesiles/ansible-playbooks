@@ -1,0 +1,11 @@
+[Unit]
+Description=moOde idle power-off timer
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec={{ moode_auto_poweroff_check_interval }}
+AccuracySec=30s
+Unit=moode-poweroff.service
+
+[Install]
+WantedBy=timers.target

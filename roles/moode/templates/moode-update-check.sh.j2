@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+#
+# {{ ansible_managed }}
+#
+# Compares the installed moOde release with the official update metadata and
+# with the upstream release feed. Notifies over ntfy when the state changes and
+# exports metrics to node_exporter's textfile collector.
+#
+# It NEVER applies an update. In-series updates stay a deliberate action:
+#
+#   sudo /var/www/util/system-updater.sh moode<series>   # same as the WebUI
+#   sudo moodeutl --updlog                               # verify
+#   sudo reboot
+#   ansible-playbook playbooks/{{ inventory_hostname }}.yml   # reassert config
+#
+set -uo pipefail
+
+UPDATE_URL="{{ moode_update_url }}"
+RELEASES_FEED="{{ moode_update_releases_feed }}"
+STATE_DIR="{{ moode_update_state_dir }}"
+STATE_FILE="${STATE_DIR}/notified-state"
+METRICS_FILE="{{ moode_metrics_dir }}/moode_update.prom"
+HOSTNAME_SHORT="$(hostname -s)"
+
+NTFY_SERVER="https://ntfy.sh"
+NTFY_TOPIC=""
+NTFY_TOKEN=""
+# shellcheck disable=SC1091
+if [[ -r "{{ moode_update_env_path }}" ]]; then
+    . "{{ moode_update_env_path }}"
+fi
+
+{% raw %}
+log() {
+    printf '%s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*"
+}
+
+notify() {
+    local title="$1" message="$2" priority="${3:-default}" tags="${4:-moode}"
+    if [[ -z "$NTFY_TOPIC" ]]; then
+        log "WARNING: NTFY_TOPIC is empty, notification skipped"
+        return 0
+    fi
+    local -a args=(-H "Title: ${title}" -H "Tags: ${tags}" -H "Priority: ${priority}")
+    if [[ -n "$NTFY_TOKEN" ]]; then
+        args+=(-H "Authorization: Bearer ${NTFY_TOKEN}")
+    fi
+    curl -fsS --max-time 15 "${args[@]}" -d "$message" "${NTFY_SERVER}/${NTFY_TOPIC}" >/dev/null \
+        || log "WARNING: failed to send notification"
+}
+
+# version_gt A B -> true when A is strictly newer than B (semver-ish, uses sort -V)
+version_gt() {
+    local a="$1" b="$2"
+    [[ "$a" != "$b" ]] || return 1
+    [[ "$(printf '%s\n%s\n' "$a" "$b" | sort -V | tail -n1)" == "$a" ]]
+}
+
+metric() {
+    local name="$1" help="$2" value="$3" type="${4:-gauge}"
+    printf '# HELP %s %s\n# TYPE %s %s\n%s %s\n' "$name" "$help" "$name" "$type" "$name" "$value"
+}
+
+if ! command -v moodeutl >/dev/null 2>&1; then
+    log "ERROR: moodeutl not found, this is not a moOde host"
+    exit 1
+fi
+
+# --- Installed release ------------------------------------------------------
+# moodeutl --mooderel prints "<version> <release date>", e.g. "10.3.6 2026-10-10"
+installed_raw="$(moodeutl --mooderel 2>/dev/null | head -n1 | tr -d '\r')"
+installed_ver="${installed_raw%% *}"
+installed_date="${installed_raw#* }"
+[[ "$installed_date" == "$installed_ver" ]] && installed_date="unknown"
+series="${installed_ver%%.*}"
+
+reboot_pending="$(moodeutl -q "SELECT value FROM cfg_system WHERE param='inplace_upd_applied'" 2>/dev/null | tr -d '[:space:]')"
+[[ "$reboot_pending" == "1" ]] || reboot_pending="0"
+
+# --- In-series update metadata (what the WebUI reads) ----------------------
+latest_ver=""
+latest_date=""
+image_only="0"
+check_success="0"
+upd_meta="$(curl -fsS --max-time 20 "${UPDATE_URL}/update-moode${series}.txt" 2>/dev/null || true)"
+if [[ -n "$upd_meta" ]]; then
+    check_success="1"
+    latest_ver="$(sed -n 's/^Release:[[:space:]]*//p' <<<"$upd_meta" | head -n1 | tr -d '[:space:]')"
+    latest_date="$(sed -n 's/^Date:[[:space:]]*//p' <<<"$upd_meta" | head -n1 | tr -d '[:space:]')"
+    if [[ "$(sed -n 's/^ImageOnly:[[:space:]]*//p' <<<"$upd_meta" | head -n1 | tr -d '[:space:]')" == "Yes" ]]; then
+        image_only="1"
+    fi
+fi
+
+update_available="0"
+if [[ -n "$latest_ver" ]] && version_gt "$latest_ver" "$installed_ver"; then
+    update_available="1"
+fi
+
+# --- New major series -------------------------------------------------------
+# moOde only publishes update metadata for the installed series and there is no
+# in-place upgrade across majors: the newest release name comes from the feed.
+feed_major=""
+feed="$(curl -fsS --max-time 20 "$RELEASES_FEED" 2>/dev/null || true)"
+if [[ -n "$feed" ]]; then
+    newest="$(grep -o 'moOde audio player [0-9][0-9.]*' <<<"$feed" | head -n1 | awk '{print $NF}')"
+    [[ -n "$newest" ]] && feed_major="${newest%%.*}"
+fi
+
+major_available="0"
+if [[ -n "$feed_major" && -n "$series" ]] && (( feed_major > series )); then
+    major_available="1"
+fi
+
+# --- Notify on state change only -------------------------------------------
+state_key="installed=${installed_ver};update=${update_available};latest=${latest_ver};major=${feed_major};reboot=${reboot_pending}"
+previous=""
+[[ -r "$STATE_FILE" ]] && previous="$(cat "$STATE_FILE")"
+
+if [[ "$check_success" == "1" && "$state_key" != "$previous" ]]; then
+    if [[ "$major_available" == "1" ]]; then
+        notify "moOde ${feed_major}.x available on ${HOSTNAME_SHORT}" \
+"Installed: ${installed_ver} (${installed_date})
+Latest series: ${feed_major}.x
+
+A new major release has no in-place update. Back up the card, flash the new
+image, restore the moOde configuration, then re-run the Ansible playbook." \
+            "warning" "warning"
+    elif [[ "$update_available" == "1" ]]; then
+        notify "moOde update available on ${HOSTNAME_SHORT}" \
+"Installed: ${installed_ver} (${installed_date})
+Available: ${latest_ver} (${latest_date})
+
+System Config > CHECK for software update, or:
+  sudo /var/www/util/system-updater.sh moode${series}
+then reboot and re-run the Ansible playbook for this host." \
+            "default" "arrow_up"
+    elif [[ "$reboot_pending" == "1" ]]; then
+        notify "moOde update installed on ${HOSTNAME_SHORT}" \
+"An in-place update is installed and waiting for a restart.
+Reboot, then re-run the Ansible playbook for this host." \
+            "default" "arrows_counterclockwise"
+    fi
+    mkdir -p "$STATE_DIR"
+    printf '%s\n' "$state_key" > "$STATE_FILE"
+fi
+
+# --- Metrics ----------------------------------------------------------------
+tmp_metrics="${METRICS_FILE}.tmp"
+
+{
+    printf '# HELP moode_release_info Installed moOde release (labels: release, series, date).\n'
+    printf '# TYPE moode_release_info gauge\n'
+    printf 'moode_release_info{release="%s",series="%s",date="%s"} 1\n' \
+        "$installed_ver" "$series" "$installed_date"
+    metric moode_update_available "In-series moOde update available (1=yes)." "$update_available"
+    metric moode_update_image_only "The published in-series update requires a fresh image (1=yes)." "$image_only"
+    metric moode_major_update_available "A newer moOde major series exists and requires a fresh image (1=yes)." "$major_available"
+    metric moode_reboot_pending "moOde applied an in-place update and is waiting for a restart (1=yes)." "$reboot_pending"
+    metric moode_update_check_success "The update metadata could be fetched on the last run (1=yes)." "$check_success"
+    metric moode_update_check_timestamp_seconds "Unix time of the last update check." "$(date +%s)"
+} > "$tmp_metrics"
+
+chmod 0644 "$tmp_metrics"
+mv "$tmp_metrics" "$METRICS_FILE"
+
+log "installed=${installed_ver} series=${series} latest=${latest_ver:-unknown} update=${update_available} major=${feed_major:-unknown} reboot_pending=${reboot_pending}"
+{% endraw %}

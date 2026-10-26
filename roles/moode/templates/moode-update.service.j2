@@ -1,0 +1,8 @@
+[Unit]
+Description=moOde update check
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart={{ moode_update_script_path }}

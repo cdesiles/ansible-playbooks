@@ -1,0 +1,15 @@
+[Unit]
+Description=Switch the I-Sabre Q2M HAT input to I2S
+# The driver never sends the input selection (its cache assumes I2S): writing
+# SPDIF then I2S makes the HAT's microcontroller really switch.
+After=sound.target
+
+[Service]
+Type=oneshot
+# The card registers late (deferred probe): wait for it.
+ExecStartPre=/bin/sh -c 'for i in $$(seq 60); do [ -e /proc/asound/DAC ] && exit 0; sleep 1; done; exit 1'
+ExecStart=/usr/bin/amixer -c DAC -q sset "I2S/SPDIF Select" SPDIF
+ExecStart=/usr/bin/amixer -c DAC -q sset "I2S/SPDIF Select" I2S
+
+[Install]
+WantedBy=multi-user.target

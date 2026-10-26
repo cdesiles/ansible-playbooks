@@ -1,0 +1,10 @@
+[Unit]
+Description=moOde update check timer
+
+[Timer]
+OnCalendar={{ moode_update_check_calendar }}
+RandomizedDelaySec={{ moode_update_check_randomized_delay }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target

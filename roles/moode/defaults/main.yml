@@ -1,0 +1,78 @@
+---
+# moOde appliance layer
+# ---------------------
+# moOde's WebUI owns the audio chain, /boot/firmware/config.txt (outside the
+# block below), the network configuration and the update process. This role
+# manages only what the WebUI leaves open: the file-sharing services, extra
+# config.txt lines and update awareness.
+#
+# Updates are never applied from Ansible. The check notifies (ntfy) and exports
+# metrics; applying an update stays an operator action (see README.md).
+
+# --- File sharing (SMB/NFS) ---
+moode_sharing_managed: true
+moode_sharing_smb_enabled: false
+moode_sharing_nfs_enabled: false
+
+# --- Boot config (config.txt) ---
+# Lines written to a marked block at the end of config.txt, for hardware the
+# WebUI does not know (overlays, UART). Never add settings the WebUI writes
+# (e.g. the DAC overlay) or moOde's section headers, see README.md. Changes
+# need a reboot. An empty list removes the block.
+moode_boot_config_lines: []
+moode_boot_config_path: /boot/firmware/config.txt
+
+# --- I-Sabre Q2M input ---
+# The I-Sabre driver never sends the input selection to the HAT's
+# microcontroller (its register cache assumes I2S) and cannot read it back. A
+# HAT left on SPDIF plays nothing. When enabled, a boot unit writes SPDIF then
+# I2S so the HAT really switches to I2S.
+moode_isabre_i2s_resync: false
+
+# --- Update check ---
+moode_update_check_enabled: true
+# moode_update_notify_topic: ""  # Intentionally undefined - role will fail if not set
+moode_update_notify_server: "https://ntfy.sh"
+# moode_update_notify_token: ""  # Intentionally undefined - unauthenticated if not set
+moode_update_check_calendar: "Sun *-*-* 05:17:00"
+moode_update_check_randomized_delay: "45m"
+
+# In-series metadata (Release/Date/ImageOnly). Same source the moOde WebUI
+# reads from cfg_system.res_software_upd_url.
+moode_update_url: "https://raw.githubusercontent.com/moode-player/updates/main/moode-player"
+# moOde only publishes the current series, so the newest release name (used to
+# detect a new major series, which requires a fresh image) comes from the
+# releases feed. Atom avoids the GitHub API rate limit.
+moode_update_releases_feed: "https://github.com/moode-player/moode/releases.atom"
+
+moode_update_script_path: /usr/local/bin/moode-update-check.sh
+moode_update_env_path: /etc/moode-update.env
+moode_update_state_dir: /var/lib/moode-update
+
+# --- Pi health metrics (vcgencmd) ---
+moode_health_metrics_enabled: true
+moode_health_script_path: /usr/local/bin/moode-health.sh
+# Timer period for the vcgencmd scrape (under-voltage bit is latched, so a
+# one-minute cadence is plenty).
+moode_health_timer: 1min
+
+# --- Auto power-off when idle ---
+# Powers the host off after `idle_minutes` without playback. Playback is
+# detected from MPD (library, radio, playlists) and from any ALSA PCM in
+# RUNNING state, which covers the renderers that bypass MPD (Spotify Connect
+# via librespot, AirPlay via shairport-sync, Bluetooth via bluealsa).
+moode_auto_poweroff_enabled: false
+moode_auto_poweroff_idle_minutes: 60
+# How often the idle check runs. The effective shutdown happens between
+# idle_minutes and idle_minutes + this interval.
+moode_auto_poweroff_check_interval: 5min
+# Never power off while an interactive login exists (maintenance sessions).
+moode_auto_poweroff_ignore_sessions: true
+# Log the decision without shutting down (first deployment / debugging).
+moode_auto_poweroff_dry_run: false
+moode_auto_poweroff_script_path: /usr/local/bin/moode-idle-poweroff.sh
+moode_auto_poweroff_state_dir: /var/lib/moode-poweroff
+moode_auto_poweroff_shutdown_command: "/sbin/shutdown -h -P now"
+
+# Textfile collector directory, shared with roles/node_exporter.
+moode_metrics_dir: "{{ node_exporter_textfile_dir | default('/var/lib/node_exporter/textfile_collector') }}"

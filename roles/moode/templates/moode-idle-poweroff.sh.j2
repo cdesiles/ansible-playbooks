@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+#
+# {{ ansible_managed }}
+#
+# Powers the host off after {{ moode_auto_poweroff_idle_minutes }} minutes without playback.
+#
+# "Playing" is true when either:
+#   - MPD reports state "play" (library, radio, playlists), or
+#   - any ALSA PCM is in RUNNING state. That covers every renderer that writes
+#     directly to the DAC: Spotify Connect (librespot), AirPlay
+#     (shairport-sync), Bluetooth (bluealsa), HDMI output.
+set -uo pipefail
+
+IDLE_MINUTES={{ moode_auto_poweroff_idle_minutes }}
+CHECK_INTERVAL="{{ moode_auto_poweroff_check_interval }}"
+STATE_DIR="{{ moode_auto_poweroff_state_dir }}"
+STATE_FILE="${STATE_DIR}/idle-since"
+SHUTDOWN_COMMAND="{{ moode_auto_poweroff_shutdown_command }}"
+IGNORE_SESSIONS="{{ moode_auto_poweroff_ignore_sessions | bool | lower }}"
+DRY_RUN="{{ moode_auto_poweroff_dry_run | bool | lower }}"
+MIN_IDLE_SECONDS=$(( IDLE_MINUTES * 60 ))
+
+{% raw %}
+log() {
+    printf '%s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*"
+}
+
+# --- Is anything playing? ---------------------------------------------------
+playing=0
+
+mpc_output="$(mpc status 2>/dev/null || true)"
+if [[ "$mpc_output" == *"[playing]"* ]]; then
+    playing=1
+fi
+
+if [[ "$playing" -eq 0 ]]; then
+    for status in /proc/asound/card*/pcm*p/sub0/status; do
+        [[ -r "$status" ]] || continue
+        if grep -q '^state: RUNNING' "$status" 2>/dev/null; then
+            log "ALSA activity on ${status} "
+            playing=1
+            break
+        fi
+    done
+fi
+
+if [[ "$playing" -eq 1 ]]; then
+    if [[ -f "$STATE_FILE" ]]; then
+        log "playback detected, idle timer cleared"
+        rm -f "$STATE_FILE"
+    fi
+    exit 0
+fi
+
+# --- Hands off while someone is logged in -----------------------------------
+if [[ "$IGNORE_SESSIONS" == "true" ]] && [[ -n "$(who 2>/dev/null)" ]]; then
+    if [[ -f "$STATE_FILE" ]]; then
+        log "interactive login present, idle timer cleared"
+        rm -f "$STATE_FILE"
+    fi
+    exit 0
+fi
+
+# --- Idle bookkeeping --------------------------------------------------------
+mkdir -p "$STATE_DIR"
+now="$(date +%s)"
+
+if [[ ! -r "$STATE_FILE" ]]; then
+    printf '%s\n' "$now" > "$STATE_FILE"
+    log "no playback, idle timer started (threshold ${IDLE_MINUTES} min, check every ${CHECK_INTERVAL})"
+    exit 0
+fi
+
+since="$(cat "$STATE_FILE" 2>/dev/null || echo "$now")"
+[[ "$since" =~ ^[0-9]+$ ]] || since="$now"
+
+# A timestamp older than the last boot is meaningless (state file surviving a
+# power cut or a manual reboot): restart the countdown instead of powering off
+# seconds after boot.
+boot_time=$(( now - $(cut -d. -f1 /proc/uptime) ))
+if (( since < boot_time )); then
+    log "idle mark predates boot, restarting idle timer"
+    since="$now"
+    printf '%s\n' "$now" > "$STATE_FILE"
+fi
+
+idle=$(( now - since ))
+
+if (( idle < MIN_IDLE_SECONDS )); then
+    log "no playback for $(( idle / 60 )) min, threshold ${IDLE_MINUTES} min"
+    exit 0
+fi
+
+# --- Time to go --------------------------------------------------------------
+log "no playback for $(( idle / 60 )) min, powering off"
+rm -f "$STATE_FILE"
+
+if [[ "$DRY_RUN" == "true" ]]; then
+    log "dry run enabled, not executing: ${SHUTDOWN_COMMAND}"
+    exit 0
+fi
+
+read -r -a shutdown_args <<< "$SHUTDOWN_COMMAND"
+"${shutdown_args[@]}"
+{% endraw %}

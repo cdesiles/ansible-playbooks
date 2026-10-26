@@ -1,0 +1,6 @@
+[Unit]
+Description=moOde Pi health metrics (vcgencmd to node_exporter textfile)
+
+[Service]
+Type=oneshot
+ExecStart={{ moode_health_script_path }}

@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+#
+# {{ ansible_managed }}
+#
+# Exports Raspberry Pi power/thermal health to node_exporter's textfile
+# collector. vcgencmd get_throttled latches historical events, so a one-minute
+# scrape is enough to catch an under-voltage that lasts a fraction of a second.
+#
+set -uo pipefail
+
+METRICS_FILE="{{ moode_metrics_dir }}/moode_health.prom"
+
+{% raw %}
+if ! command -v vcgencmd >/dev/null 2>&1; then
+    echo "vcgencmd not available, cannot export Pi health metrics" >&2
+    exit 1
+fi
+
+raw_flags="$(vcgencmd get_throttled | cut -d= -f2 | tr -d '[:space:]')"
+if [[ ! "$raw_flags" =~ ^0x[0-9a-fA-F]+$ ]]; then
+    echo "unexpected vcgencmd get_throttled output: '${raw_flags}'" >&2
+    exit 1
+fi
+flags=$((raw_flags))
+
+soc_temp="$(vcgencmd measure_temp | tr -dc '0-9.')"
+[[ -n "$soc_temp" ]] || soc_temp="NaN"
+
+# bit 0: under-voltage now            bit 16: under-voltage occurred
+# bit 1: arm frequency capped now     bit 17: frequency cap occurred
+# bit 2: currently throttled          bit 18: throttling occurred
+# bit 3: soft temperature limit now   bit 19: soft temperature limit occurred
+bit() { local n="$1"; echo $(( (flags >> n) & 1 )); }
+
+tmp_metrics="${METRICS_FILE}.tmp"
+{
+    printf '# HELP moode_throttled_flags Raw vcgencmd get_throttled bitmask.\n'
+    printf '# TYPE moode_throttled_flags gauge\n'
+    printf 'moode_throttled_flags %d\n' "$flags"
+
+    printf '# HELP moode_throttled_undervoltage_now Under-voltage detected right now (bit 0).\n'
+    printf '# TYPE moode_throttled_undervoltage_now gauge\n'
+    printf 'moode_throttled_undervoltage_now %d\n' "$(bit 0)"
+
+    printf '# HELP moode_throttled_undervoltage_occurred Under-voltage occurred since boot (bit 16).\n'
+    printf '# TYPE moode_throttled_undervoltage_occurred gauge\n'
+    printf 'moode_throttled_undervoltage_occurred %d\n' "$(bit 16)"
+
+    printf '# HELP moode_throttled_freq_capped_now ARM frequency capped right now (bit 1).\n'
+    printf '# TYPE moode_throttled_freq_capped_now gauge\n'
+    printf 'moode_throttled_freq_capped_now %d\n' "$(bit 1)"
+
+    printf '# HELP moode_throttled_freq_capped_occurred ARM frequency capped since boot (bit 17).\n'
+    printf '# TYPE moode_throttled_freq_capped_occurred gauge\n'
+    printf 'moode_throttled_freq_capped_occurred %d\n' "$(bit 17)"
+
+    printf '# HELP moode_throttled_now Throttling active right now (bit 2).\n'
+    printf '# TYPE moode_throttled_now gauge\n'
+    printf 'moode_throttled_now %d\n' "$(bit 2)"
+
+    printf '# HELP moode_throttled_occurred Throttling occurred since boot (bit 18).\n'
+    printf '# TYPE moode_throttled_occurred gauge\n'
+    printf 'moode_throttled_occurred %d\n' "$(bit 18)"
+
+    printf '# HELP moode_throttled_soft_temp_limit_now Soft temperature limit active right now (bit 3).\n'
+    printf '# TYPE moode_throttled_soft_temp_limit_now gauge\n'
+    printf 'moode_throttled_soft_temp_limit_now %d\n' "$(bit 3)"
+
+    printf '# HELP moode_throttled_soft_temp_limit_occurred Soft temperature limit occurred since boot (bit 19).\n'
+    printf '# TYPE moode_throttled_soft_temp_limit_occurred gauge\n'
+    printf 'moode_throttled_soft_temp_limit_occurred %d\n' "$(bit 19)"
+
+    printf '# HELP moode_soc_temperature_celsius SoC temperature (vcgencmd measure_temp).\n'
+    printf '# TYPE moode_soc_temperature_celsius gauge\n'
+    printf 'moode_soc_temperature_celsius %s\n' "$soc_temp"
+
+    printf '# HELP moode_health_timestamp_seconds Unix time of the last health scrape.\n'
+    printf '# TYPE moode_health_timestamp_seconds gauge\n'
+    printf 'moode_health_timestamp_seconds %s\n' "$(date +%s)"
+} > "$tmp_metrics"
+
+chmod 0644 "$tmp_metrics"
+mv "$tmp_metrics" "$METRICS_FILE"
+{% endraw %}
