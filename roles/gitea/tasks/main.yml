@@ -46,7 +46,7 @@
 - name: Create PostgreSQL schema for Gitea
   community.postgresql.postgresql_schema:
     name: "{{ gitea_postgres_schema }}"
-    database: "{{ gitea_postgres_db_name }}"
+    login_db: "{{ gitea_postgres_db_name }}"
     owner: "{{ gitea_postgres_user }}"
     state: present
   become: false
