@@ -2,6 +2,8 @@
 
 Deploys [ntfy](https://ntfy.sh/) - a simple HTTP-based pub-sub notification service.
 
+Variables: [defaults/main.yml](defaults/main.yml)
+
 ## Security Model
 
 **Secure by default:**
@@ -12,33 +14,6 @@ Deploys [ntfy](https://ntfy.sh/) - a simple HTTP-based pub-sub notification serv
 - `enable-reservations: true` - Only authenticated users can reserve topics
 
 All notifications require authentication to send or receive.
-
-## Configuration
-
-### Required Variables
-
-Set in inventory or vault:
-
-```yaml
-ntfy_admin_password: "your-secure-password-here" # Min 12 chars
-```
-
-### Optional Variables
-
-See [defaults/main.yml](defaults/main.yml) for all configuration options.
-
-Key settings:
-
-```yaml
-ntfy_version: latest
-ntfy_port: 8080
-ntfy_base_url: http://localhost:8080
-ntfy_admin_user: admin
-
-# Nginx reverse proxy
-ntfy_nginx_enabled: false
-ntfy_nginx_hostname: ntfy.nas.local
-```
 
 ## Usage
 
@@ -99,13 +74,13 @@ podman exec ntfy ntfy access
 Using curl with authentication:
 
 ```bash
-curl -u admin:password -d "Backup completed" http://localhost:8080/backups
+curl -u admin:password -d "Backup completed" http://localhost:{{ ntfy_port }}/backups
 ```
 
 Using ntfy CLI:
 
 ```bash
-ntfy publish --token <access-token> ntfy.nas.local mytopic "Hello World"
+ntfy publish --token <access-token> ntfy.nas.local/mytopic "Hello World"
 ```
 
 ### Subscribing to Notifications
@@ -115,7 +90,7 @@ Web UI: https://ntfy.nas.local (if nginx enabled)
 CLI:
 
 ```bash
-ntfy subscribe --token <access-token> ntfy.nas.local mytopic
+ntfy subscribe --token <access-token> ntfy.nas.local/mytopic
 ```
 
 Mobile apps available for iOS and Android.
@@ -124,7 +99,7 @@ Mobile apps available for iOS and Android.
 
 - **Container**: Podman-based deployment
 - **Storage**: Persistent cache and user database
-- **Networking**: Localhost binding by default
+- **Networking**: host port `ntfy_port` on all interfaces (no `hostIP`), no UFW rule opened
 - **Reverse Proxy**: Optional nginx with HTTPS
 
 ## File Locations

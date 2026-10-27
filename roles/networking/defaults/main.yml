@@ -1,0 +1,22 @@
+---
+# Interfaces to configure, set in inventory. Each entry is passed as `interface`
+# to net_persist (pins the NIC name to its MAC address), then to net_config
+# (renders the systemd-networkd unit).
+# network_interfaces:
+#   - name: lan0                     # required: interface name
+#     type: ethernet                 # optional: ethernet/wireless are physical (no .netdev);
+#                                    # any other value is a systemd.netdev kind (e.g. bridge).
+#                                    # net_persist only renames ethernet (or untyped) entries.
+#     mac_address: 02:a0:c9:8d:7e:b6 # required for ethernet: NIC renamed to `name`
+#     ipv4:
+#       address: 192.168.1.2/24      # static address with prefix, or:
+#       dhcp: true                   # DHCP=ipv4 (mutually exclusive with address)
+#       gateway: 192.168.1.254       # optional: default gateway (static only)
+#       nameservers: [1.1.1.1]       # optional: DNS=; omit to accept the DHCP-provided DNS
+#       metric: 100                  # optional: route metric, lower is preferred
+#       broadcast: 192.168.1.255     # optional: for tools that cannot derive it from a
+#                                    # DHCP lease (playbooks/wol.yml)
+#       forward: true                # optional: IPv4 forwarding (router/NAT)
+#       masquerade: true             # optional: IPMasquerade=ipv4 + UFW NAT rule; requires
+#                                    # forward and nat_out_interface
+#       nat_out_interface: wan0      # egress interface of the UFW NAT POSTROUTING rule

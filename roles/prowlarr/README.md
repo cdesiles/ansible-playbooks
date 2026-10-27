@@ -2,13 +2,11 @@
 
 Deploys [Prowlarr](https://prowlarr.com/) - an indexer manager/proxy for the *arr stack - using Podman with k8s files. The `linuxserver/prowlarr` image bundles Prowlarr and its SQLite database.
 
+Variables: [defaults/main.yml](defaults/main.yml)
+
 ## Prerequisites
 
 The `podman` role must have been applied to the host first (shared service, intentionally not declared in `meta/main.yml` to keep prowlarr deploys fast). Order it before `prowlarr` in the playbook for fresh installs.
-
-## Role Variables
-
-See `defaults/main.yml` for all available variables and their default values.
 
 ## Storage
 

@@ -2,6 +2,8 @@
 
 Installs and configures Prometheus monitoring system as a native system service.
 
+Variables: [defaults/main.yml](defaults/main.yml)
+
 ## Supported Distributions
 
 - Arch Linux
@@ -15,39 +17,6 @@ Installs and configures Prometheus monitoring system as a native system service.
 - Retention policy configuration
 - Alert manager integration support
 - Rule files support
-
-## Configuration
-
-See [defaults/main.yml](defaults/main.yml) for all available variables.
-
-### Basic Configuration
-
-```yaml
-prometheus_scrape_interval: 15s
-prometheus_retention_time: 15d
-prometheus_web_listen_address: "127.0.0.1:9090"
-```
-
-### Scrape Targets
-
-```yaml
-prometheus_scrape_configs:
-  - job_name: 'prometheus'
-    static_configs:
-      - targets: ['localhost:9090']
-  - job_name: 'node_exporter'
-    static_configs:
-      - targets: ['localhost:9100']
-```
-
-### Nginx Reverse Proxy
-
-```yaml
-prometheus_nginx_enabled: true
-prometheus_nginx_server_name: prometheus.example.com
-prometheus_nginx_ssl_certificate: /path/to/cert.pem
-prometheus_nginx_ssl_certificate_key: /path/to/key.pem
-```
 
 ## Alert Rules
 

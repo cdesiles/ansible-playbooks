@@ -8,15 +8,7 @@ Supports Arch Linux and Debian/Ubuntu. Deploys a Bash script + systemd timer tha
 3. Pull latest Podman images and restart pods with updated images
 4. Send push notifications via ntfy.sh at each stage
 
-## Configuration
-
-See [defaults/main.yml](defaults/main.yml) for all variables.
-
-Required in host vars:
-
-```yaml
-sys_autoupdate_ntfy_topic: your-notification-topic
-```
+Variables: [defaults/main.yml](defaults/main.yml)
 
 ## OS support
 

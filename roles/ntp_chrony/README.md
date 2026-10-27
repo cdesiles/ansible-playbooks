@@ -2,6 +2,8 @@
 
 Modern NTP implementation for time synchronization. Chrony is designed for systems with intermittent network connectivity and is the default NTP client on modern Linux distributions.
 
+Variables: [defaults/main.yml](defaults/main.yml)
+
 ## Features
 
 - Fast initial time synchronization
@@ -68,10 +70,6 @@ ntp_log_measurements: true
 ntp_log_statistics: true
 ntp_log_tracking: true
 ```
-
-## Variables
-
-See [defaults/main.yml](defaults/main.yml) for all configuration options.
 
 ## Verification
 

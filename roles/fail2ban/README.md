@@ -2,6 +2,8 @@
 
 Bans brute-force sources via UFW. Reads logs from the systemd journal (`backend = systemd`), so it works on both Arch and Debian.
 
+Variables: [defaults/main.yml](defaults/main.yml)
+
 ## Jails
 
 - `sshd`
@@ -12,10 +14,6 @@ Bans brute-force sources via UFW. Reads logs from the systemd journal (`backend 
 - Logs to the journal (`logtarget = STDOUT` in `fail2ban.local`) — see `journalctl -u fail2ban`.
 - The systemd unit is hardened (`ProtectSystem=full`); the drop-in lives at `/etc/systemd/system/fail2ban.service.d/override.conf` and is fully managed by the role.
 - Firewall/banaction is UFW on every host; jails ban via `ufw prepend deny` (DROP — no kernel `REJECT` extension needed, and it doesn't reveal the host to attackers).
-
-## Variables
-
-See [defaults/main.yml](defaults/main.yml).
 
 ## Prometheus exporter
 

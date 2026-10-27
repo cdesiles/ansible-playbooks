@@ -2,13 +2,11 @@
 
 Deploys [Deluge](https://deluge-torrent.org/) - a lightweight BitTorrent client with a web UI - using Podman with k8s files. The `linuxserver/deluge` image runs both `deluged` and `deluge-web`.
 
+Variables: [defaults/main.yml](defaults/main.yml)
+
 ## Prerequisites
 
 The `podman` role must have been applied to the host first (shared service, intentionally not declared in `meta/main.yml` to keep deluge deploys fast). Order it before `deluge` in the playbook for fresh installs.
-
-## Role Variables
-
-See `defaults/main.yml` for all available variables and their default values.
 
 ## First Login
 

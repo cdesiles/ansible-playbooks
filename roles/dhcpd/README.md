@@ -2,13 +2,7 @@
 
 ISC DHCP server role for Arch Linux and Debian/Ubuntu.
 
-## Requirements
-
-- `dhcpd_interface` must be defined in inventory
-
-## Configuration
-
-See [defaults/main.yml](defaults/main.yml) for all available variables.
+Variables: [defaults/main.yml](defaults/main.yml)
 
 ## Example
 

@@ -4,6 +4,8 @@ This Ansible role installs and configures Valkey (a Redis fork) for local use on
 
 The role also performs required kernel tuning for optimal Valkey performance.
 
+Variables: [defaults/main.yml](defaults/main.yml)
+
 ## About Valkey
 
 Valkey is a high-performance key/value datastore and a drop-in replacement for Redis. It was created as a community-driven fork after Redis changed its license from BSD to proprietary licenses (RSALv2 and SSPLv1) in March 2024.
@@ -39,21 +41,7 @@ Valkey is a high-performance key/value datastore and a drop-in replacement for R
 - `ansible.posix` collection (for sysctl module)
 - `community.general` collection (for ufw module)
 
-## Role Variables
-
-See `defaults/main.yml` for all available variables and their default values.
-
-### Key Configuration Requirements
-
-#### Required Password
-
-The `valkey_admin_password` variable must be set in your inventory (min 12 characters). The role will fail if not set.
-
-#### ACL Users
-
-Service users must be registered via the `valkey_acl_users` list. See the ACL Configuration Guide section below for details.
-
-#### Container Access
+## Container Access
 
 Valkey binds to `127.0.0.1` by default (secure, localhost-only).
 
@@ -67,8 +55,6 @@ extra_hosts:
 ```
 
 No additional bind addresses needed!
-
-**System Requirements:** This role automatically configures kernel parameters (`vm.overcommit_memory=1`) and transparent hugepage settings
 
 ## Dependencies
 

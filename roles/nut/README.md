@@ -3,6 +3,8 @@
 Monitors a UPS over USB (or serial/network), notifies via ntfy on power events
 and gracefully shuts the host down on low battery.
 
+Variables: [defaults/main.yml](defaults/main.yml)
+
 ## Supported distributions
 
 - Arch Linux
@@ -19,27 +21,6 @@ and gracefully shuts the host down on low battery.
   - calls `SHUTDOWNCMD` (`systemctl poweroff`) on `LOWBATT`,
   - dispatches every event to a `NOTIFYCMD` wrapper that POSTs to ntfy with
     severity, tags and a host-aware title.
-
-## Configuration
-
-Variables — see [defaults/main.yml](defaults/main.yml).
-
-Required (role asserts at start):
-
-```yaml
-nut_monitor_password: "<min 12 chars>"  # local upsd user used by upsmon + exporter
-nut_ntfy_topic: "ups-<host>"
-```
-
-Optional but commonly tweaked:
-
-```yaml
-nut_ups_name: eaton
-nut_ups_description: "EATON Ellipse 1600"
-nut_ups_vendorid: "0463"
-nut_ntfy_server: https://ntfy.jokester.fr
-nut_ntfy_token: "tk_..."  # publish token for nut_ntfy_topic
-```
 
 ## Operations
 

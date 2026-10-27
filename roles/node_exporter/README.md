@@ -2,6 +2,8 @@
 
 Exposes machine metrics (CPU, memory, disk, filesystem, network) for Prometheus.
 
+Variables: [defaults/main.yml](defaults/main.yml)
+
 ## Supported distributions
 
 - Arch Linux (package `prometheus-node-exporter`, extra repo)

@@ -2,6 +2,8 @@
 
 Installs and configures Grafana as a system service with PostgreSQL backend.
 
+Variables: [defaults/main.yml](defaults/main.yml)
+
 ## Description
 
 This role:
@@ -17,67 +19,6 @@ This role:
 
 - `postgres` role (for database backend)
 
-## Variables
-
-### Required Variables (Override with Ansible Vault!)
-
-```yaml
-grafana_db_password: changeme
-grafana_admin_password: changeme
-grafana_secret_key: changeme
-```
-
-### Server Configuration
-
-```yaml
-grafana_http_port: 3000
-grafana_domain: localhost
-grafana_root_url: "%(protocol)s://%(domain)s:%(http_port)s/"
-```
-
-### Database Configuration
-
-```yaml
-grafana_db_type: postgres
-grafana_db_name: grafana
-grafana_db_user: grafana_user
-grafana_db_host: localhost
-grafana_db_port: 5432
-grafana_db_ssl_mode: disable
-```
-
-### Admin User
-
-```yaml
-grafana_admin_user: admin
-```
-
-### Analytics
-
-```yaml
-grafana_reporting_enabled: false
-grafana_check_for_updates: false
-```
-
-### Nginx Reverse Proxy
-
-```yaml
-grafana_nginx_enabled: false
-grafana_nginx_hostname: grafana.local
-```
-
-### Alerting
-
-```yaml
-grafana_alerting_enabled: false
-grafana_ntfy_webhook_url: "https://ntfy.example.com/sys-alerts?template=grafana"
-grafana_ntfy_token: "{{ vault_ntfy_token }}" # write access to the topic
-```
-
-`grafana_ntfy_webhook_url` and `grafana_ntfy_token` are required when
-`grafana_alerting_enabled: true`. The token is rendered into the contact point
-provisioning file, which is deployed `0600`.
-
 ## Example Playbook
 
 ```yaml
@@ -86,13 +27,13 @@ provisioning file, which is deployed `0600`.
   roles:
       - role: grafana
         vars:
-            grafana_domain: monitoring.example.com
+            grafana_domain: grafana.example.com
             grafana_nginx_enabled: true
             grafana_nginx_hostname: grafana.example.com
             grafana_admin_password: !vault |
                 $ANSIBLE_VAULT;1.1;AES256
                 ...
-            grafana_db_password: !vault |
+            grafana_postgres_password: !vault |
                 $ANSIBLE_VAULT;1.1;AES256
                 ...
             grafana_secret_key: !vault |
@@ -108,9 +49,9 @@ Grafana gets its own PostgreSQL database with a dedicated user that has minimal 
 
 ```sql
 CREATE DATABASE grafana;
-CREATE USER grafana_user WITH PASSWORD 'xxx';
-GRANT ALL PRIVILEGES ON DATABASE grafana TO grafana_user;
-ALTER USER grafana_user NOSUPERUSER NOCREATEDB NOCREATEROLE;
+CREATE USER grafana WITH PASSWORD 'xxx';
+GRANT ALL PRIVILEGES ON DATABASE grafana TO grafana;
+ALTER USER grafana NOSUPERUSER NOCREATEDB NOCREATEROLE;
 ```
 
 ### Service Layout
@@ -118,9 +59,9 @@ ALTER USER grafana_user NOSUPERUSER NOCREATEDB NOCREATEROLE;
 ```
 System Services:
 ├── PostgreSQL (port 5432, localhost only)
-│   └── grafana database → grafana_user
-└── Grafana (port 3000, localhost only)
-    └── Nginx (port 80) → reverse proxy (optional)
+│   └── grafana database → grafana user
+└── Grafana (port {{ grafana_http_port }}, all interfaces)
+    └── Nginx (port 443, 80 redirects) → reverse proxy (optional)
 ```
 
 ## Post-Installation
@@ -130,13 +71,13 @@ System Services:
 **Direct access:**
 
 ```
-http://localhost:3000
+http://localhost:{{ grafana_http_port }}
 ```
 
 **With Nginx reverse proxy:**
 
 ```
-http://grafana.local
+https://{{ grafana_nginx_hostname }}
 ```
 
 ### Default Credentials
@@ -158,7 +99,8 @@ sudo -u postgres psql -c "\l" | grep grafana
 sudo -u postgres psql -c "\du" | grep grafana
 
 # Check configuration
-sudo cat /etc/grafana/grafana.ini | grep -A 5 "\[database\]"
+sudo cat /etc/grafana/grafana.ini | grep -A 5 "\[database\]"  # Debian/Ubuntu
+sudo cat /etc/grafana.ini | grep -A 5 "\[database\]"          # Arch Linux
 
 # Check logs
 journalctl -u grafana-server -f  # Debian/Ubuntu
@@ -169,7 +111,7 @@ journalctl -u grafana -f         # Arch Linux
 
 1. **Passwords:** Always use Ansible Vault for sensitive variables
 2. **Database:** Grafana user has minimal privileges (no superuser, can't create databases/roles)
-3. **Network:** Grafana binds to localhost by default, use Nginx for external access
+3. **Network:** Grafana listens on all interfaces (`http_addr` is not set) and the role opens no UFW port for it; use Nginx for external access
 4. **Secret Key:** Used for signing cookies and other security features - keep it secret!
 
 ## Nginx Integration
@@ -240,7 +182,7 @@ space, not per-dataset usage, so the pool metric is authoritative.
 
 ## OS Support
 
-- **Arch Linux:** Installs from community repository
+- **Arch Linux:** Installs from the `extra` repository
 - **Debian/Ubuntu:** Installs from official Grafana APT repository
 
 ## Troubleshooting
@@ -251,9 +193,6 @@ space, not per-dataset usage, so the pool metric is authoritative.
 # Check logs
 journalctl -u grafana-server -n 50  # Debian/Ubuntu
 journalctl -u grafana -n 50         # Arch Linux
-
-# Check configuration syntax
-sudo grafana-cli admin validate-config
 ```
 
 ### Can't connect to PostgreSQL
@@ -263,7 +202,7 @@ sudo grafana-cli admin validate-config
 systemctl status postgresql
 
 # Test database connection
-psql -h localhost -U grafana_user -d grafana
+psql -h localhost -U grafana -d grafana
 
 # Check PostgreSQL logs
 journalctl -u postgresql -n 50
@@ -273,13 +212,14 @@ journalctl -u postgresql -n 50
 
 ```bash
 # Verify Grafana is running
-systemctl status grafana-server
+systemctl status grafana-server  # Debian/Ubuntu
+systemctl status grafana         # Arch Linux
 
 # Check if Grafana is listening
-ss -tlnp | grep 3000
+ss -tlnp | grep {{ grafana_http_port }}
 
 # Test direct access
-curl http://localhost:3000
+curl http://localhost:{{ grafana_http_port }}
 ```
 
 ## References

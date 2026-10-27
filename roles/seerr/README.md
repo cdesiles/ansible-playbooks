@@ -2,13 +2,11 @@
 
 Deploys [Seerr](https://seerr.dev/) - the media request manager (successor of Overseerr/Jellyseerr) - using Podman with k8s files. Uses the official `ghcr.io/seerr-team/seerr` image.
 
+Variables: [defaults/main.yml](defaults/main.yml)
+
 ## Prerequisites
 
 The `podman` role must have been applied to the host first. Order it before `seerr` in the playbook for fresh installs.
-
-## Role Variables
-
-See `defaults/main.yml` for all available variables and their default values.
 
 ## First Login
 

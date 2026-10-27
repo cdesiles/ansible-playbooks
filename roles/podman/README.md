@@ -27,10 +27,10 @@ Switch via `podman_log_driver` variable.
 
 ```bash
 # View container logs (journald)
-journalctl CONTAINER_NAME=immich_server -f
+journalctl CONTAINER_NAME=immich-server -f
 
 # View container logs (k8s-file)
-podman logs -f immich_server
+podman logs -f immich-server
 
 # Check log driver
 podman info --format '{{.Host.LogDriver}}'

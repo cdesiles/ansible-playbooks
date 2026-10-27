@@ -2,6 +2,8 @@
 
 Deploys [Uptime Kuma](https://uptime.kuma.pet/) - a self-hosted monitoring and status page application.
 
+Variables: [defaults/main.yml](defaults/main.yml)
+
 ## Features
 
 - Website monitoring (HTTP/HTTPS)
@@ -13,24 +15,6 @@ Deploys [Uptime Kuma](https://uptime.kuma.pet/) - a self-hosted monitoring and s
 - Multi-language support
 - Dark mode
 
-## Configuration
-
-### Optional Variables
-
-See [defaults/main.yml](defaults/main.yml) for all configuration options.
-
-Key settings:
-
-```yaml
-uptime_kuma_version: "2"
-uptime_kuma_port: 3001
-uptime_kuma_data_dir: "{{ podman_projects_dir }}/uptime-kuma/data"
-
-# Nginx reverse proxy
-uptime_kuma_nginx_enabled: false
-uptime_kuma_nginx_hostname: uptime.nas.local
-```
-
 ## Storage Requirements
 
 **CRITICAL:** Uptime Kuma uses SQLite and requires local storage with POSIX file lock support.
@@ -40,7 +24,7 @@ uptime_kuma_nginx_hostname: uptime.nas.local
 
 ## First-Time Setup
 
-1. Access the web UI: `https://uptime.nas.local` (if nginx enabled) or `http://localhost:3001`
+1. Access the web UI: `https://uptime.nas.local` (if nginx enabled) or `http://localhost:{{ uptime_kuma_port }}`
 2. Create admin account on first visit
 3. No default credentials - account is created during initial setup
 
