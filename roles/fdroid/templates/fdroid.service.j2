@@ -5,7 +5,7 @@ Description=F-Droid Repository Server
 Type=notify
 NotifyAccess=all
 WorkingDirectory={{ podman_projects_dir | default('/opt/podman') }}/fdroid
-ExecStart=/usr/bin/podman kube play --replace --service-container=true --network=pasta:--map-host-loopback={{ podman_gw_gateway }} fdroid.yaml
+ExecStart=/usr/bin/podman kube play --replace --service-container=true --no-pod-prefix --network=pasta:--map-host-loopback={{ podman_gw_gateway }} fdroid.yaml
 ExecStop=/usr/bin/podman kube down fdroid.yaml
 Restart=on-failure
 RestartSec=10

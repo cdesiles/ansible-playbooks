@@ -5,7 +5,7 @@ Description=UniFi Network Controller
 Type=notify
 NotifyAccess=all
 WorkingDirectory={{ podman_projects_dir | default('/opt/podman') }}/unifi
-ExecStart=/usr/bin/podman kube play --replace --service-container=true unifi.yaml
+ExecStart=/usr/bin/podman kube play --replace --service-container=true --no-pod-prefix unifi.yaml
 ExecStop=/usr/bin/podman kube down unifi.yaml
 Restart=on-failure
 RestartSec=10

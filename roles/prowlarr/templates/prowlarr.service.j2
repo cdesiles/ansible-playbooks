@@ -5,7 +5,7 @@ Description=Prowlarr Indexer Manager
 Type=notify
 NotifyAccess=all
 WorkingDirectory={{ podman_projects_dir | default('/opt/podman') }}/prowlarr
-ExecStart=/usr/bin/podman kube play --replace --service-container=true --network=pasta:--map-host-loopback={{ podman_gw_gateway }} prowlarr.yaml
+ExecStart=/usr/bin/podman kube play --replace --service-container=true --no-pod-prefix --network=pasta:--map-host-loopback={{ podman_gw_gateway }} prowlarr.yaml
 ExecStop=/usr/bin/podman kube down prowlarr.yaml
 Restart=on-failure
 RestartSec=10

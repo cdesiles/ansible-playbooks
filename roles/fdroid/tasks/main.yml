@@ -103,7 +103,9 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0644"
-  notify: Reload systemd user
+  notify:
+    - Reload systemd user
+    - Restart fdroid
 
 - name: Check if lingering is enabled for {{ ansible_user }}
   ansible.builtin.stat:

@@ -64,7 +64,9 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0644"
-  notify: Reload systemd user
+  notify:
+    - Reload systemd user
+    - Restart uptime-kuma
 
 - name: Enable lingering for user {{ ansible_user }}
   ansible.builtin.command: "loginctl enable-linger {{ ansible_user }}"

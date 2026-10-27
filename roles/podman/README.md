@@ -23,6 +23,12 @@ Installs and configures Podman for container management with support for Docker 
 
 Switch via `podman_log_driver` variable.
 
+## Container names
+
+Single-container pods run `podman kube play --no-pod-prefix` and name their container after the pod: `podman exec jellyfin`, `podman logs ntfy`. Multi-container pods (immich, matrix, qfieldcloud) keep podman's `<pod>-<container>` names (`immich-server`): `kube play` registers the short YAML names as network aliases, which qfieldcloud's workers rely on. `podman pod logs <pod>` works for both.
+
+The role asserts podman ≥ 5.7.0 on the SQLite database backend: older versions lack the flag, and BoltDB rejects a container named like its pod.
+
 ## Hands-on Commands
 
 ```bash

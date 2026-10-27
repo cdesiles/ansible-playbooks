@@ -8,7 +8,7 @@ metadata:
 spec:
   hostNetwork: true
   containers:
-    - name: controller
+    - name: unifi
       image: {{ unifi_image }}:{{ unifi_version }}
       env:
         - name: TZ

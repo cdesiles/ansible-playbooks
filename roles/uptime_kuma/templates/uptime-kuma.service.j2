@@ -5,7 +5,7 @@ Description=Uptime Kuma Monitoring Service
 Type=notify
 NotifyAccess=all
 WorkingDirectory={{ podman_projects_dir | default('/opt/podman') }}/uptime-kuma
-ExecStart=/usr/bin/podman kube play --replace --service-container=true uptime-kuma.yaml
+ExecStart=/usr/bin/podman kube play --replace --service-container=true --no-pod-prefix uptime-kuma.yaml
 ExecStop=/usr/bin/podman kube down uptime-kuma.yaml
 Restart=on-failure
 RestartSec=10

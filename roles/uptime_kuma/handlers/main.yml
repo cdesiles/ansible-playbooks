@@ -14,6 +14,7 @@
   ansible.builtin.systemd:
     name: uptime-kuma.service
     state: restarted
+    daemon_reload: true # "Reload systemd user" may run after this (play-global handler names)
     scope: user
   become: false
   become_user: "{{ ansible_user }}"

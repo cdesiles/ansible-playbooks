@@ -86,7 +86,9 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0644"
-  notify: Reload systemd user
+  notify:
+    - Reload systemd user
+    - Restart ntfy
 
 - name: Check if lingering is enabled for {{ ansible_user }}
   ansible.builtin.stat:
@@ -99,6 +101,11 @@
   when:
     - ansible_user != 'root'
     - not linger_file.stat.exists
+
+# The admin tasks below exec into the container by name: apply a pending
+# restart first so they target the current container.
+- name: Flush handlers before starting ntfy
+  ansible.builtin.meta: flush_handlers
 
 - name: Enable and start ntfy service (user scope)
   ansible.builtin.systemd:
@@ -117,7 +124,7 @@
 
 - name: Check if admin user already exists
   ansible.builtin.command:
-    cmd: podman exec ntfy-server ntfy user list
+    cmd: podman exec ntfy ntfy user list
   register: ntfy_user_list
   changed_when: false
   failed_when: false
@@ -127,7 +134,7 @@
 - name: Create admin user in ntfy
   ansible.builtin.shell: |
     set -o pipefail
-    printf '%s\n%s\n' '{{ ntfy_admin_password }}' '{{ ntfy_admin_password }}' | podman exec -i ntfy-server ntfy user add --role=admin {{ ntfy_admin_user }}
+    printf '%s\n%s\n' '{{ ntfy_admin_password }}' '{{ ntfy_admin_password }}' | podman exec -i ntfy ntfy user add --role=admin {{ ntfy_admin_user }}
   when: ntfy_admin_user not in ntfy_user_list.stdout
   register: ntfy_user_create
   changed_when: ntfy_user_create.rc == 0
@@ -137,7 +144,7 @@
 - name: Set admin user password
   ansible.builtin.shell: |
     set -o pipefail
-    printf '%s\n%s\n' '{{ ntfy_admin_password }}' '{{ ntfy_admin_password }}' | podman exec -i ntfy-server ntfy user change-pass {{ ntfy_admin_user }}
+    printf '%s\n%s\n' '{{ ntfy_admin_password }}' '{{ ntfy_admin_password }}' | podman exec -i ntfy ntfy user change-pass {{ ntfy_admin_user }}
   when: ntfy_admin_user in ntfy_user_list.stdout
   changed_when: false
   become: false

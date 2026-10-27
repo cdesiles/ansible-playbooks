@@ -4,7 +4,7 @@ metadata:
   name: metabase
 spec:
   containers:
-    - name: server
+    - name: metabase
       image: {{ metabase_image }}:{{ metabase_version }}
       ports:
         - containerPort: 3000

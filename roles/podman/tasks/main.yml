@@ -78,3 +78,24 @@
     owner: root
     group: root
     mode: "0644"
+
+- name: Get podman version and database backend for {{ ansible_user }}
+  ansible.builtin.command: "podman info --format '{% raw %}{{.Version.Version}} {{.Host.DatabaseBackend}}{% endraw %}'"
+  register: podman_info
+  changed_when: false
+  check_mode: false # read-only; the assert below needs real output in --check runs
+  become: false
+  become_user: "{{ ansible_user }}"
+
+# Single-container pods run `kube play --no-pod-prefix` and name their container
+# after the pod. BoltDB shares one namespace between pods and containers.
+- name: Validate podman supports kube play --no-pod-prefix
+  ansible.builtin.assert:
+    that:
+      - podman_info.stdout.split()[0] is version('5.7.0', '>=')
+      - podman_info.stdout.split()[1] == 'sqlite'
+    fail_msg: |
+      Pod services need podman >= 5.7.0 (kube play --no-pod-prefix) on the SQLite
+      database backend (BoltDB rejects a container named like its pod).
+      Found: {{ podman_info.stdout }}. Podman 5.8+ migrates BoltDB to SQLite on reboot.
+    success_msg: "podman {{ podman_info.stdout }}"
