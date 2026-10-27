@@ -138,6 +138,7 @@
   when: ntfy_admin_user not in ntfy_user_list.stdout
   register: ntfy_user_create
   changed_when: ntfy_user_create.rc == 0
+  no_log: true # the command line carries the password
   become: false
   become_user: "{{ ansible_user }}"
 
@@ -147,6 +148,7 @@
     printf '%s\n%s\n' '{{ ntfy_admin_password }}' '{{ ntfy_admin_password }}' | podman exec -i ntfy ntfy user change-pass {{ ntfy_admin_user }}
   when: ntfy_admin_user in ntfy_user_list.stdout
   changed_when: false
+  no_log: true # the command line carries the password
   become: false
   become_user: "{{ ansible_user }}"
 
