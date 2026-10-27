@@ -26,3 +26,20 @@ unifi_timezone: UTC
 
 # JVM configuration
 unifi_jvm_max_heap_size: 1024M
+
+# Nginx reverse proxy configuration
+unifi_nginx_enabled: false
+unifi_nginx_hostname: unifi.nas.local
+# Let's Encrypt (certbot) requires a publicly-resolvable hostname. Internal
+# names (e.g. *.nas.local) cannot get a public cert: leave this false to use
+# the shared self-signed cert (nginx_default_ssl_cert). Set true once a public
+# DNS record points at the host.
+unifi_nginx_letsencrypt: false
+unifi_nginx_ssl_certificate: >-
+  {{ unifi_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ unifi_nginx_hostname ~ '/fullchain.pem',
+     nginx_default_ssl_cert) }}
+unifi_nginx_ssl_certificate_key: >-
+  {{ unifi_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ unifi_nginx_hostname ~ '/privkey.pem',
+     nginx_default_ssl_key) }}

@@ -1,4 +1,4 @@
-# UniFi Controller vhost with Let's Encrypt (Certbot)
+# UniFi Controller vhost (Let's Encrypt when unifi_nginx_letsencrypt, else self-signed)
 # Managed by Ansible - DO NOT EDIT MANUALLY
 
 server {
@@ -22,9 +22,8 @@ server {
     listen [::]:443 ssl;
     server_name {{ unifi_nginx_hostname }};
 
-    # Let's Encrypt certificates (managed by Certbot)
-    ssl_certificate /etc/letsencrypt/live/{{ unifi_nginx_hostname }}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/{{ unifi_nginx_hostname }}/privkey.pem;
+    ssl_certificate {{ unifi_nginx_ssl_certificate }};
+    ssl_certificate_key {{ unifi_nginx_ssl_certificate_key }};
 
     # SSL configuration
     ssl_protocols {{ nginx_ssl_protocols | default('TLSv1.3') }};
@@ -39,7 +38,8 @@ server {
 {% endif %}
 
     location / {
-        proxy_pass https://{{ unifi_bind_address }}:{{ unifi_port_https }};
+        # Controller web UI: fixed by the image (also opened in UFW), self-signed
+        proxy_pass https://{{ unifi_bind_address }}:8443;
         proxy_set_header Host $http_host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

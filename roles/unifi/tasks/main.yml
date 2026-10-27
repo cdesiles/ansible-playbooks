@@ -124,3 +124,26 @@
     scope: user
   become: false
   become_user: "{{ ansible_user }}"
+
+- name: Provision TLS certificate for UniFi
+  ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"
+  vars:
+    certbot_hostname: "{{ unifi_nginx_hostname }}"
+  when: unifi_nginx_enabled and unifi_nginx_letsencrypt
+
+- name: Deploy nginx vhost configuration for UniFi
+  ansible.builtin.template:
+    src: nginx-vhost.conf.j2
+    dest: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/unifi.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  when: unifi_nginx_enabled
+  notify: Reload nginx
+
+- name: Remove nginx vhost configuration for UniFi
+  ansible.builtin.file:
+    path: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/unifi.conf"
+    state: absent
+  when: not unifi_nginx_enabled
+  notify: Reload nginx
