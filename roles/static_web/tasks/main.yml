@@ -36,7 +36,9 @@
     depth: "{{ item.value.git_depth | default(1) }}"
     force: true
   loop: "{{ static_web_sites | dict2items }}"
-  when: static_web_sites | length > 0
+  when:
+    - static_web_sites | length > 0
+    - item.value.git_repo is defined
   become: false
   become_user: "{{ nginx_user }}"
   notify: Reload nginx
@@ -53,6 +55,18 @@
   become: false
   become_user: "{{ nginx_user }}"
   changed_when: true
+
+- name: Deploy inline site content
+  ansible.builtin.copy:
+    content: "{{ item.value.content }}"
+    dest: "{{ static_web_base_dir }}/{{ item.key }}/index.html"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+    mode: "0644"
+  loop: "{{ static_web_sites | dict2items }}"
+  when:
+    - static_web_sites | length > 0
+    - item.value.content is defined
 
 - name: Provision TLS certificates for static web sites
   ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"

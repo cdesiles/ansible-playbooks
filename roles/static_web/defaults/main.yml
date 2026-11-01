@@ -13,6 +13,9 @@
 #       letsencrypt: false  # optional, use Let's Encrypt for TLS (default: false,
 #                           # falls back to the shared self-signed cert). Requires
 #                           # a publicly-resolvable hostname.
+#     "welcome.example.fr":
+#       content: "<h1>Welcome</h1>"  # instead of git_repo: inline HTML served as index.html
+#       letsencrypt: true
 
 static_web_sites: {}
 
