@@ -57,12 +57,14 @@
 - name: Provision TLS certificates for static web sites
   ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"
   vars:
-    certbot_hostname: "{{ item.key }}"
+    certbot_hostname: "{{ static_web_site.key }}"
   loop: "{{ static_web_sites | dict2items }}"
+  loop_control:
+    loop_var: static_web_site # certbot.yml loops on `item` internally
   when:
     - static_web_sites | length > 0
-    - item.value.ssl_enabled | default(true)
-    - item.value.letsencrypt | default(false)
+    - static_web_site.value.ssl_enabled | default(true)
+    - static_web_site.value.letsencrypt | default(false)
 
 - name: Deploy nginx vhost configurations
   ansible.builtin.template:
