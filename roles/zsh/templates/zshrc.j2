@@ -73,6 +73,10 @@ source $ZSH_PLUGINS/fzf-tab/fzf-tab.zsh
 # Source aliases
 [[ -f {{ zsh_config_path }}/aliases ]] && source {{ zsh_config_path }}/aliases
 
+# Set the terminal title (Alacritty tab/window): settitle "my title"
+# Unquoted multi-word titles are joined; `%` and backslashes are literal.
+settitle() { printf '\033]0;%s\007' "$*" }
+
 export ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=8'
 
 # Useful keybindings
