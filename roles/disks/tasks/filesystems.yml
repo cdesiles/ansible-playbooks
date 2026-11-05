@@ -1,0 +1,114 @@
+---
+# Filesystems and their fstab entries.
+#
+# Idempotent by design: a partition that already carries a filesystem is mounted,
+# never reformatted. A wrong filesystem type fails the run instead of destroying
+# data. `state: mounted` (ansible.posix.mount) is avoided on purpose: it can
+# remount a live home or root when the fstab options drift.
+
+- name: "Wait for the partition device {{ item.device }}"
+  ansible.builtin.command: "udevadm settle --exit-if-exists={{ item.device }}"
+  changed_when: false
+  check_mode: false
+
+- name: "Read the filesystem type on {{ item.device }}"
+  ansible.builtin.command: "lsblk -dno FSTYPE {{ item.device }}"
+  register: disk_fs_current
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: "Reject a mismatched filesystem on {{ item.device }}"
+  ansible.builtin.assert:
+    that:
+      - disk_fs_current.stdout | trim in ['', item.fstype]
+    fail_msg: |
+      {{ item.device }} carries '{{ disk_fs_current.stdout | trim }}',
+      expected '{{ item.fstype }}'. Refusing to touch it: formatting would
+      destroy the data. Repartition manually or fix disk_filesystems.
+    quiet: true
+
+# Only reached when the partition is empty: this is a first-time format.
+- name: "Create the filesystem on {{ item.device }}"
+  community.general.filesystem:
+    fstype: "{{ item.fstype }}"
+    dev: "{{ item.device }}"
+    label: "{{ item.label | default(omit) }}"
+  when: disk_fs_current.stdout | trim == ''
+
+# fstab must stay readable by local-fs.target; the secret-file 0600 rule does
+# not apply here.
+- name: "Register the fstab entry for {{ item.mountpoint }}"
+  ansible.builtin.blockinfile:
+    path: /etc/fstab
+    marker: "# {mark} ANSIBLE MANAGED - {{ item.name }}"
+    block: >-
+      UUID={{ item.uuid }} {{ item.mountpoint }} {{ item.fstype }}
+      {{ item.options | default('defaults') }} {{ item.dump | default(0) }}
+      {{ item.passno | default(2) }}
+    insertafter: EOF
+    create: false
+
+# A hand-written line for the same mountpoint would coexist with the managed
+# block: two entries for one mountpoint, and whichever wins on mount -a is
+# ambiguous. Fail instead of silently shadowing. The managed block is stripped
+# before counting, so a --check run (where blockinfile has not written yet)
+# still passes on a clean host.
+- name: "Read /etc/fstab"
+  ansible.builtin.slurp:
+    src: /etc/fstab
+  register: disk_fstab_raw
+
+- name: "Assert no unmanaged fstab entry for {{ item.mountpoint }}"
+  vars:
+    disk_fstab_managed_block: >-
+      # BEGIN ANSIBLE MANAGED - {{ item.name }}[\s\S]*?# END ANSIBLE MANAGED - {{ item.name }}
+    disk_fstab_entries: >-
+      {{ (disk_fstab_raw.content | b64decode)
+         | regex_replace(disk_fstab_managed_block, '')
+         | splitlines
+         | map('regex_replace', '^\s+', '')
+         | reject('match', '^#')
+         | select('search', '(\s|^)' ~ (item.mountpoint | regex_escape) ~ '(\s|$)')
+         | list }}
+  ansible.builtin.assert:
+    that:
+      - disk_fstab_entries | length == 0
+    fail_msg: |
+      /etc/fstab has an unmanaged entry for {{ item.mountpoint }}:
+
+      {{ disk_fstab_entries | join('\n') }}
+
+      Remove it so the ANSIBLE MANAGED block is the only entry, then re-run.
+    quiet: true
+
+- name: "Check the mount status of {{ item.mountpoint }}"
+  ansible.builtin.command: "findmnt -n {{ item.mountpoint }}"
+  register: disk_mount_current
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+# Explicit mount rather than ansible.posix.mount: only mount when findmnt
+# reports nothing, so a healthy mount is never touched.
+- name: "Mount {{ item.mountpoint }}"  # noqa: command-instead-of-module
+  ansible.builtin.command: "mount {{ item.mountpoint }}"
+  changed_when: true
+  when: disk_mount_current.rc != 0
+
+- name: "Read the UUID mounted on {{ item.mountpoint }}"
+  ansible.builtin.command: "findmnt -n -o UUID {{ item.mountpoint }}"
+  register: disk_mount_uuid
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: "Assert the mounted UUID matches {{ item.uuid }}"
+  ansible.builtin.assert:
+    that:
+      - disk_mount_uuid.stdout | trim == item.uuid
+    fail_msg: |
+      {{ item.mountpoint }} is mounted from UUID
+      '{{ disk_mount_uuid.stdout | trim }}', expected '{{ item.uuid }}'.
+      Fix /etc/fstab before continuing.
+    quiet: true

@@ -3,6 +3,12 @@
   ansible.builtin.include_tasks: partitioning.yml
   loop: "{{ disk_partitioning | default([]) }}"
 
+- name: Ensure filesystems exist and are mounted
+  ansible.builtin.include_tasks: filesystems.yml
+  loop: "{{ disk_filesystems | default([]) }}"
+  loop_control:
+    label: "{{ item.mountpoint }}"
+
 - name: Enable trim SSD if there is at least one
   ansible.builtin.include_tasks: trim-ssd.yml
 

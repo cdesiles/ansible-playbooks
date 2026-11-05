@@ -1,4 +1,11 @@
 ---
+# Partition table management.
+#
+# DESTRUCTIVE by nature: applying a layout rewrites every partition entry of the
+# disk, which destroys the filesystems on it (including / and /home). A missing
+# or stale layout file therefore must never trigger a repartition on a live
+# host, so applying is opt-in via `disk_partitioning_apply` (default: false).
+
 - name: Install sfdisk
   ansible.builtin.package:
     name: util-linux
@@ -29,14 +36,38 @@
     layout_differs: "{{ current_clean != expected_clean }}"
   changed_when: false
 
+- name: Refuse to repartition a live disk without an explicit opt-in
+  ansible.builtin.fail:
+    msg: |
+      The live partition table on {{ item.device }} differs from
+      {{ item.layout_file }}.
+
+      Applying the layout would rewrite every partition entry and destroy the
+      filesystems on the disk. Nothing was changed.
+
+      To inspect the difference:
+        sfdisk --dump {{ item.device }}
+
+      Then either update {{ item.layout_file }} to match the live disk, or, if
+      this really is a fresh disk to partition, set disk_partitioning_apply:
+      true for this host and re-run.
+  when:
+    - layout_differs
+    - not (disk_partitioning_apply | default(false) | bool)
+
 - name: Copy layout file to remote (only if different)
   ansible.builtin.copy:
     content: "{{ expected_layout }}"
     dest: "/tmp/expected-{{ item.device | basename }}.sfdisk"
     mode: "0644"
-  when: layout_differs
+  when:
+    - layout_differs
+    - disk_partitioning_apply | default(false) | bool
 
 - name: Apply partition table using sfdisk
   ansible.builtin.command: >
     sfdisk {{ item.device }} < {{ item.layout_file }}
-  when: layout_differs
+  changed_when: true
+  when:
+    - layout_differs
+    - disk_partitioning_apply | default(false) | bool

@@ -97,6 +97,23 @@ disk_partitioning:
         size: 2.7TiB
         type: zfs
 
+# Never repartition a live disk unless explicitly requested: applying a layout
+# rewrites every partition entry and destroys the filesystems on it.
+disk_partitioning_apply: false
+
+# Filesystems to mount (idempotent: existing ones are mounted, never
+# reformatted). `uuid` is what fstab records.
+disk_filesystems:
+  - name: home
+    device: /dev/nvme0n1p4
+    uuid: 00000000-0000-0000-0000-000000000000
+    fstype: ext4
+    label: home
+    mountpoint: /home/user
+    options: defaults,noatime
+    dump: 0
+    passno: 2
+
 # ZFS pool configuration
 # ----------------------
 zfs_pools:
@@ -235,7 +252,7 @@ backup_repositories:
 
   # Always-present filesystem, e.g. a ZFS dataset.
   # - name: nas
-  #   repository: /mnt/andromeda/backups/restic
+  #   repository: /mnt/omer/backups/restic
   #   password: "{{ vault_backup_nas_password }}"
   #   retention:
   #     keep_daily: 7
