@@ -42,10 +42,16 @@
 
 - name: Compare expected vs current layout
   vars:
-    current_clean: "{{ current_layout.stdout | trim | regex_replace('\\s+', ' ') }}"
-    expected_clean: "{{ expected_layout | trim | regex_replace('\\s+', ' ') }}"
+    disk_live_lines: >-
+      {{ current_layout.stdout.splitlines()
+         | map('regex_replace', '\s+', ' ') | map('trim') | select | list }}
+    disk_file_lines: >-
+      {{ expected_layout.splitlines()
+         | map('regex_replace', '\s+', ' ') | map('trim') | select | list }}
   ansible.builtin.set_fact:
-    layout_differs: "{{ current_clean != expected_clean }}"
+    layout_differs: "{{ disk_live_lines != disk_file_lines }}"
+    layout_only_live: "{{ disk_live_lines | difference(disk_file_lines) }}"
+    layout_only_file: "{{ disk_file_lines | difference(disk_live_lines) }}"
   changed_when: false
 
 - name: Refuse to repartition a live disk without an explicit opt-in
@@ -54,10 +60,16 @@
       The live partition table on {{ item.device }} differs from
       {{ item.layout_file }}.
 
+      Only on the disk:
+      {{ layout_only_live | join('\n      ') }}
+
+      Only in the file:
+      {{ layout_only_file | join('\n      ') }}
+
       Applying the layout would rewrite every partition entry and destroy the
       filesystems on the disk. Nothing was changed.
 
-      To inspect the difference:
+      To inspect the raw tables:
         sfdisk --dump {{ item.device }}
 
       Then either update the layout file to match the live disk, or, if this
