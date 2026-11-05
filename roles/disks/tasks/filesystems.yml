@@ -64,9 +64,7 @@
     disk_fstab_managed_block: >-
       # BEGIN ANSIBLE MANAGED - {{ item.name }}[\s\S]*?# END ANSIBLE MANAGED - {{ item.name }}
     disk_fstab_entries: >-
-      {{ (disk_fstab_raw.content | b64decode)
-         | regex_replace(disk_fstab_managed_block, '')
-         | splitlines
+      {{ ((disk_fstab_raw.content | b64decode) | regex_replace(disk_fstab_managed_block, '')).splitlines()
          | map('regex_replace', '^\s+', '')
          | reject('match', '^#')
          | select('search', '(\s|^)' ~ (item.mountpoint | regex_escape) ~ '(\s|$)')
