@@ -7,7 +7,7 @@
 - **Autosuggestions** based on history
 - **fzf integration** (Ctrl+R history, Ctrl+T files, Alt+C directories)
 - **fzf-tab** for completion menus
-- **Smart aliases** (docker → podman, ls → eza)
+- **Smart aliases** (docker → podman, ls → eza, `gpush3` pushes to gitlab/github/gitea)
 - **Persistent history** across sessions
 
 ## Configuration
