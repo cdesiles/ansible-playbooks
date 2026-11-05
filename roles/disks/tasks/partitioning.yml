@@ -39,6 +39,7 @@
   ansible.builtin.command: "sfdisk --dump {{ item.device }}"
   register: current_layout
   changed_when: false
+  check_mode: false # read-only probe: --check must compare the real table
 
 - name: Compare expected vs current layout
   vars:

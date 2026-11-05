@@ -112,3 +112,5 @@
       '{{ disk_mount_uuid.stdout | trim }}', expected '{{ item.uuid }}'.
       Fix /etc/fstab before continuing.
     quiet: true
+  # A --check run cannot mount, so a not-yet-mounted target is expected there.
+  when: not ansible_check_mode
