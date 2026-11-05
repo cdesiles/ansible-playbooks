@@ -22,6 +22,15 @@ zsh_users:
   - root
 ```
 
+### Login banner
+
+`~/.zprofile` prints a banner on interactive login shells. Pick it per host
+(`droid`, `empire` or `force`); anything else prints the "JEDI LOST" fallback:
+
+```yaml
+zsh_banner: empire
+```
+
 ### macOS
 
 Homebrew is initialised from `.zshenv` (the role overwrites `~/.zprofile`,

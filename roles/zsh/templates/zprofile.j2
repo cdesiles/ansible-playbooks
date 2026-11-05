@@ -3,7 +3,7 @@
 
 if [[ -o interactive ]]; then
   cat <<'ANSIBLE_BANNER_END'
-{% if ansible_host == 'andromeda' %}
+{% if zsh_banner == 'droid' %}
 *******************************************
  Beep beep-wooOOoo! Brrrp! Zzt zzt-whirl!
 *******************************************
@@ -20,7 +20,7 @@ if [[ -o interactive ]]; then
    ⢸⣿⡇⠈⠙⠛⢛⣿⣿⣤⣤⣿⣿⡛⠛⠋⠁⢸⣿⡇
   ⣤⣼⣿⣧⣤⡀ ⠙⠛⠛⠛⠛⠛⠛⠋ ⢀⣤⣼⣿⣧⣤
   ⠛⠛⠛⠛⠛⠁          ⠈⠛⠛⠛⠛⠛
-{% elif ansible_host == 'omega' %}
+{% elif zsh_banner == 'empire' %}
 *******************************************
      GALACTIC EMPIRE SECURE TERMINAL
 *******************************************
@@ -42,7 +42,7 @@ You have reached a terminal of the Galactic
 Empire's secure network. Unauthorized access
 will result in tracking and possible Force
 action.
-{% elif ansible_host == 'pinwheel' %}
+{% elif zsh_banner == 'force' %}
 *******************************************
        May the shell be with you
 *******************************************
