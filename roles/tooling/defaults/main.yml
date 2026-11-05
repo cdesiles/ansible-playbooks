@@ -1,5 +1,8 @@
 ---
 # OS-dependent package names
+# Debian/Ubuntu package bottom as btm (Debian 13+, Ubuntu 24.04+ only)
+tooling_bottom_package: >-
+  {{ (ansible_facts['os_family'] == 'Archlinux') | ternary('bottom', 'btm') }}
 tooling_dig_package: >-
   {{ (ansible_facts['os_family'] == 'Archlinux') | ternary('bind', 'dnsutils') }}
 tooling_netcat_package: >-
