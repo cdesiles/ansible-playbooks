@@ -28,5 +28,5 @@ zfs_metrics_dir: /var/lib/node_exporter/textfile_collector
 zfs_metrics_script_path: /usr/local/bin/zfs-metrics.sh
 
 # systemd OnCalendar expression for the collection timer. Hourly is plenty to
-# track daily growth; Prometheus keeps 90d of history on andromeda.
+# track daily growth over the Prometheus retention window.
 zfs_metrics_interval: "hourly"
