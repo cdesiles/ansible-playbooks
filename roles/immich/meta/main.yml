@@ -1,7 +1,6 @@
 ---
-# No meta dependencies: podman, postgres, valkey, and nginx are shared
-# services deployed once via the playbook (see playbooks/andromeda.yml
-# role ordering). Declaring them here would re-run them on every immich
-# deploy. The role fails fast if they are missing (password asserts,
-# postgresql_* tasks).
+# No meta dependencies: shared services (podman, postgres, valkey, nginx) are
+# deployed once via playbook role ordering (tagged 'infra'), not re-run on
+# every deploy of this role. See playbooks/*.yml. The role fails fast if they
+# are missing (password asserts, postgresql_* tasks).
 dependencies: []

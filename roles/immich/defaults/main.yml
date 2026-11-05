@@ -22,7 +22,7 @@ immich_backup_exclude:
 # Example:
 #   immich_external_libraries:
 #     - name: clement-photos
-#       host_path: /mnt/andromeda/clement-photos
+#       host_path: /mnt/tank/clement-photos
 #       mount_path: /mnt/external/clement-photos
 immich_external_libraries: []
 
