@@ -27,47 +27,59 @@
     smartctl_exporter_extracted: "smartctl_exporter-{{ smartctl_exporter_version }}.linux-{{ smartctl_exporter_arch }}"
     smartctl_exporter_release_base: "https://github.com/prometheus-community/smartctl_exporter/releases/download/v{{ smartctl_exporter_version }}"
 
-- name: Download smartctl_exporter release
-  ansible.builtin.get_url:
-    url: "{{ smartctl_exporter_release_base }}/{{ smartctl_exporter_archive }}"
-    dest: "/tmp/{{ smartctl_exporter_archive }}"
-    mode: "0644"
+- name: Report the exporter install in check mode
+  ansible.builtin.debug:
+    msg: >-
+      would download smartctl_exporter {{ smartctl_exporter_version }} and
+      install it to {{ smartctl_exporter_binary_dir }}/smartctl_exporter
+  when: ansible_check_mode
 
-- name: Download release checksums
-  ansible.builtin.get_url:
-    url: "{{ smartctl_exporter_release_base }}/sha256sums.txt"
-    dest: /tmp/smartctl_exporter_sha256sums.txt
-    mode: "0644"
+# get_url does not download under --check, so the whole chain is skipped there
+# instead of failing at unarchive with a missing source.
+- name: Download and install smartctl_exporter
+  when: not ansible_check_mode
+  block:
+    - name: Download smartctl_exporter release
+      ansible.builtin.get_url:
+        url: "{{ smartctl_exporter_release_base }}/{{ smartctl_exporter_archive }}"
+        dest: "/tmp/{{ smartctl_exporter_archive }}"
+        mode: "0644"
 
-- name: Verify release archive checksum
-  ansible.builtin.command: "sha256sum -c --ignore-missing smartctl_exporter_sha256sums.txt"
-  args:
-    chdir: /tmp
-  changed_when: false
+    - name: Download release checksums
+      ansible.builtin.get_url:
+        url: "{{ smartctl_exporter_release_base }}/sha256sums.txt"
+        dest: /tmp/smartctl_exporter_sha256sums.txt
+        mode: "0644"
 
-- name: Extract smartctl_exporter release
-  ansible.builtin.unarchive:
-    src: "/tmp/{{ smartctl_exporter_archive }}"
-    dest: /tmp
-    remote_src: true
+    - name: Verify release archive checksum
+      ansible.builtin.command: "sha256sum -c --ignore-missing smartctl_exporter_sha256sums.txt"
+      args:
+        chdir: /tmp
+      changed_when: false
 
-- name: Install smartctl_exporter binary
-  ansible.builtin.copy:
-    src: "/tmp/{{ smartctl_exporter_extracted }}/smartctl_exporter"
-    dest: "{{ smartctl_exporter_binary_dir }}/smartctl_exporter"
-    remote_src: true
-    owner: root
-    group: root
-    mode: "0755"
+    - name: Extract smartctl_exporter release
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ smartctl_exporter_archive }}"
+        dest: /tmp
+        remote_src: true
 
-- name: Clean up temporary files
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: absent
-  loop:
-    - "/tmp/{{ smartctl_exporter_archive }}"
-    - "/tmp/{{ smartctl_exporter_extracted }}"
-    - /tmp/smartctl_exporter_sha256sums.txt
+    - name: Install smartctl_exporter binary
+      ansible.builtin.copy:
+        src: "/tmp/{{ smartctl_exporter_extracted }}/smartctl_exporter"
+        dest: "{{ smartctl_exporter_binary_dir }}/smartctl_exporter"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Clean up temporary files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/tmp/{{ smartctl_exporter_archive }}"
+        - "/tmp/{{ smartctl_exporter_extracted }}"
+        - /tmp/smartctl_exporter_sha256sums.txt
 
 - name: Deploy smartctl_exporter systemd unit
   ansible.builtin.template:
