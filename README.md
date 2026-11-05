@@ -31,6 +31,7 @@ This is a good playground to learn and I encourage you to adapt these roles to y
 | ntfy        | Notification server                                      |
 | gitea       | Git server                                               |
 | immich      | Photo management                                         |
+| jellyfin    | Media server                                             |
 | static-web  | Static website hosting                                   |
 | vpn         | WireGuard server                                         |
 
@@ -52,52 +53,54 @@ When adding a new role, pick a default port outside these ranges.
 
 ## Requirements
 
-Ansible `>=2.15`
+Ansible `>=2.15` on the control machine (Python 3, OpenSSH, rsync).
 
-Base tools:
+### Running the playbooks
 
-```sh
-# linux
-apt-get install ansible ansible-lint ansible-galaxy
-pacman -Syu ansible ansible-lint ansible-galaxy
-# darwin
-brew install ansible ansible-lint ansible-galaxy
-# windows
-choco install ansible ansible-lint ansible-galaxy
-```
-
-Other roles:
+| macOS | Debian/Ubuntu | Arch |
+| --- | --- | --- |
+| `brew install ansible` | `sudo apt install ansible` | `sudo pacman -S ansible` |
 
 ```sh
-ansible-galaxy collection install -r requirements.yml
+make deps   # install the Ansible collections
 ```
+
+### Contributing (dev mode)
+
+Everything from above, plus the lint/format/leak tooling:
+
+* ansible-lint
+* shellcheck
+* pre-commit
+* gitleaks
+* node (prettier via `npx`)
+* yq
+
+```sh
+make setup   # install git hooks + Ansible collections
+```
+
+Debian gotchas: `apt install ansible` on Debian 12 ships 2.14 (use `pipx install ansible` for `>=2.15`), and the `yq` apt package is a *different* tool — use the Go install above.
+On Windows, use WSL2 and follow the Debian column.
 
 ## Usage
 
-If you have a password on your ssh key `--ask-pass` is recommended, `--ask-become-pass` is always asked in these roles, as most tasks require elevated privileges. These are dropped time to time when the default user privilege is enough.
+`make deploy` wraps `ansible-playbook` with `--diff` and `--ask-become-pass` (most tasks need elevated privileges).
 
 ```sh
-ansible-playbook -i inventory/hosts.yml playbook.yml \
---ask-pass \
---ask-become-pass \
---ask-vault-pass
+make deploy PLAYBOOK=site.yml              # whole playbook
+make deploy PLAYBOOK=site.yml TAG=infra    # one tag
+make deploy PLAYBOOK=site.yml LIMIT=host1  # one host
 ```
 
-You can also call you ssh agent to unlock your key prior to simplify your calls:
-
-```sh
-ssh-add ~/.ssh/my_key
-# unlock it
-ansible-playbook -i inventory/hosts.yml playbook.yml \
---ask-become-pass
-```
+Password-protected SSH key: add `ASK_PASS=1`, or unlock it once with `ssh-add ~/.ssh/my_key`. Vault-encrypted vars: `ASK_VAULT_PASS=1`. Dry run: `CHECK=1`. `make deploy` without `PLAYBOOK` prints every flag.
 
 ## Bootstrapping a new host
 
 For fresh hosts (only `root` available, no admin user yet):
 
 ```sh
-ansible-playbook playbooks/bootstrap.yml -l <hostname> --ask-pass
+make deploy PLAYBOOK=bootstrap.yml LIMIT=<hostname> ASK_PASS=1 BECOME=0
 ```
 
 This installs Python and sudo, creates `{{ ansible_user }}` with sudo rights, and copies your local `~/.ssh/id_ed25519.pub`. Supports Arch Linux and Debian/Ubuntu.
@@ -105,11 +108,11 @@ This installs Python and sudo, creates `{{ ansible_user }}` with sudo rights, an
 To use a different SSH key:
 
 ```sh
-ansible-playbook playbooks/bootstrap.yml -l <hostname> --ask-pass \
-  --extra-vars 'bootstrap_ssh_public_key="ssh-ed25519 AAAA..."'
+make deploy PLAYBOOK=bootstrap.yml LIMIT=<hostname> ASK_PASS=1 BECOME=0 \
+  EXTRA_VARS='bootstrap_ssh_public_key="ssh-ed25519 AAAA..."'
 ```
 
-Then set a password for the new user (required for sudo `--ask-become-pass`):
+Then set a password for the new user (required for sudo):
 
 ```sh
 ssh root@<hostname> passwd jambon
@@ -118,17 +121,12 @@ ssh root@<hostname> passwd jambon
 After that, run the host playbook normally:
 
 ```sh
-ansible-playbook playbooks/<hostname>.yml --ask-become-pass
+make deploy PLAYBOOK=<hostname>.yml
 ```
 
 ## Developping
 
-Linting:
-
-```sh
-ansible-lint
-npx prettier --write .
-```
+`make help` lists every target (the Makefile self-documents). Most used: `make lint`, `make lint-fix`, `make secrets`.
 
 ## Contributing
 
