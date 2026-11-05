@@ -13,7 +13,9 @@ Hosts declare `disk_partitioning` and `disk_filesystems` in their host vars.
 
 `disk_partitioning` pairs a device with a `layout_file` (an `sfdisk --dump`
 capture, kept in `inventory_data/partition_layouts/`). A host without the
-variable is skipped.
+variable is skipped. `layout_file` is resolved relative to the project root
+(the directory holding `ansible.cfg`), so it works when the role runs from
+`playbooks/<host>.yml`; absolute paths are used as-is.
 
 Applying a layout is **opt-in** (`disk_partitioning_apply: false` by default):
 `sfdisk` rewrites every partition entry of the disk, so a stale or drifted

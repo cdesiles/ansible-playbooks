@@ -5,6 +5,11 @@
 # disk, which destroys the filesystems on it (including / and /home). A missing
 # or stale layout file therefore must never trigger a repartition on a live
 # host, so applying is opt-in via `disk_partitioning_apply` (default: false).
+#
+# `layout_file` is resolved relative to the project root (the directory holding
+# ansible.cfg), not to the playbook: `lookup('file', ...)` resolves relative to
+# the playbook directory, which breaks as soon as a role is included from
+# playbooks/<host>.yml. Absolute paths are used as-is.
 
 - name: Install sfdisk
   ansible.builtin.package:
@@ -18,9 +23,16 @@
     state: present
   changed_when: false
 
+- name: Resolve the layout file path (controller side)
+  ansible.builtin.set_fact:
+    disk_layout_path: >-
+      {{ item.layout_file if item.layout_file.startswith('/')
+         else (ansible_config_file | dirname) ~ '/' ~ item.layout_file }}
+  changed_when: false
+
 - name: Load expected layout from file (controller side)
   ansible.builtin.set_fact:
-    expected_layout: "{{ lookup('file', item.layout_file) }}"
+    expected_layout: "{{ lookup('file', disk_layout_path) }}"
   changed_when: false
 
 - name: Get current layout from remote
@@ -48,25 +60,18 @@
       To inspect the difference:
         sfdisk --dump {{ item.device }}
 
-      Then either update {{ item.layout_file }} to match the live disk, or, if
-      this really is a fresh disk to partition, set disk_partitioning_apply:
-      true for this host and re-run.
+      Then either update the layout file to match the live disk, or, if this
+      really is a fresh disk to partition, set disk_partitioning_apply: true
+      for this host and re-run.
   when:
     - layout_differs
     - not (disk_partitioning_apply | default(false) | bool)
 
-- name: Copy layout file to remote (only if different)
-  ansible.builtin.copy:
-    content: "{{ expected_layout }}"
-    dest: "/tmp/expected-{{ item.device | basename }}.sfdisk"
-    mode: "0644"
-  when:
-    - layout_differs
-    - disk_partitioning_apply | default(false) | bool
-
+# `command` has no shell, so the layout is fed on stdin rather than with `<`.
 - name: Apply partition table using sfdisk
-  ansible.builtin.command: >
-    sfdisk {{ item.device }} < {{ item.layout_file }}
+  ansible.builtin.command:
+    cmd: "sfdisk {{ item.device }}"
+    stdin: "{{ expected_layout }}"
   changed_when: true
   when:
     - layout_differs
