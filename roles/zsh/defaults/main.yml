@@ -33,6 +33,6 @@ zsh_cargo_bin: "{{ zsh_home }}/.cargo/bin"
 # time: calling `brew --prefix` from .zshrc fails whenever brew is not on PATH.
 zsh_fzf_shell_path: >-
   {{ (zsh_darwin_brew_prefix + '/opt/fzf/shell') if (zsh_os_darwin | bool) else '/usr/share/fzf' }}
-# Login banner printed by ~/.zprofile: droid, empire or force. Anything else
+# Login banner printed by ~/.zprofile: droid, empire, force or shuttle. Anything else
 # prints the "JEDI LOST" fallback. Set it per host in the inventory.
 zsh_banner: ""
