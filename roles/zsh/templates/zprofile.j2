@@ -1,7 +1,7 @@
 # {{ ansible_managed }}
 # Login banner - shown once per interactive login shell (before .zshrc / prompt)
 
-if [[ -o interactive ]]; then
+if [[ -o interactive{% if zsh_banner_ssh_only | bool %} && -n "${SSH_CONNECTION:-}"{% endif %} ]]; then
   cat <<'ANSIBLE_BANNER_END'
 {% if zsh_banner == 'droid' %}
 *******************************************
