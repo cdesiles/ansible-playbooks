@@ -1,0 +1,50 @@
+---
+# Release to deploy, pinned in the inventory: the image tag getitfirst pushed.
+# Bumping it is the deliberate update.
+# immo_watcher_version: "0.1.0"  # Intentionally undefined - role will fail if not set
+
+# Image pushed by getitfirst to this repository's registry (docker_registry role).
+# It must run on the host: linux/amd64 for x86_64, or a multi-arch image.
+immo_watcher_registry: "{{ registry_nginx_hostname }}"
+immo_watcher_image: "{{ immo_watcher_registry }}/immo-watcher"
+
+# Read-only registry account used to pull (REQUIRED - set from the vault)
+# immo_watcher_registry_username: ""  # Intentionally undefined - role will fail if not set
+# immo_watcher_registry_password: ""  # Intentionally undefined - role will fail if not set
+
+# Container command, after the image's `immo-watcher` entrypoint.
+# `watch --every <seconds>` changes the 120 s between passes: keep it well under
+# the 900 s the health check allows.
+immo_watcher_args:
+  - watch
+
+# Storage: watcher.sqlite, emails/<website>/*.eml, heartbeat. The emails carry
+# personal tracking links and the watcher writes its files 0644: the 0750 folder
+# is what keeps them private.
+immo_watcher_data_dir: "{{ podman_projects_dir }}/immo-watcher/data"
+
+# The image runs as the unprivileged `watcher` user (UID/GID 1000). The pod maps
+# the rootless pod user onto it, so the data files belong to ansible_user.
+immo_watcher_container_uid: 1000
+immo_watcher_container_gid: 1000
+
+# Mailbox the watcher reads (EXAMINE and BODY.PEEK only: it never changes it)
+immo_watcher_imap_host: imap.mailbox.org
+immo_watcher_imap_port: 993
+# immo_watcher_imap_user: ""  # Intentionally undefined - role will fail if not set
+
+# Secrets (REQUIRED - must be set explicitly, from the vault)
+# immo_watcher_imap_password: ""  # app password allowed IMAP only - role will fail if not set
+# immo_watcher_ntfy_token: ""     # the watcher's ntfy token (tk_...) - role will fail if not set
+
+# Backup manifest - consumed by roles/backup via inventory `backup_jobs`.
+#   - watcher.sqlite is excluded from the live tree and dumped with sqlite3
+#     .backup instead: copying a live SQLite file yields a torn snapshot.
+#   - heartbeat only tells when the last pass ran: no restore value.
+immo_watcher_backup_paths:
+  - "{{ immo_watcher_data_dir }}"
+immo_watcher_backup_exclude:
+  - "{{ immo_watcher_data_dir }}/watcher.sqlite*"
+  - "{{ immo_watcher_data_dir }}/heartbeat*"
+immo_watcher_backup_sqlite:
+  - "{{ immo_watcher_data_dir }}/watcher.sqlite"

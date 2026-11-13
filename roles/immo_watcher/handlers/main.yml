@@ -1,0 +1,16 @@
+---
+- name: Reload systemd user
+  ansible.builtin.systemd:
+    daemon_reload: true
+    scope: user
+  become: false
+  become_user: "{{ ansible_user }}"
+
+- name: Restart immo-watcher
+  ansible.builtin.systemd:
+    name: immo-watcher.service
+    state: restarted
+    daemon_reload: true # "Reload systemd user" may run after this (play-global handler names)
+    scope: user
+  become: false
+  become_user: "{{ ansible_user }}"

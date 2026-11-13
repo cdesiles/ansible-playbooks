@@ -1,0 +1,47 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: immo-watcher
+  labels:
+    app: immo-watcher
+  annotations:
+    # Map the rootless pod user onto the image's `watcher` UID/GID so the files
+    # it writes in the data folder belong to {{ ansible_user }} on the host.
+    io.podman.annotations.userns: "keep-id:uid={{ immo_watcher_container_uid }},gid={{ immo_watcher_container_gid }}"
+spec:
+  # Pod-level field: podman ignores it on a container, then defaults to Always.
+  restartPolicy: Never
+  containers:
+    - name: immo-watcher
+      image: {{ immo_watcher_image }}:{{ immo_watcher_version }}
+      args: {{ immo_watcher_args | to_json }}
+      env:
+        - name: IMAP_HOST
+          value: "{{ immo_watcher_imap_host }}"
+        - name: IMAP_PORT
+          value: "{{ immo_watcher_imap_port }}"
+        - name: IMAP_USER
+          value: "{{ immo_watcher_imap_user }}"
+        - name: IMAP_PASSWORD
+          value: "{{ immo_watcher_imap_password }}"
+        - name: NTFY_TOKEN
+          value: "{{ immo_watcher_ntfy_token }}"
+      volumeMounts:
+        - name: data
+          mountPath: /app/data
+      livenessProbe:
+        exec:
+          command:
+            - immo-watcher
+            - health
+        initialDelaySeconds: 60
+        periodSeconds: 120
+        timeoutSeconds: 10
+        failureThreshold: 3
+
+  volumes:
+    - name: data
+      hostPath:
+        path: {{ immo_watcher_data_dir }}
+        type: Directory

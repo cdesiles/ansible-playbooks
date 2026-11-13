@@ -1,0 +1,7 @@
+{
+  "auths": {
+    "{{ immo_watcher_registry }}": {
+      "auth": "{{ (immo_watcher_registry_username ~ ':' ~ immo_watcher_registry_password) | b64encode }}"
+    }
+  }
+}

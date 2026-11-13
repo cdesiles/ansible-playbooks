@@ -1,0 +1,140 @@
+---
+- name: Validate required passwords are set
+  ansible.builtin.assert:
+    that:
+      - immo_watcher_imap_password is defined
+      - immo_watcher_imap_password | length >= 12
+      - immo_watcher_ntfy_token is defined
+      - immo_watcher_ntfy_token | length >= 12
+      - immo_watcher_registry_password is defined
+      - immo_watcher_registry_password | length >= 12
+    fail_msg: |
+      immo_watcher_imap_password, immo_watcher_ntfy_token and immo_watcher_registry_password
+      are required (min 12 chars).
+      See roles/immo_watcher/defaults/main.yml for configuration instructions.
+    success_msg: "Password validation passed"
+
+- name: Validate release, registry account and mailbox are set
+  ansible.builtin.assert:
+    that:
+      - immo_watcher_version is defined
+      - immo_watcher_version | string | length > 0
+      - immo_watcher_registry_username is defined
+      - immo_watcher_registry_username | length > 0
+      - immo_watcher_imap_user is defined
+      - immo_watcher_imap_user | length > 0
+    fail_msg: |
+      immo_watcher_version, immo_watcher_registry_username and immo_watcher_imap_user
+      are required: set them in the inventory.
+      See roles/immo_watcher/defaults/main.yml for configuration instructions.
+    success_msg: "Release {{ immo_watcher_version | default('?') }}"
+
+- name: Create immo-watcher project directory
+  ansible.builtin.file:
+    path: "{{ podman_projects_dir | default('/opt/podman') }}/immo-watcher"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Create immo-watcher data directory
+  ansible.builtin.file:
+    path: "{{ immo_watcher_data_dir }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0750"
+
+# Used by the pull below and by the unit's `kube play`, which pulls again on
+# its own if the image is gone at start (e.g. pruned while the pod was down).
+- name: Deploy registry credentials for immo-watcher
+  ansible.builtin.template:
+    src: auth.json.j2
+    dest: "{{ podman_projects_dir | default('/opt/podman') }}/immo-watcher/auth.json"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+  no_log: true # carries the registry password
+
+- name: Get current immo-watcher image ID
+  ansible.builtin.command: "podman image inspect --format {% raw %}{{.Id}}{% endraw %} {{ immo_watcher_image }}:{{ immo_watcher_version }}"
+  register: immo_watcher_image_id_before
+  failed_when: false # image may not exist yet on first deploy
+  changed_when: false
+  become: false
+  become_user: "{{ ansible_user }}"
+
+- name: Pull immo-watcher container image
+  ansible.builtin.command: >-
+    podman pull --quiet
+    --authfile {{ podman_projects_dir | default('/opt/podman') }}/immo-watcher/auth.json
+    {{ immo_watcher_image }}:{{ immo_watcher_version }}
+  register: immo_watcher_pull
+  changed_when: immo_watcher_pull.stdout != immo_watcher_image_id_before.stdout
+  become: false
+  become_user: "{{ ansible_user }}"
+  notify: Restart immo-watcher
+
+- name: Deploy Kubernetes YAML for immo-watcher
+  ansible.builtin.template:
+    src: immo-watcher.yaml.j2
+    dest: "{{ podman_projects_dir | default('/opt/podman') }}/immo-watcher/immo-watcher.yaml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+  no_log: true # the manifest carries the mailbox password and the ntfy token
+  notify: Restart immo-watcher
+
+- name: Get home directory for {{ ansible_user }}
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ ansible_user }}"
+
+- name: Set user home directory fact
+  ansible.builtin.set_fact:
+    user_home_dir: "{{ ansible_facts['getent_passwd'][ansible_user][4] }}"
+
+- name: Create systemd user directory for immo-watcher
+  ansible.builtin.file:
+    path: "{{ user_home_dir }}/.config/systemd/user"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Create systemd service for immo-watcher (user scope)
+  ansible.builtin.template:
+    src: immo-watcher.service.j2
+    dest: "{{ user_home_dir }}/.config/systemd/user/immo-watcher.service"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  notify:
+    - Reload systemd user
+    - Restart immo-watcher
+
+- name: Check if lingering is enabled for {{ ansible_user }}
+  ansible.builtin.stat:
+    path: "/var/lib/systemd/linger/{{ ansible_user }}"
+  register: linger_file
+
+- name: Enable lingering for user {{ ansible_user }}
+  ansible.builtin.command: "loginctl enable-linger {{ ansible_user }}"
+  changed_when: true
+  when:
+    - ansible_user != 'root'
+    - not linger_file.stat.exists
+
+# Apply a pending restart first: a first deploy then starts the pod once,
+# instead of starting it here and restarting it at the end of the play.
+- name: Flush handlers before starting immo-watcher
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start immo-watcher service (user scope)
+  ansible.builtin.systemd:
+    name: immo-watcher.service
+    enabled: true
+    state: started
+    scope: user
+  become: false
+  become_user: "{{ ansible_user }}"

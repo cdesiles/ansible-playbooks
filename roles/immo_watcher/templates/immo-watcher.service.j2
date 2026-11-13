@@ -1,0 +1,18 @@
+[Unit]
+Description=immo-watcher real-estate alerts
+
+[Service]
+Type=notify
+NotifyAccess=all
+WorkingDirectory={{ podman_projects_dir | default('/opt/podman') }}/immo-watcher
+# --service-exit-code-propagation=any: a failed container fails the unit, so
+# Restart=on-failure applies. The default (none) exits 0 whatever happened.
+# --authfile: the image is private, should kube play have to pull it again.
+ExecStart=/usr/bin/podman kube play --replace --service-container=true --service-exit-code-propagation=any --no-pod-prefix --authfile auth.json --network=pasta:--map-host-loopback={{ podman_gw_gateway }} immo-watcher.yaml
+ExecStop=/usr/bin/podman kube down immo-watcher.yaml
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=180
+
+[Install]
+WantedBy=default.target
