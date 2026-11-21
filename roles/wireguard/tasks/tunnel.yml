@@ -45,16 +45,19 @@
   ansible.builtin.slurp:
     src: "{{ wireguard_config_base_path }}/{{ _tunnel.interface }}.privatekey"
   register: _tunnel_private_key_b64
+  no_log: true
   when: _tunnel.private_key is not defined
 
 - name: "Set wireguard private key fact from inventory for {{ _tunnel.interface }}"
   ansible.builtin.set_fact:
     _tunnel_private_key: "{{ _tunnel.private_key }}"
+  no_log: true
   when: _tunnel.private_key is defined
 
 - name: "Set wireguard private key fact from host for {{ _tunnel.interface }}"
   ansible.builtin.set_fact:
     _tunnel_private_key: "{{ _tunnel_private_key_b64['content'] | b64decode }}"
+  no_log: true
   when: _tunnel.private_key is not defined
 
 - name: "Resolve effective DNS for {{ _tunnel.interface }}"
@@ -68,6 +71,7 @@
     owner: root
     group: "{{ wireguard_config_group }}"
     mode: "0600"
+  diff: false # the rendered config holds the private key
   notify: Reload wireguard tunnel
 
 - name: "Create systemd override directory for wg-quick@{{ _tunnel.interface }}"
