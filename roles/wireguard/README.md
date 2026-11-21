@@ -9,6 +9,10 @@ Installs WireGuard and manages `wg-quick` tunnels from `wireguard_tunnels`
   `wireguard-go`. No systemd/UFW/sysctl: the config is rendered to
   `{{ wireguard_config_base_path }}` (`/etc/wireguard`) and brought up with
   `wg-quick`.
+- **DNS** — wg-quick only touches `/etc/resolv.conf` when a tunnel defines
+  `dns:`. Set `wireguard_manage_dns: false` on minimal hosts that have no
+  `resolvconf`/`systemd-resolved` and do not need DNS over the tunnel; the role
+  then skips installing the resolver shim.
 
 ## Verify
 

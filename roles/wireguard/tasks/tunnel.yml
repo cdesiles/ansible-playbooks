@@ -20,6 +20,7 @@
 - name: "Generate wireguard keys if not present for {{ _tunnel.interface }}"
   ansible.builtin.shell: |
     set -o pipefail
+    umask 077
     {{ wireguard_wg_bin }} genkey |
     tee {{ wireguard_config_base_path }}/{{ _tunnel.interface }}.privatekey |
     {{ wireguard_wg_bin }} pubkey > {{ wireguard_config_base_path }}/{{ _tunnel.interface }}.publickey
@@ -29,6 +30,16 @@
   when:
     - _tunnel.private_key is not defined
     - not _tunnel_pkey_file.stat.exists
+
+- name: "Restrict private key permissions for {{ _tunnel.interface }}"
+  ansible.builtin.file:
+    path: "{{ wireguard_config_base_path }}/{{ _tunnel.interface }}.privatekey"
+    owner: root
+    group: "{{ wireguard_config_group }}"
+    mode: "0600"
+  when:
+    - _tunnel.private_key is not defined
+    - not ansible_check_mode
 
 - name: "Retrieve wireguard private key for {{ _tunnel.interface }}"
   ansible.builtin.slurp:

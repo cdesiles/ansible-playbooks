@@ -38,6 +38,12 @@ wireguard_package_name: >-
   {{ (ansible_facts['os_family'] == 'Archlinux' or ansible_facts['os_family'] == 'Darwin')
      | ternary('wireguard-tools', 'wireguard') }}
 
+# Whether wg-quick should manage /etc/resolv.conf on Linux. Set false on hosts
+# whose tunnels define no `dns:`; this avoids installing/starting
+# systemd-resolved and the resolvconf compatibility wrapper on minimal Debian
+# appliances that use their own resolver.
+wireguard_manage_dns: true
+
 # Prometheus exporter (optional, gated by wireguard_exporter_enabled).
 # Exposes `wg show all dump` as Prometheus metrics (bytes per peer, last
 # handshake). Arch Linux only: prometheus-wireguard-exporter is packaged in

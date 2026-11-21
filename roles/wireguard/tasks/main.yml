@@ -9,11 +9,29 @@
       See roles/wireguard/defaults/main.yml for configuration instructions.
     success_msg: "wireguard_tunnels validation passed"
 
+- name: Validate no tunnel sets dns when wireguard_manage_dns is false
+  ansible.builtin.assert:
+    that:
+      - wireguard_tunnels | selectattr('dns', 'defined') | list | length == 0
+    fail_msg: |
+      wireguard_manage_dns is false, but a tunnel sets dns:, which wg-quick
+      applies through resolvconf. Remove dns: from the tunnel, or set
+      wireguard_manage_dns: true.
+    success_msg: "No tunnel sets dns"
+  when: not wireguard_manage_dns | bool
+
 - name: Install wireguard (Linux)
   ansible.builtin.package:
     name: "{{ wireguard_package_name }}"
     state: present
   when: ansible_facts['os_family'] != 'Darwin'
+
+# Minimal Debian images omit kmod; the module check below needs modprobe.
+- name: Install kmod (Debian)
+  ansible.builtin.package:
+    name: kmod
+    state: present
+  when: ansible_facts['os_family'] == 'Debian'
 
 # Homebrew refuses to run as root, so never become for this task even when the
 # role is applied with become (needed later for /etc/wireguard and wg-quick).
@@ -32,6 +50,31 @@
     - ansible_facts['os_family'] == 'Archlinux'
     - wireguard_tunnels | selectattr('server_mode', 'defined') | selectattr('server_mode', 'equalto', true) | list | length > 0
 
+# pacman deletes the running kernel's modules on upgrade: until reboot,
+# modprobe fails even for a loaded module, so skip it when already loaded.
+- name: Load WireGuard kernel module
+  ansible.builtin.shell: test -d /sys/module/wireguard || modprobe wireguard
+  register: wireguard_module
+  changed_when: false
+  check_mode: false
+  failed_when: false
+  when: ansible_facts['os_family'] != 'Darwin'
+
+- name: Validate the WireGuard kernel module is available
+  when:
+    - ansible_facts['os_family'] != 'Darwin'
+    - not ansible_check_mode
+  ansible.builtin.assert:
+    that:
+      - wireguard_module.rc == 0
+    fail_msg: |
+      The WireGuard kernel module could not be loaded for the running kernel
+      ({{ ansible_facts['kernel'] }}).
+      Install a kernel with WireGuard support, or the matching
+      wireguard-modules/wireguard-dkms package for this kernel.
+      Details: {{ wireguard_module.stderr | default('no stderr') }}
+    success_msg: "WireGuard kernel module loaded"
+
 # Use systemd-resolved for DNS management (modern approach on all distributions)
 # wg-quick calls `resolvconf` (not resolvectl) to apply DNS, so the
 # systemd-resolvconf compat wrapper must be installed wherever wg-quick is
@@ -41,15 +84,20 @@
   ansible.builtin.package:
     name: systemd-resolvconf
     state: present
-  when: ansible_facts['os_family'] == 'Debian'
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - wireguard_manage_dns | bool
 
 - name: Ensure systemd-resolved is enabled and started
   ansible.builtin.systemd:
     name: systemd-resolved
     enabled: true
     state: started
-  when: ansible_facts['os_family'] != 'Darwin'
+  when:
+    - ansible_facts['os_family'] != 'Darwin'
+    - wireguard_manage_dns | bool
 
+# Directory only: a recursive mode would reset the 0600 key and config files.
 - name: Ensure wireguard configuration is only owned by root
   ansible.builtin.file:
     path: "{{ wireguard_config_base_path }}"
@@ -57,7 +105,6 @@
     group: "{{ wireguard_config_group }}"
     mode: "0700"
     state: directory
-    recurse: true
 
 - name: Configure tunnel
   ansible.builtin.include_tasks: tunnel.yml
