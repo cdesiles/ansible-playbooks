@@ -1,50 +1,23 @@
 # fdroid - F-Droid Custom APK Repository
 
-Deploys an [F-Droid](https://f-droid.org/) repository server using [austozi/fdroidserver](https://github.com/austozi/docker-fdroidserver) to host custom APKs for family devices.
+Deploys an [F-Droid](https://f-droid.org/) repository server to host custom APKs for family devices, with the [cdesiles/fdroidserver](https://github.com/cdesiles/fdroidserver) image.
 
-## Configuration
-
-### Required Variables
-
-Set in inventory or vault:
-
-```yaml
-fdroid_keystore_password: "your-secure-password-here"  # Min 12 chars
-```
-
-### Optional Variables
-
-See [defaults/main.yml](defaults/main.yml) for all configuration options.
-
-Key settings:
-
-```yaml
-fdroid_version: "26.2.1"
-fdroid_port: 8070
-fdroid_repo_url: "https://apk.jokester.fr/repo"
-fdroid_repo_name: "F-Droid Repository"
-fdroid_repo_description: "Custom APK repository"
-fdroid_update_interval: "12h"
-
-# Nginx reverse proxy
-fdroid_nginx_enabled: false
-fdroid_nginx_hostname: apk.nas.local
-```
+Variables: [defaults/main.yml](defaults/main.yml)
 
 ## Usage
 
 ### Adding APKs
 
 ```bash
-scp my-app.apk jokester@andromeda:/opt/podman/fdroid/data/repo/
+scp my-app.apk <user>@<host>:/opt/podman/fdroid/data/repo/
 ```
 
-The container automatically re-runs `fdroid update` every `fdroid_update_interval` (default: 12h) to regenerate the signed index.
+The container re-runs `fdroid update -c` every `fdroid_update_interval`: new APKs get their metadata and the index is signed again.
 
 To trigger an immediate update:
 
 ```bash
-ssh jokester@andromeda "podman exec fdroid-server fdroid update -c"
+ssh <user>@<host> "podman exec fdroid fdroid update -c"
 ```
 
 ### F-Droid Client Setup
@@ -58,11 +31,15 @@ On family phones, open F-Droid and add a new repository:
 
 The signing keystore at `{{ podman_projects_dir }}/fdroid/data/keystore.p12` is critical. If lost, all clients must re-add the repository. Back it up.
 
+### Releases
+
+The image's CI publishes `ghcr.io/cdesiles/fdroidserver:<fdroidserver version>-<build>` on every commit to `main`. Pin the tag to deploy as `fdroid_version` in the host inventory, then run the playbook: every run pulls the pinned tag and restarts the pod when the image changed.
+
 ## Architecture
 
-- **Container**: `austozi/fdroidserver` (Apache + fdroidserver + Android build-tools)
+- **Image**: `ghcr.io/cdesiles/fdroidserver` (~360 MB). Its default command serves `repo/`, mounted read-only, with busybox httpd and runs `fdroid update -c` every `fdroid_update_interval`
 - **Storage**: Persistent data directory for keystore, config, metadata, and APKs
-- **Networking**: Localhost binding, nginx reverse proxy for HTTPS
+- **Networking**: host port `fdroid_port` on all interfaces (no `hostIP`), no UFW rule opened; nginx reverse proxy for HTTPS
 - **Index updates**: Automatic on configurable interval
 
 ## Dependencies

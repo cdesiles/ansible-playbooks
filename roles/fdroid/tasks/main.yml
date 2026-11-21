@@ -9,6 +9,16 @@
       See roles/fdroid/defaults/main.yml for configuration instructions.
     success_msg: "Password validation passed"
 
+- name: Validate the image tag is set
+  ansible.builtin.assert:
+    that:
+      - fdroid_version is defined
+      - fdroid_version | string | length > 0
+    fail_msg: |
+      fdroid_version is required: pin an image tag in the inventory.
+      See roles/fdroid/defaults/main.yml for configuration instructions.
+    success_msg: "Image {{ fdroid_image }}:{{ fdroid_version | default('?') }}"
+
 - name: Create fdroid project directory
   ansible.builtin.file:
     path: "{{ podman_projects_dir | default('/opt/podman') }}/fdroid"
@@ -132,16 +142,11 @@
       - --rm
       - -v
       - "{{ fdroid_data_dir }}:/fdroid"
-      - -e
-      - "FDROID_REPO_URL={{ fdroid_repo_url }}"
-      - -e
-      - "FDROID_REPO_NAME={{ fdroid_repo_name }}"
-      - -e
-      - "FDROID_REPO_DESCRIPTION={{ fdroid_repo_description }}"
-      - -e
-      - "FDROID_REPO_ICON={{ fdroid_repo_icon }}"
       - "{{ fdroid_image }}:{{ fdroid_version }}"
-      - "fdroid update -c --create-key"
+      - fdroid
+      - update
+      - -c
+      - --create-key
   when: not fdroid_keystore.stat.exists
   register: fdroid_init
   changed_when: fdroid_init.rc == 0

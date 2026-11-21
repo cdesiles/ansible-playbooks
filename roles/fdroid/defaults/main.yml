@@ -1,9 +1,11 @@
 ---
-# F-Droid repository version (austozi/fdroidserver image tag)
-fdroid_version: "26.2.1"
+# Image tag to deploy, pinned in the inventory: <fdroidserver version>-<build>,
+# as published by github.com/cdesiles/fdroidserver. Bumping it is the
+# deliberate update.
+# fdroid_version: "2.4.5-1"  # Intentionally undefined - role will fail if not set
 
-# Container image
-fdroid_image: austozi/fdroidserver
+# Image built and published by that repository's CI
+fdroid_image: ghcr.io/cdesiles/fdroidserver
 
 # Host port mapping
 fdroid_port: 8070
@@ -22,7 +24,7 @@ fdroid_repo_description: "Custom APK repository"
 fdroid_repo_icon: "fdroid.svg"
 fdroid_repo_icon_url: "https://f-droid.org/assets/fdroid-logo-text_S0MUfk_FsnAYL7n2MQye-34IoSNm6QM6xYjDnMqkufo=.svg"
 
-# How often the container re-runs 'fdroid update' to re-sign the index
+# How often the container re-runs 'fdroid update -c': metadata for new APKs, re-signed index
 fdroid_update_interval: "24h"
 
 # Keystore password for signing the repository index
