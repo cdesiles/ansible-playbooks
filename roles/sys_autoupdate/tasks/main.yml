@@ -8,6 +8,17 @@
       sys_autoupdate_ntfy_topic is required.
       See roles/sys_autoupdate/defaults/main.yml for configuration.
 
+- name: Validate apt settings
+  ansible.builtin.assert:
+    that:
+      - sys_autoupdate_apt_upgrade_command in ['upgrade', 'dist-upgrade']
+      - sys_autoupdate_required_holds | length == 0 or ansible_facts['os_family'] == 'Debian'
+    fail_msg: |
+      sys_autoupdate_apt_upgrade_command must be 'upgrade' or 'dist-upgrade', and
+      sys_autoupdate_required_holds needs apt-mark (Debian/Ubuntu only).
+      See roles/sys_autoupdate/defaults/main.yml for configuration.
+    quiet: true
+
 - name: Load OS-specific variables
   ansible.builtin.include_vars: "{{ item }}"
   with_first_found:
@@ -38,6 +49,15 @@
   # automatically released when removed from sys_autoupdate_ignore_packages.
   # This is intentional: avoids accidentally unholding operator-pinned packages.
   # To release a hold, run: sudo apt-mark unhold <package>
+
+- name: Deploy notifier environment
+  ansible.builtin.template:
+    src: sys-autoupdate.env.j2
+    dest: "{{ sys_autoupdate_env_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
 
 - name: Deploy autoupdate script
   ansible.builtin.template:

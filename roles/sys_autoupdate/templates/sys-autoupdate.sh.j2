@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-NTFY_SERVER="{{ sys_autoupdate_ntfy_server }}"
-NTFY_TOPIC="{{ sys_autoupdate_ntfy_topic }}"
-{% if sys_autoupdate_ntfy_token is defined %}
-NTFY_TOKEN="{{ sys_autoupdate_ntfy_token }}"
-{% else %}
+NTFY_SERVER="https://ntfy.sh"
+NTFY_TOPIC=""
 NTFY_TOKEN=""
-{% endif %}
+# shellcheck disable=SC1091
+if [[ -r "{{ sys_autoupdate_env_path }}" ]]; then
+    . "{{ sys_autoupdate_env_path }}"
+fi
 PODMAN_ENABLED="{{ sys_autoupdate_podman_enabled | lower }}"
 PODMAN_PROJECTS_DIR="{{ sys_autoupdate_podman_projects_dir }}"
 PODMAN_USER="{{ ansible_user }}"
@@ -22,6 +22,8 @@ CHECK_NEWS="{{ sys_autoupdate_check_news | lower }}"
 NEWS_HOURS="{{ sys_autoupdate_news_hours }}"
 NEWS_URL="{{ sys_autoupdate_news_url }}"
 IGNORE_PACKAGES="{{ sys_autoupdate_ignore_packages | join(',') }}"
+APT_UPGRADE_COMMAND="{{ sys_autoupdate_apt_upgrade_command }}"
+REQUIRED_HOLDS="{{ sys_autoupdate_required_holds | join(' ') }}"
 REBOOT_NOTIFY_WEEKDAY="{{ sys_autoupdate_reboot_notify_weekday }}"
 
 {% raw %}
@@ -34,6 +36,14 @@ send_notification() {
     local message="$2"
     local tags="$3"
     local priority="${4:-default}"
+    # Messages write \n for line breaks: ntfy expands it in headers, not in the body.
+    local nl=$'\n'
+    message="${message//\\n/$nl}"
+
+    if [[ -z "$NTFY_TOPIC" ]]; then
+        log "WARNING: NTFY_TOPIC is empty, notification skipped"
+        return 0
+    fi
 
     local auth_args=()
     if [[ -n "$NTFY_TOKEN" ]]; then
@@ -69,8 +79,8 @@ check_pending_updates() {
             ;;
         debian)
             apt-get update -qq >/dev/null 2>&1
-            # Held packages are automatically excluded from dist-upgrade simulation.
-            apt-get -s dist-upgrade 2>/dev/null | grep '^Inst ' || true
+            # Held and kept-back packages are excluded from the simulation.
+            apt-get -s "$APT_UPGRADE_COMMAND" 2>/dev/null | grep '^Inst ' || true
             ;;
         *)
             log "ERROR: Unsupported OS_KEY='$OS_KEY'"
@@ -92,9 +102,15 @@ apply_upgrade() {
             pacman "${pacman_args[@]}"
             ;;
         debian)
-            # Holds are reconciled by Ansible (apt-mark hold/unhold) before each
-            # run. dist-upgrade automatically skips held packages.
-            local -a apt_args=(dist-upgrade -y)
+            # upgrade and dist-upgrade both skip held packages.
+            # Conffiles: keep local changes (files managed by Ansible or by the
+            # vendor), take the new version of untouched ones. Without these,
+            # dpkg prompts, hits EOF on stdin and leaves the package unconfigured.
+            local -a apt_args=(
+                "$APT_UPGRADE_COMMAND" -y
+                -o Dpkg::Options::=--force-confdef
+                -o Dpkg::Options::=--force-confold
+            )
             if [[ "$ALLOW_DOWNGRADE" == "true" ]]; then
                 apt_args+=(--allow-downgrades)
             fi
@@ -166,6 +182,36 @@ check_distro_news() {
     return 0
 }
 
+# Debian/Ubuntu: refuse to run while holds owned by another tool are lifted.
+# moOde's in-place updater unholds its packages and restores the holds only
+# when it succeeds: upgrading in between would replace them with whatever the
+# repositories carry.
+check_required_holds() {
+    [[ -n "$REQUIRED_HOLDS" ]] || return 0
+
+    local -a required missing=()
+    local held pkg
+    read -r -a required <<< "$REQUIRED_HOLDS"
+    # Foreign-architecture holds print as pkg:arch.
+    held=$(apt-mark showhold 2>/dev/null | sed 's/:.*$//' || true)
+    for pkg in "${required[@]}"; do
+        if ! grep -qxF "$pkg" <<< "$held"; then
+            missing+=("$pkg")
+        fi
+    done
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        log "Required package holds missing: ${missing[*]}"
+        send_notification \
+            "$HOSTNAME: System Update Skipped" \
+            "Not on hold: ${missing[*]}\n\nThe tool owning these holds lifted them (unfinished vendor update?). No package is upgraded until they are restored." \
+            "warning" \
+            "high"
+        return 1
+    fi
+    return 0
+}
+
 update_system() {
     log "Checking for pending updates..."
     local pending_updates
@@ -180,7 +226,23 @@ update_system() {
     update_count=$(echo "$pending_updates" | wc -l | tr -d ' ')
     log "Found $update_count updates pending"
 
-    if apply_upgrade 2>&1; then
+    # Again right before taking the dpkg lock: the owner of the holds may have
+    # lifted them since the start of the run.
+    if ! check_required_holds; then
+        return 1
+    fi
+
+    # The notification carries the tail of the output: on hosts whose logs do
+    # not survive a reboot (logs in RAM, powered off when idle) the journal may
+    # be gone by the time someone looks.
+    local upgrade_log upgrade_tail
+    local upgrade_status=0
+    upgrade_log=$(mktemp)
+    apply_upgrade 2>&1 | tee "$upgrade_log" || upgrade_status=$?
+    upgrade_tail=$(tail -n 10 "$upgrade_log")
+    rm -f "$upgrade_log"
+
+    if [[ "$upgrade_status" -eq 0 ]]; then
         log "System updates completed successfully ($update_count packages)"
         send_notification \
             "$HOSTNAME: System Update Success" \
@@ -188,10 +250,10 @@ update_system() {
             "white_check_mark" \
             "default"
     else
-        log "ERROR: System update failed"
+        log "ERROR: System update failed (exit $upgrade_status)"
         send_notification \
             "$HOSTNAME: System Update FAILED" \
-            "Update failed. Check: journalctl -u sys-autoupdate.service" \
+            "exit=$upgrade_status\n\nLast output:\n$upgrade_tail\n\nFull log: journalctl -u sys-autoupdate.service" \
             "x" \
             "urgent"
         return 1
@@ -358,6 +420,11 @@ main() {
             log "ABORTED: Recent $DISTRO_NAME news requires manual intervention"
             exit 1
         fi
+    fi
+
+    if ! check_required_holds; then
+        log "ABORTED: required package holds are missing"
+        exit 1
     fi
 
     update_system
