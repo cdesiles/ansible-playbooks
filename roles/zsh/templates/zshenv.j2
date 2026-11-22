@@ -21,7 +21,11 @@ fi
 
 # Node.js: locally installed project binaries. Relative entry, so it resolves
 # against the current directory at lookup time as you move between projects.
-export PATH="./node_modules/.bin:$PATH"
+# Appended, so a directory's node_modules can never shadow a system command
+# (ls, git, sudo), and skipped for root, which would run whatever it finds.
+if [[ $EUID -ne 0 ]]; then
+  export PATH="$PATH:./node_modules/.bin"
+fi
 
 # Enable color support
 export CLICOLOR=1
