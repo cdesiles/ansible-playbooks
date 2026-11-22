@@ -4,3 +4,7 @@
 # /etc/sudoers.d/jokester. Hence the zz- prefix.
 aur_build_sudoers_file: /etc/sudoers.d/zz-aur-build
 aur_build_pacman_bin: /usr/bin/pacman
+# Lifetime of the window (sudoers NOTAFTER). close.yml removes the rule; the
+# expiry covers runs that never reach it. A build that outlives it fails on the
+# sudo prompt: raise this rather than dropping the expiry.
+aur_build_window_minutes: 60

@@ -42,7 +42,7 @@ window to every wheel member and every command. A drop-in named `zz-*` is
 narrower (one user, one command) and removing it restores the previous state
 without rewriting `/etc/sudoers`.
 
-Two traps this file exists to encode:
+Three traps this file exists to encode:
 
 - **Ordering.** The filename must sort after other drop-ins granting the user
   ALL (e.g. `jokester`), else their `ALL` rule wins and the build stops on a
@@ -50,3 +50,7 @@ Two traps this file exists to encode:
 - **`sudo -v` is not covered.** A command-scoped NOPASSWD rule does not make
   `sudo -v` passwordless. Do not enable yay's `Sudoloop`/`--sudoloop` in an
   unattended build; makepkg and paru do not call it.
+- **Interrupted runs.** `always:` does not run on Ctrl-C or a lost connection,
+  and callers only open the window while their package is missing, so nothing
+  would ever close it. The rule carries `NOTAFTER=` (`aur_build_window_minutes`):
+  sudo skips an expired rule and the user's own rule applies again.
