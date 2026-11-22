@@ -90,6 +90,17 @@
       register: ufw_result
       until: ufw_result is succeeded
 
+- name: Validate the opencode vhost allowlist
+  ansible.builtin.assert:
+    that:
+      - opencode_nginx_allowed_sources | length > 0
+    fail_msg: |
+      opencode_nginx_allowed_sources is empty. The vhost proxies a shell on the
+      server host: list the sources allowed to reach it (VPN, LAN), or ["all"]
+      to make it public on purpose. See roles/opencode/defaults/main.yml.
+    success_msg: "opencode vhost allowlist set"
+  when: opencode_nginx_enabled
+
 - name: Provision TLS certificate for opencode
   ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"
   vars:

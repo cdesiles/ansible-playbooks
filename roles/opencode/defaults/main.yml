@@ -18,6 +18,11 @@ opencode_firewall_allowed_sources: []
 opencode_nginx_enabled: false
 opencode_nginx_hostname: oc.nas.local
 opencode_nginx_upstream: "http://127.0.0.1:{{ opencode_port }}"
+# Clients allowed through the vhost (nginx `allow`, everyone else gets 403).
+# Required when opencode_nginx_enabled: the upstream runs commands as its user,
+# so the vhost is never public by default. ["all"] makes it public on purpose.
+opencode_nginx_allowed_sources: []
+#   - "10.0.0.0/24" # VPN
 # Let's Encrypt requires a publicly-resolvable hostname; otherwise the shared
 # self-signed cert (nginx_default_ssl_cert) is used.
 opencode_nginx_letsencrypt: false

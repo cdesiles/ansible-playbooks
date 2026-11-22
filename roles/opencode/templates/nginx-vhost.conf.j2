@@ -37,6 +37,12 @@ server {
     error_log /var/log/nginx/{{ opencode_nginx_hostname }}_error.log;
 {% endif %}
 
+    # The upstream is a shell: listed sources only (opencode_nginx_allowed_sources).
+{% for source in opencode_nginx_allowed_sources %}
+    allow {{ source }};
+{% endfor %}
+    deny all;
+
     # Prompt attachments (images, files)
     client_max_body_size 50M;
 
