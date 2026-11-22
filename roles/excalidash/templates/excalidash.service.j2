@@ -1,0 +1,23 @@
+[Unit]
+Description=ExcaliDash (Excalidraw with accounts and sharing)
+
+[Service]
+Type=notify
+NotifyAccess=all
+WorkingDirectory={{ podman_projects_dir | default('/opt/podman') }}/excalidash
+# The user manager cannot order itself after the system postgresql.service. Wait
+# for it here: if the backend started first it would exit on its failed
+# migration, and the unit would stay "active" because the frontend keeps running.
+# If postgres never comes up the unit fails and Restart= retries.
+ExecStartPre=/usr/bin/timeout 120 /usr/bin/bash -c 'until (echo > /dev/tcp/127.0.0.1/{{ excalidash_postgres_port }}) 2>/dev/null; do sleep 2; done'
+# --service-exit-code-propagation=any: a failed container fails the unit, so
+# Restart=on-failure applies. The default (none) exits 0 whatever happened.
+# No --no-pod-prefix: two containers, they keep the <pod>-<container> names.
+ExecStart=/usr/bin/podman kube play --replace --service-container=true --service-exit-code-propagation=any --network=pasta:--map-host-loopback={{ podman_gw_gateway }} excalidash.yaml
+ExecStop=/usr/bin/podman kube down excalidash.yaml
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=180
+
+[Install]
+WantedBy=default.target

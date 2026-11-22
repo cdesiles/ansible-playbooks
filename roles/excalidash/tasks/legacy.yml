@@ -1,0 +1,36 @@
+---
+# Removes the stateless `excalidraw` role this one replaces. It must run before
+# the new pod starts: both publish 127.0.0.1:{{ excalidash_port }} and both vhosts
+# answer draw.jokester.fr. Safe to drop once every host has been redeployed.
+
+- name: Check for the legacy Excalidraw systemd unit
+  ansible.builtin.stat:
+    path: "{{ user_home_dir }}/.config/systemd/user/excalidraw.service"
+  register: excalidash_legacy_unit
+
+- name: Stop and disable the legacy Excalidraw service (user scope)
+  ansible.builtin.systemd:
+    name: excalidraw.service
+    enabled: false
+    state: stopped
+    scope: user
+  become: false
+  become_user: "{{ ansible_user }}"
+  when: excalidash_legacy_unit.stat.exists
+
+- name: Remove the legacy Excalidraw systemd unit
+  ansible.builtin.file:
+    path: "{{ user_home_dir }}/.config/systemd/user/excalidraw.service"
+    state: absent
+  notify: Reload systemd user
+
+- name: Remove the legacy Excalidraw project directory
+  ansible.builtin.file:
+    path: "{{ podman_projects_dir | default('/opt/podman') }}/excalidraw"
+    state: absent
+
+- name: Remove the legacy Excalidraw nginx vhost
+  ansible.builtin.file:
+    path: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/excalidraw.conf"
+    state: absent
+  notify: Reload nginx

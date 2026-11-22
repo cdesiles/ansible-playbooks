@@ -1,0 +1,170 @@
+---
+- name: Validate required secrets are set
+  ansible.builtin.assert:
+    that:
+      - excalidash_postgres_password is defined
+      - excalidash_postgres_password | length >= 12
+      - excalidash_jwt_secret is defined
+      - excalidash_jwt_secret | length >= 32
+      - excalidash_csrf_secret is defined
+      - excalidash_csrf_secret | length >= 32
+      - excalidash_api_key_hash_pepper is defined
+      - excalidash_api_key_hash_pepper | length >= 32
+    fail_msg: |
+      excalidash_postgres_password is required (min 12 chars), and
+      excalidash_jwt_secret, excalidash_csrf_secret and excalidash_api_key_hash_pepper
+      are required (min 32 chars each, e.g. `openssl rand -hex 32`).
+      See roles/excalidash/defaults/main.yml for configuration instructions.
+    success_msg: "Secret validation passed"
+
+- name: Get home directory for {{ ansible_user }}
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ ansible_user }}"
+
+- name: Set user home directory fact
+  ansible.builtin.set_fact:
+    user_home_dir: "{{ ansible_facts['getent_passwd'][ansible_user][4] }}"
+
+- name: Remove the legacy Excalidraw deployment
+  ansible.builtin.include_tasks: legacy.yml
+
+- name: Create PostgreSQL user for ExcaliDash
+  community.postgresql.postgresql_user:
+    name: "{{ excalidash_postgres_user }}"
+    password: "{{ excalidash_postgres_password }}"
+    state: present
+  no_log: true # the password would otherwise show up in task output
+  become: false
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
+
+- name: Create PostgreSQL database for ExcaliDash
+  community.postgresql.postgresql_db:
+    name: "{{ excalidash_postgres_db_name }}"
+    owner: "{{ excalidash_postgres_user }}"
+    state: present
+  become: false
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
+
+- name: Grant all privileges on database to ExcaliDash user
+  community.postgresql.postgresql_privs:
+    login_db: "{{ excalidash_postgres_db_name }}"
+    roles: "{{ excalidash_postgres_user }}"
+    type: database
+    privs: ALL
+    state: present
+  become: false
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
+
+- name: Ensure ExcaliDash user has no superuser privileges
+  community.postgresql.postgresql_user:
+    name: "{{ excalidash_postgres_user }}"
+    role_attr_flags: NOSUPERUSER,NOCREATEDB,NOCREATEROLE
+    state: present
+  become: false
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
+
+- name: Grant schema permissions to ExcaliDash user
+  community.postgresql.postgresql_privs:
+    login_db: "{{ excalidash_postgres_db_name }}"
+    roles: "{{ excalidash_postgres_user }}"
+    type: schema
+    objs: public
+    privs: CREATE,USAGE
+    state: present
+  become: false
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
+
+- name: Create ExcaliDash project directory
+  ansible.builtin.file:
+    path: "{{ podman_projects_dir | default('/opt/podman') }}/excalidash"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Get current ExcaliDash image IDs
+  ansible.builtin.command: "podman image inspect --format {% raw %}{{.Id}}{% endraw %} {{ item }}"
+  loop: "{{ excalidash_images }}"
+  register: excalidash_images_before
+  failed_when: false # images may not exist yet on first deploy
+  changed_when: false
+  become: false
+  become_user: "{{ ansible_user }}"
+
+- name: Pull ExcaliDash container images
+  ansible.builtin.command: "podman pull --quiet {{ item }}"
+  loop: "{{ excalidash_images }}"
+  loop_control:
+    index_var: excalidash_image_idx
+  register: excalidash_pull
+  changed_when: excalidash_pull.stdout != excalidash_images_before.results[excalidash_image_idx].stdout
+  become: false
+  become_user: "{{ ansible_user }}"
+  notify: Restart Excalidash
+
+- name: Deploy Kubernetes YAML for ExcaliDash
+  ansible.builtin.template:
+    src: excalidash.yaml.j2
+    dest: "{{ podman_projects_dir | default('/opt/podman') }}/excalidash/excalidash.yaml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600" # contains the JWT/CSRF secrets
+  notify: Restart Excalidash
+
+- name: Create systemd user directory for ExcaliDash
+  ansible.builtin.file:
+    path: "{{ user_home_dir }}/.config/systemd/user"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Create systemd service for ExcaliDash (user scope)
+  ansible.builtin.template:
+    src: excalidash.service.j2
+    dest: "{{ user_home_dir }}/.config/systemd/user/excalidash.service"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  notify:
+    - Reload systemd user
+    - Restart Excalidash
+
+- name: Enable lingering for user {{ ansible_user }}
+  ansible.builtin.command: "loginctl enable-linger {{ ansible_user }}"
+  changed_when: false
+  when: ansible_user != 'root'
+
+- name: Enable and start ExcaliDash service (user scope)
+  ansible.builtin.systemd:
+    name: excalidash.service
+    enabled: true
+    state: started
+    scope: user
+    daemon_reload: true
+  become: false
+  become_user: "{{ ansible_user }}"
+
+- name: Provision TLS certificate for ExcaliDash
+  ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"
+  vars:
+    certbot_hostname: "{{ excalidash_nginx_hostname }}"
+  when: excalidash_nginx_enabled and excalidash_nginx_letsencrypt
+
+- name: Deploy nginx vhost configuration for ExcaliDash
+  ansible.builtin.template:
+    src: nginx-vhost.conf.j2
+    dest: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/excalidash.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  when: excalidash_nginx_enabled
+  notify: Reload nginx
+
+- name: Remove nginx vhost configuration for ExcaliDash
+  ansible.builtin.file:
+    path: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/excalidash.conf"
+    state: absent
+  when: not excalidash_nginx_enabled
+  notify: Reload nginx

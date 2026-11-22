@@ -1,0 +1,95 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: excalidash
+  labels:
+    app: excalidash
+spec:
+  # Pod-level field: podman ignores it on a container, then defaults to Always.
+  restartPolicy: Never
+  # The frontend image listens on 80 and 8080 unconditionally. Rootless podman
+  # keeps ports < 1024 privileged: lower the threshold in the pod's own network
+  # namespace only (the host sysctl is untouched).
+  securityContext:
+    sysctls:
+      - name: net.ipv4.ip_unprivileged_port_start
+        value: "80"
+  containers:
+    # Containers share the pod's network namespace: the frontend reaches the
+    # backend on loopback, and only the frontend is published on the host.
+    # The backend keeps no state: /app/prisma only holds files its entrypoint
+    # regenerates at every start (schema, migrations, signing-secret copies).
+    - name: backend
+      image: {{ excalidash_backend_image }}:{{ excalidash_version }}
+      env:
+        - name: NODE_ENV
+          value: production
+        - name: PORT
+          value: "8000"
+        - name: DATABASE_PROVIDER
+          value: postgresql
+        - name: DATABASE_URL
+          value: "postgresql://{{ excalidash_postgres_user | urlencode | replace('/', '%2F') }}:{{ excalidash_postgres_password | urlencode | replace('/', '%2F') }}@{{ excalidash_postgres_host }}:{{ excalidash_postgres_port }}/{{ excalidash_postgres_db_name }}"
+        - name: AUTH_MODE
+          value: "{{ excalidash_auth_mode }}"
+        - name: FRONTEND_URL
+          value: "{{ excalidash_frontend_url }}"
+        - name: TRUST_PROXY
+          value: "{{ excalidash_trust_proxy }}"
+        - name: JWT_SECRET
+          value: "{{ excalidash_jwt_secret }}"
+        - name: CSRF_SECRET
+          value: "{{ excalidash_csrf_secret }}"
+        - name: API_KEY_HASH_PEPPER
+          value: "{{ excalidash_api_key_hash_pepper }}"
+        - name: TZ
+          value: "{{ excalidash_timezone }}"
+      volumeMounts:
+        - name: localtime
+          mountPath: /etc/localtime
+          readOnly: true
+      livenessProbe:
+        exec:
+          command:
+            - node
+            - -e
+            - "require('http').get('http://127.0.0.1:8000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
+        initialDelaySeconds: 60
+        periodSeconds: 30
+        timeoutSeconds: 10
+        failureThreshold: 3
+      restartPolicy: Never
+
+    - name: frontend
+      image: {{ excalidash_frontend_image }}:{{ excalidash_version }}
+      ports:
+        - containerPort: 8080
+          hostPort: {{ excalidash_port }}
+          hostIP: 127.0.0.1
+      env:
+        - name: BACKEND_URL
+          value: "127.0.0.1:8000"
+      volumeMounts:
+        - name: localtime
+          mountPath: /etc/localtime
+          readOnly: true
+      livenessProbe:
+        exec:
+          command:
+            - wget
+            - --quiet
+            - --tries=1
+            - --spider
+            - http://127.0.0.1:8080
+        initialDelaySeconds: 20
+        periodSeconds: 30
+        timeoutSeconds: 10
+        failureThreshold: 3
+      restartPolicy: Never
+
+  volumes:
+    - name: localtime
+      hostPath:
+        path: /etc/localtime
+        type: File

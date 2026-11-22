@@ -1,0 +1,66 @@
+---
+# ExcaliDash container images. Backend and frontend must run the same release:
+# one tag for both. Bump it deliberately, after a backup (see the README).
+excalidash_backend_image: docker.io/zimengxiong/excalidash-backend
+excalidash_frontend_image: docker.io/zimengxiong/excalidash-frontend
+excalidash_version: "0.6.10"
+excalidash_images:
+  - "{{ excalidash_backend_image }}:{{ excalidash_version }}"
+  - "{{ excalidash_frontend_image }}:{{ excalidash_version }}"
+
+# Database (shared PostgreSQL, one DB and one minimal-privilege user per service).
+# The backend applies its Prisma migrations at every start. Containers reach the
+# host's postgres through the pasta gateway (host loopback, see pg_hba).
+excalidash_postgres_db_name: excalidash
+excalidash_postgres_user: excalidash
+excalidash_postgres_host: "{{ podman_gw_gateway }}"
+excalidash_postgres_port: 5432
+# excalidash_postgres_password: ""  # Intentionally undefined - role will fail if not set (min 12 chars)
+
+# Secrets (REQUIRED - must be set explicitly, min 32 chars each; the role fails if unset).
+# Generate each with: openssl rand -hex 32
+#   - JWT_SECRET: signs access and refresh tokens
+#   - CSRF_SECRET: signs CSRF tokens
+#   - API_KEY_HASH_PEPPER: mixed into API-key hashes; changing it invalidates every API key
+# excalidash_jwt_secret: ""            # Intentionally undefined - role will fail if not set
+# excalidash_csrf_secret: ""           # Intentionally undefined - role will fail if not set
+# excalidash_api_key_hash_pepper: ""   # Intentionally undefined - role will fail if not set
+
+# local (email/password), hybrid (local + OIDC), oidc_enforced or disabled.
+# Never use `disabled` on a reachable host: everyone shares one workspace.
+excalidash_auth_mode: local
+
+# Timezone
+excalidash_timezone: UTC
+
+# Network (host loopback port of the frontend, consumed by nginx)
+excalidash_port: 8100
+
+# Express trusted proxy hops in front of the backend. Our chain is host nginx
+# -> frontend container nginx -> backend: 2 hops. Too low and every client
+# shares the proxy's IP (rate limits); too high and X-Forwarded-For is spoofable.
+excalidash_trust_proxy: 2
+
+# Public origin (CORS allowlist, secure cookies, HTTPS detection)
+excalidash_frontend_url: "https://{{ excalidash_nginx_hostname }}"
+
+# No backup manifest: the pod keeps no state (accounts, drawings, sharing and
+# uploaded images all live in the database), and the `postgres: all` job in the
+# inventory dumps it.
+
+# Nginx reverse proxy configuration
+excalidash_nginx_enabled: false
+excalidash_nginx_hostname: draw.nas.local
+# Let's Encrypt (certbot) requires a publicly-resolvable hostname. Internal
+# names (e.g. *.nas.local) cannot get a public cert: leave this false to use
+# the shared self-signed cert (nginx_default_ssl_cert). Set true once a public
+# DNS record points at the host.
+excalidash_nginx_letsencrypt: false
+excalidash_nginx_ssl_certificate: >-
+  {{ excalidash_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ excalidash_nginx_hostname ~ '/fullchain.pem',
+     nginx_default_ssl_cert) }}
+excalidash_nginx_ssl_certificate_key: >-
+  {{ excalidash_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ excalidash_nginx_hostname ~ '/privkey.pem',
+     nginx_default_ssl_key) }}

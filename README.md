@@ -29,6 +29,7 @@ This is a good playground to learn and I encourage you to adapt these roles to y
 | zfs         | ZFS installation and management                          |
 | uptime-kuma | Uptime monitoring                                        |
 | ntfy        | Notification server                                      |
+| excalidash  | Excalidraw whiteboard with accounts and sharing          |
 | gitea       | Git server                                               |
 | immich      | Photo management                                         |
 | jellyfin    | Media server                                             |
