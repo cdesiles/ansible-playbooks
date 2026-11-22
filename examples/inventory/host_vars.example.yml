@@ -195,10 +195,7 @@ valkey_firewall_allowed_sources:
 
 # Valkey ACL users
 valkey_acl_users:
-  - username: immich
-    password: "{{ vault_immich_valkey_password }}"
-    keypattern: "immich_bull* immich_channel*"
-    commands: "&* -@dangerous +@read +@write +@pubsub +select +auth +ping +info +eval +evalsha"
+  - "{{ immich_valkey_acl }}" # entry shipped by the immich role
 
 # Immich configuration
 # --------------------

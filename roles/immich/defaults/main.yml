@@ -46,11 +46,13 @@ immich_valkey_acl:
   username: "{{ immich_valkey_user }}"
   password: "{{ immich_valkey_password }}"
   keypattern: "immich_bull* immich_channel*" # BullMQ patterns used by Immich
-  commands: "&* -@dangerous +@read +@write +@pubsub +select +auth +ping +info +eval +evalsha"
+  commands: "&* +@read +@write +@pubsub -@dangerous +select +auth +ping +info +eval +evalsha"
+  # Rules apply left to right: -@dangerous must follow the category grants,
+  # since +@write re-adds FLUSHALL/FLUSHDB and +@read re-adds KEYS.
   # &* = all channels (required for pub/sub)
-  # -@dangerous = deny dangerous commands (FLUSHDB, FLUSHALL, KEYS, etc)
   # +@read +@write = allow read/write command groups
   # +@pubsub = allow pub/sub commands
+  # -@dangerous = then deny dangerous commands (FLUSHDB, FLUSHALL, KEYS, etc)
   # +select = allow SELECT (database switching)
   # +auth +ping +info = connection management
   # +eval +evalsha = Lua scripting (required by BullMQ)

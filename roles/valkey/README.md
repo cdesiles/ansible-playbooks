@@ -84,10 +84,7 @@ None.
             valkey_maxmemory: 512mb
             valkey_maxmemory_policy: volatile-lru
             valkey_acl_users:
-                - username: immich
-                  password: "{{ immich_valkey_password }}"
-                  keypattern: "immich_bull* immich_channel*"
-                  commands: "&* -@dangerous +@read +@write +@pubsub +select +auth +ping +info +eval +evalsha"
+                - "{{ immich_valkey_acl }}" # entry shipped by the immich role
                 - username: nextcloud
                   password: "{{ nextcloud_valkey_password }}"
                   keypattern: "nextcloud*"
@@ -134,17 +131,14 @@ This role uses Valkey's ACL (Access Control List) system for fine-grained securi
 
 ### Configuring ACL Users
 
-Define ACL users in your inventory or host_vars:
+Define ACL users in your inventory or host_vars. When a service role ships its entry (immich: `immich_valkey_acl`), reference it rather than copying it: a copy keeps its old commands when the role's are fixed. Write the entry out only for services without one.
 
 ```yaml
 # inventory/host_vars/yourserver.yml
 valkey_admin_password: "your-strong-admin-password"
 
 valkey_acl_users:
-    - username: immich
-      password: "{{ immich_valkey_password }}"
-      keypattern: "immich_bull* immich_channel*"
-      commands: "&* -@dangerous +@read +@write +@pubsub +select +auth +ping +info +eval +evalsha"
+    - "{{ immich_valkey_acl }}" # entry shipped by the immich role
 
     - username: nextcloud
       password: "{{ nextcloud_valkey_password }}"
@@ -205,7 +199,7 @@ These settings are required to eliminate Valkey startup warnings and ensure opti
 - `+@read` - Allow all read commands (GET, MGET, etc.)
 - `+@write` - Allow all write commands (SET, DEL, etc.)
 - `+@pubsub` - Allow pub/sub commands (SUBSCRIBE, PUBLISH, etc.)
-- `-@dangerous` - Deny dangerous commands (FLUSHDB, FLUSHALL, KEYS, CONFIG, etc.)
+- `-@dangerous` - Deny dangerous commands (FLUSHDB, FLUSHALL, KEYS, CONFIG, etc.). Rules apply left to right: put it after the `+@read`/`+@write` grants, which re-add FLUSHALL, FLUSHDB and KEYS
 - `+commandname` - Allow specific command (e.g., `+select`, `+auth`, `+ping`)
 - `-commandname` - Deny specific command
 
@@ -215,12 +209,12 @@ These settings are required to eliminate Valkey startup warnings and ensure opti
 | ---------------------- | --------------------------------------------------------------------------------- |
 | **Simple cache**       | `+@read +@write -@dangerous +auth +ping +info`                                    |
 | **Session store**      | `+@read +@write -@dangerous +auth +ping +info +select`                            |
-| **Job queue (BullMQ)** | `&* -@dangerous +@read +@write +@pubsub +select +auth +ping +info +eval +evalsha` |
+| **Job queue (BullMQ)** | `&* +@read +@write +@pubsub -@dangerous +select +auth +ping +info +eval +evalsha` |
 | **Pub/sub**            | `+@pubsub +@read +@write -@dangerous +auth +ping +info`                           |
 
 **Security Best Practices:**
 
-- Always include `-@dangerous` to prevent accidental data loss
+- Always include `-@dangerous`, after the category grants, to prevent accidental data loss
 - Use specific key patterns to isolate services
 - Only grant `+eval` and `+evalsha` if required (job queues)
 - Only grant `&*` or `+allchannels` if using pub/sub
@@ -357,7 +351,7 @@ Check generated ACL file:
 cat /etc/valkey/users.acl
 # Example output:
 # user default on >password ~* &* +@all
-# user immich on >password ~immich_bull* ~immich_channel* &* -@dangerous +@read ...
+# user immich on >password ~immich_bull* ~immich_channel* &* +@read +@write +@pubsub -@dangerous ...
 # Note: Multiple patterns appear as separate ~pattern entries
 ```
 
@@ -560,11 +554,8 @@ FLUSHDB
 valkey_admin_password: "{{ vault_valkey_admin_password }}"
 
 valkey_acl_users:
-    # Immich - Photo management (needs BullMQ job queue)
-    - username: immich
-      password: "{{ vault_immich_valkey_password }}"
-      keypattern: "immich_bull* immich_channel*"
-      commands: "&* -@dangerous +@read +@write +@pubsub +select +auth +ping +info +eval +evalsha"
+    # Immich - Photo management (needs BullMQ job queue), entry from the role
+    - "{{ immich_valkey_acl }}"
 
     # Nextcloud - Simple caching
     - username: nextcloud

@@ -33,7 +33,8 @@ valkey_acl_users: []
 #   - username: immich
 #     password: "secretpassword"
 #     keypattern: "*"      # Keys this user can access
-#     commands: "+@all -@dangerous"  # Allowed commands
+#     # Required. Rules apply left to right: -@dangerous goes after the grants.
+#     commands: "+@read +@write -@dangerous +auth +ping +info"
 
 # Prometheus exporter (optional, via redis_exporter). Creates a dedicated
 # read-only ACL user for monitoring.

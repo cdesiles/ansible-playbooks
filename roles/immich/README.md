@@ -8,6 +8,13 @@ Variables: [defaults/main.yml](defaults/main.yml)
 
 The `podman`, `postgres`, `valkey`, and `nginx` roles must have been applied to the host first (they are shared services, intentionally not declared in `meta/main.yml` to keep immich deploys fast). Order them before `immich` in the playbook for fresh installs.
 
+The role ships its Valkey ACL entry as `immich_valkey_acl`. Register it with the shared instance by reference, not as a copy, so fixes to the role reach the host:
+
+```yaml
+valkey_acl_users:
+    - "{{ immich_valkey_acl }}"
+```
+
 ## External Libraries
 
 Mount host paths read-only into the server container via `immich_external_libraries`,
