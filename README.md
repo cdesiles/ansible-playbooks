@@ -34,6 +34,7 @@ This is a good playground to learn and I encourage you to adapt these roles to y
 | immich      | Photo management                                         |
 | jellyfin    | Media server                                             |
 | static-web  | Static website hosting                                   |
+| vikunja     | Tasks and projects (lists, kanban, CalDAV sync)          |
 | vpn         | WireGuard server                                         |
 
 And more.

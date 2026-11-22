@@ -1,0 +1,91 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: vikunja
+  labels:
+    app: vikunja
+  annotations:
+    # Map the rootless pod user onto the image's UID/GID: uploads stay owned by
+    # the host user, and the process is not root in the container.
+    io.podman.annotations.userns: "keep-id:uid={{ vikunja_container_uid }},gid={{ vikunja_container_gid }}"
+spec:
+  # Pod-level field: podman ignores it on a container, then defaults to Always.
+  restartPolicy: Never
+  containers:
+    # No livenessProbe: the image is FROM scratch, and podman runs httpGet and
+    # tcpSocket probes with curl/nc inside the container.
+    - name: vikunja
+      image: {{ vikunja_image }}:{{ vikunja_version }}
+      # USER 1000 alone would run with GID 0, a subgid on the host. Both fields
+      # are needed: podman turns a lone runAsGroup into user 0.
+      securityContext:
+        runAsUser: {{ vikunja_container_uid }}
+        runAsGroup: {{ vikunja_container_gid }}
+      ports:
+        - containerPort: 3456
+          hostPort: {{ vikunja_port }}
+          hostIP: 127.0.0.1
+      env:
+        - name: VIKUNJA_SERVICE_PUBLICURL
+          value: "{{ vikunja_public_url }}"
+        - name: VIKUNJA_SERVICE_SECRET
+          value: "{{ vikunja_service_secret }}"
+        - name: VIKUNJA_SERVICE_TIMEZONE
+          value: "{{ vikunja_timezone }}"
+        # Client IP from nginx's X-Forwarded-For (per-IP login rate limits, logs)
+        - name: VIKUNJA_SERVICE_IPEXTRACTIONMETHOD
+          value: xff
+{% if vikunja_trusted_proxies | length > 0 %}
+        - name: VIKUNJA_SERVICE_TRUSTEDPROXIES
+          value: "{{ vikunja_trusted_proxies }}"
+{% endif %}
+        - name: VIKUNJA_SERVICE_ENABLEREGISTRATION
+          value: "{{ vikunja_enable_registration | bool | lower }}"
+        - name: VIKUNJA_SERVICE_ENABLELINKSHARING
+          value: "{{ vikunja_enable_link_sharing | bool | lower }}"
+        - name: VIKUNJA_SERVICE_ENABLECALDAV
+          value: "{{ vikunja_enable_caldav | bool | lower }}"
+        - name: VIKUNJA_DATABASE_TYPE
+          value: postgres
+        - name: VIKUNJA_DATABASE_HOST
+          value: "{{ vikunja_postgres_host }}:{{ vikunja_postgres_port }}"
+        - name: VIKUNJA_DATABASE_DATABASE
+          value: "{{ vikunja_postgres_db_name }}"
+        - name: VIKUNJA_DATABASE_USER
+          value: "{{ vikunja_postgres_user }}"
+        - name: VIKUNJA_DATABASE_PASSWORD
+          value: "{{ vikunja_postgres_password }}"
+        - name: VIKUNJA_FILES_MAXSIZE
+          value: "{{ vikunja_files_max_size_mb }}MB"
+        - name: VIKUNJA_MAILER_ENABLED
+          value: "{{ vikunja_mailer_enabled | bool | lower }}"
+{% if vikunja_mailer_enabled %}
+        - name: VIKUNJA_MAILER_HOST
+          value: "{{ vikunja_mailer_host }}"
+        - name: VIKUNJA_MAILER_PORT
+          value: "{{ vikunja_mailer_port }}"
+        - name: VIKUNJA_MAILER_USERNAME
+          value: "{{ vikunja_mailer_username }}"
+        - name: VIKUNJA_MAILER_PASSWORD
+          value: "{{ vikunja_mailer_password }}"
+        - name: VIKUNJA_MAILER_FROMEMAIL
+          value: "{{ vikunja_mailer_from_email }}"
+{% endif %}
+      volumeMounts:
+        - name: localtime
+          mountPath: /etc/localtime
+          readOnly: true
+        - name: files
+          mountPath: /app/vikunja/files
+      restartPolicy: Never
+
+  volumes:
+    - name: localtime
+      hostPath:
+        path: /etc/localtime
+        type: File
+    - name: files
+      hostPath:
+        path: {{ vikunja_files_dir }}
+        type: Directory

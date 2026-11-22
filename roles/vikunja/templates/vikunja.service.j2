@@ -1,0 +1,21 @@
+[Unit]
+Description=Vikunja (tasks and projects)
+
+[Service]
+Type=notify
+NotifyAccess=all
+WorkingDirectory={{ podman_projects_dir | default('/opt/podman') }}/vikunja
+# The user manager cannot order itself after the system postgresql.service. Wait
+# for it here: Vikunja exits when its startup migrations cannot reach the
+# database. If postgres never comes up the unit fails and Restart= retries.
+ExecStartPre=/usr/bin/timeout 120 /usr/bin/bash -c 'until (echo > /dev/tcp/127.0.0.1/{{ vikunja_postgres_port }}) 2>/dev/null; do sleep 2; done'
+# --service-exit-code-propagation=any: a failed container fails the unit, so
+# Restart=on-failure applies. The default (none) exits 0 whatever happened.
+ExecStart=/usr/bin/podman kube play --replace --service-container=true --service-exit-code-propagation=any --no-pod-prefix --network=pasta:--map-host-loopback={{ podman_gw_gateway }} vikunja.yaml
+ExecStop=/usr/bin/podman kube down vikunja.yaml
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=180
+
+[Install]
+WantedBy=default.target

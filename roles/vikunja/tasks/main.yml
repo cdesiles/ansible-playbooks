@@ -1,0 +1,179 @@
+---
+- name: Validate required secrets are set
+  ansible.builtin.assert:
+    that:
+      - vikunja_postgres_password is defined
+      - vikunja_postgres_password | length >= 12
+      - vikunja_service_secret is defined
+      - vikunja_service_secret | length >= 32
+    fail_msg: |
+      vikunja_postgres_password is required (min 12 chars), and
+      vikunja_service_secret is required (min 32 chars, e.g. `openssl rand -hex 32`).
+      See roles/vikunja/defaults/main.yml for configuration instructions.
+    success_msg: "Secret validation passed"
+
+- name: Validate mailer settings
+  ansible.builtin.assert:
+    that:
+      - vikunja_mailer_host | length > 0
+      - vikunja_mailer_password is defined
+    fail_msg: |
+      vikunja_mailer_enabled requires vikunja_mailer_host and vikunja_mailer_password.
+      See roles/vikunja/defaults/main.yml for configuration instructions.
+    success_msg: "Mailer validation passed"
+  when: vikunja_mailer_enabled
+
+- name: Create PostgreSQL user for Vikunja
+  community.postgresql.postgresql_user:
+    name: "{{ vikunja_postgres_user }}"
+    password: "{{ vikunja_postgres_password }}"
+    state: present
+  no_log: true # the password would otherwise show up in task output
+  become: true
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
+
+- name: Create PostgreSQL database for Vikunja
+  community.postgresql.postgresql_db:
+    name: "{{ vikunja_postgres_db_name }}"
+    owner: "{{ vikunja_postgres_user }}"
+    state: present
+  become: true
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
+
+- name: Grant all privileges on database to Vikunja user
+  community.postgresql.postgresql_privs:
+    login_db: "{{ vikunja_postgres_db_name }}"
+    roles: "{{ vikunja_postgres_user }}"
+    type: database
+    privs: ALL
+    state: present
+  become: true
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
+
+- name: Ensure Vikunja user has no superuser privileges
+  community.postgresql.postgresql_user:
+    name: "{{ vikunja_postgres_user }}"
+    role_attr_flags: NOSUPERUSER,NOCREATEDB,NOCREATEROLE
+    state: present
+  become: true
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
+
+- name: Grant schema permissions to Vikunja user
+  community.postgresql.postgresql_privs:
+    login_db: "{{ vikunja_postgres_db_name }}"
+    roles: "{{ vikunja_postgres_user }}"
+    type: schema
+    objs: public
+    privs: CREATE,USAGE
+    state: present
+  become: true
+  become_user: "{{ postgres_admin_user | default('postgres') }}"
+
+- name: Create Vikunja project directory
+  ansible.builtin.file:
+    path: "{{ podman_projects_dir | default('/opt/podman') }}/vikunja"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+# Owned by the host user: the pod maps it onto vikunja_container_uid (keep-id).
+- name: Create Vikunja files directory
+  ansible.builtin.file:
+    path: "{{ vikunja_files_dir }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0750"
+
+- name: Get current Vikunja image ID
+  ansible.builtin.command: "podman image inspect --format {% raw %}{{.Id}}{% endraw %} {{ vikunja_image }}:{{ vikunja_version }}"
+  register: vikunja_image_before
+  failed_when: false # image may not exist yet on first deploy
+  changed_when: false
+  become: false
+  become_user: "{{ ansible_user }}"
+
+- name: Pull Vikunja container image
+  ansible.builtin.command: "podman pull --quiet {{ vikunja_image }}:{{ vikunja_version }}"
+  register: vikunja_pull
+  changed_when: vikunja_pull.stdout != vikunja_image_before.stdout
+  become: false
+  become_user: "{{ ansible_user }}"
+  notify: Restart Vikunja
+
+- name: Deploy Kubernetes YAML for Vikunja
+  ansible.builtin.template:
+    src: vikunja.yaml.j2
+    dest: "{{ podman_projects_dir | default('/opt/podman') }}/vikunja/vikunja.yaml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+  no_log: true # the manifest carries the database password and the service secret
+  notify: Restart Vikunja
+
+- name: Get home directory for {{ ansible_user }}
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ ansible_user }}"
+
+- name: Set user home directory fact
+  ansible.builtin.set_fact:
+    user_home_dir: "{{ ansible_facts['getent_passwd'][ansible_user][4] }}"
+
+- name: Create systemd user directory for Vikunja
+  ansible.builtin.file:
+    path: "{{ user_home_dir }}/.config/systemd/user"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Create systemd service for Vikunja (user scope)
+  ansible.builtin.template:
+    src: vikunja.service.j2
+    dest: "{{ user_home_dir }}/.config/systemd/user/vikunja.service"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  notify:
+    - Reload systemd user
+    - Restart Vikunja
+
+- name: Enable lingering for user {{ ansible_user }}
+  ansible.builtin.command: "loginctl enable-linger {{ ansible_user }}"
+  changed_when: false
+  when: ansible_user != 'root'
+
+- name: Enable and start Vikunja service (user scope)
+  ansible.builtin.systemd:
+    name: vikunja.service
+    enabled: true
+    state: started
+    scope: user
+    daemon_reload: true
+  become: false
+  become_user: "{{ ansible_user }}"
+
+- name: Provision TLS certificate for Vikunja
+  ansible.builtin.include_tasks: "{{ role_path }}/../nginx/tasks/certbot.yml"
+  vars:
+    certbot_hostname: "{{ vikunja_nginx_hostname }}"
+  when: vikunja_nginx_enabled and vikunja_nginx_letsencrypt
+
+- name: Deploy nginx vhost configuration for Vikunja
+  ansible.builtin.template:
+    src: nginx-vhost.conf.j2
+    dest: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/vikunja.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  when: vikunja_nginx_enabled
+  notify: Reload nginx
+
+- name: Remove nginx vhost configuration for Vikunja
+  ansible.builtin.file:
+    path: "{{ nginx_conf_dir | default('/etc/nginx/conf.d') }}/vikunja.conf"
+    state: absent
+  when: not vikunja_nginx_enabled
+  notify: Reload nginx

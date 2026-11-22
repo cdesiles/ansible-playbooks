@@ -1,0 +1,83 @@
+---
+# Vikunja container image: one binary serves the API and the frontend. Database
+# migrations run at every start: bump the tag deliberately, after a backup (see
+# the README).
+vikunja_image: docker.io/vikunja/vikunja
+vikunja_version: "2.8.0"
+
+# Network (host loopback port, consumed by nginx)
+vikunja_port: 3456
+
+# Database (shared PostgreSQL, one DB and one minimal-privilege user per service).
+# Containers reach the host's postgres through the pasta gateway (host loopback,
+# see pg_hba).
+vikunja_postgres_db_name: vikunja
+vikunja_postgres_user: vikunja
+vikunja_postgres_host: "{{ podman_gw_gateway }}"
+vikunja_postgres_port: 5432
+# vikunja_postgres_password: ""  # Intentionally undefined - role will fail if not set (min 12 chars)
+
+# Signs session and link-share tokens (REQUIRED, min 32 chars; the role fails if
+# unset). Generate with: openssl rand -hex 32. Changing it ends every session.
+# vikunja_service_secret: ""  # Intentionally undefined - role will fail if not set
+
+# Public origin: links in emails, CORS, CalDAV discovery
+vikunja_public_url: "https://{{ vikunja_nginx_hostname }}/"
+
+# Server time zone, also the default for new accounts (tz database name)
+vikunja_timezone: UTC
+
+# Accounts are created with the CLI (see the README). Self-registration lets
+# anyone who reaches the hostname create one.
+vikunja_enable_registration: false
+
+# Public share links on projects
+vikunja_enable_link_sharing: true
+
+# CalDAV endpoint (/dav) for task apps; accepts HTTP basic auth
+vikunja_enable_caldav: true
+
+# Attachments, project backgrounds and uploaded avatars
+vikunja_files_dir: "{{ podman_projects_dir | default('/opt/podman') }}/vikunja/files"
+# Upload size limit in MB, applied by Vikunja and by the vhost
+vikunja_files_max_size_mb: 20
+
+# The image runs as UID 1000 with no group. Rootless podman maps the pod user
+# onto UID/GID 1000 so the container can write the host-owned files directory.
+vikunja_container_uid: 1000
+vikunja_container_gid: 1000
+
+# X-Forwarded-For is trusted from loopback, link-local and private addresses.
+# Extra proxy ranges, comma-separated CIDRs (see the README's Troubleshooting).
+vikunja_trusted_proxies: ""
+
+# SMTP (task reminders, password resets). Disabled: accounts are active right
+# away and passwords are reset with the CLI.
+vikunja_mailer_enabled: false
+vikunja_mailer_host: ""
+vikunja_mailer_port: 587
+vikunja_mailer_username: ""
+# vikunja_mailer_password: ""  # Required when vikunja_mailer_enabled
+vikunja_mailer_from_email: "vikunja@{{ vikunja_nginx_hostname }}"
+
+# Backup manifest - uploaded files. The `postgres: all` job in the inventory
+# dumps the database; restore both from the same night.
+vikunja_backup_paths:
+  - "{{ vikunja_files_dir }}"
+
+# Nginx reverse proxy configuration
+vikunja_nginx_enabled: false
+vikunja_nginx_hostname: tasks.nas.local
+# Let's Encrypt (certbot) requires a publicly-resolvable hostname. Internal
+# names (e.g. *.nas.local) cannot get a public cert: leave this false to use
+# the shared self-signed cert (nginx_default_ssl_cert). Set true once a public
+# DNS record points at the host.
+vikunja_nginx_letsencrypt: false
+vikunja_nginx_ssl_certificate: >-
+  {{ vikunja_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ vikunja_nginx_hostname ~ '/fullchain.pem',
+     nginx_default_ssl_cert) }}
+vikunja_nginx_ssl_certificate_key: >-
+  {{ vikunja_nginx_letsencrypt | ternary(
+     '/etc/letsencrypt/live/' ~ vikunja_nginx_hostname ~ '/privkey.pem',
+     nginx_default_ssl_key) }}
